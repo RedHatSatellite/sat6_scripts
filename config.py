@@ -1,3 +1,4 @@
+""" Config """
 
 # Satellite 6 URL
 URL = "https://sat6.home.gatwards.org"
@@ -10,4 +11,3 @@ SSL_VERIFY = False
 
 # Location of the log file
 LOGFILE = "/var/log/satellite/custom.log"
-
