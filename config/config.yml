@@ -1,7 +1,7 @@
 satellite:
-  url: https://carlbsv003.defcen.gov.au
+  url: https://sat62.example.org
   username: svc-api
-  password: AP1u$3r
+  password: APIpa$$w0rd
 
 logging:
   dir: /var/log/satellite
