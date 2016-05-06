@@ -1,7 +1,7 @@
 #!/usr/bin/python
 """Functions common to various Satellite 6 scripts"""
 
-import sys, os, time, yaml
+import sys, os, time, yaml, datetime, argparse
 import logging
 
 try:
@@ -64,6 +64,14 @@ def post_json(location, json_data):
         verify=True,
         headers=POST_HEADERS)
     return result.json()
+
+
+def valid_date(s):
+    try:
+        return datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        msg = "Not a valid date: '{0}'.".format(s)
+        raise argparse.ArgumentTypeError(msg)
 
 
 def get_org_id(org_name):
