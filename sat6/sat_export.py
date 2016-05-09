@@ -6,7 +6,9 @@ NOTE:  This file is managed by the STASH git repository. Any modifications to
        this file must be made in the source repository and then deployed.
 """
 
-import sys, argparse, datetime
+import sys, argparse, datetime, os, shutil
+import glob, fnmatch, subprocess, tarfile
+import simplejson as json
 from time import sleep
 import helpers
 
@@ -41,6 +43,116 @@ def get_cv(org_id):
         return cv_result['id']
 
 
+# Promote a content view version
+def export_cv(dov_ver, last_export):
+    """
+    Export Content View
+    Takes the content view version and a start time (API 'since' value)
+    """
+
+    msg = "Exporting DOV version " + str(dov_ver) + " from start date " + last_export
+    helpers.log_msg(msg, 'INFO')
+
+    # /katello/api/content_view_versions/:id/export
+    try:
+        task_id = helpers.post_json(
+            helpers.KATELLO_API + "content_view_versions/" + str(dov_ver) + "/export/", \
+                json.dumps(
+                {
+                    "since": last_export,
+                }
+                ))["id"]
+    except:
+        msg = "Unable to start export - Export already in progress"
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
+
+    # Trap some other error conditions
+    if "Required lock is already taken" in str(task_id):
+        msg = "Unable to start export - Sync in progress"
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
+
+    msg = "Export started, task_id = " + str(task_id)
+    helpers.log_msg(msg, 'DEBUG')
+
+    return str(task_id)
+
+
+def check_running_tasks():
+    """
+    Check for any currently running Sync or Export tasks
+    Exits script if any Synchronize or Export tasks are found in a running state.
+    """
+    tasks = helpers.get_json(
+        helpers.FOREMAN_API + "tasks/")
+    
+    # From the list of tasks, look for any running export or sync jobs.
+    # If e have any we exit, as we can't export in this state.
+    for task_result in tasks['results']:
+        if task_result['state'] == 'running':
+            if task_result['humanized']['action'] == 'Export':
+                msg = "Unable to export - an Export task is already running"
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(-1)
+            if task_result['humanized']['action'] == 'Synchronize':
+                msg = "Unable to export - a Sync task is currently running"
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(-1)
+        
+
+def locate(pattern, root=os.curdir):
+    for path, dirs, files in os.walk(os.path.abspath(root)):
+        for filename in fnmatch.filter(files, pattern):
+            yield os.path.join(path, filename)
+
+
+def do_gpg_check(export_dir):
+    """
+    Find and GPG Check all RPM files
+    """
+    export_path = helpers.EXPORTDIR + "/" + export_dir
+    msg = "Checking GPG integrity of RPMs in " + export_path
+    helpers.log_msg(msg, 'INFO')
+    print msg
+
+    badrpms = []
+    os.chdir(export_path)
+    for rpm in locate("*.rpm"):
+        return_code = subprocess.call("rpm -K " + rpm, shell=True, stdout=open(os.devnull, 'wb'))
+
+        # A non-zero return code indicates a GPG check failure.
+        if return_code != 0:
+            # For display purposes, strip the first 6 directory elements
+            rpmnew = os.path.join(*(rpm.split(os.path.sep)[6:]))
+            badrpms.append(rpmnew)
+
+    # If we have any bad ones we need to fail the export.
+    if len(badrpms) != 0:
+        msg = "The following RPM's failed the GPG check.."
+        helpers.log_msg(msg, 'ERROR')
+        for badone in badrpms:
+            msg = badone
+            helpers.log_msg(msg, 'ERROR')
+        msg = "------ Export Aborted ------"
+        helpers.log_msg(msg, 'ERROR')
+#        sys.exit(-1)
+  
+
+def create_tar(export_dir):
+    """
+    Create a TAR of the content we have exported
+    """
+    export_path = helpers.EXPORTDIR + "/" + export_dir
+    msg = "Creating TAR file"
+    helpers.log_msg(msg, 'INFO')
+    print msg
+
+    os.chdir(export_path)
+    with tarfile.open(helpers.EXPORTDIR + "/content_export" + '.tar', 'w') as archive:
+        archive.add(os.curdir, recursive=True)
+
+
 def write_timestamp(start_time):
     """
     Append the start timestamp to our export record
@@ -62,7 +174,9 @@ def read_timestamp():
 
 
 def main():
-    """Main Routine"""
+    """
+    Main Routine
+    """
     # Log the fact we are starting
     msg = "------------- Content export started by ..user.. ----------------"
     helpers.log_msg(msg, 'INFO')
@@ -89,8 +203,8 @@ def main():
     start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
     print "START: " + start_time
 
-    # Get the last export date. If we're exporting all, this isn't relevant.
-    # If we are given a start date, use that, otherwise we need to get the last date from file.
+    # Get the last export date. If we're exporting all, this isn't relevant
+    # If we are given a start date, use that, otherwise we need to get the last date from file
     if not args.all:
         if not since:
             last_export = read_timestamp()
@@ -99,22 +213,53 @@ def main():
                 sys.exit(-1)
         else:
             last_export = str(since)
-
+     
         # We have our timestamp so we can kick of an incremental export
         print "Incremental export of content synchronised after " + last_export
     else:
         print "Full export of content"
 
+    # TODO 
+    # Remove any previous exported content
+#    os.chdir(helpers.EXPORTDIR)
+#    shutil.rmtree()
 
     # Get the version of the CV (Default Org View) to export
     dov_ver = get_cv(org_id)
-    print "DOV ver = " + str(dov_ver)
+
+    # Check if there are any currently running tasks that will conflict with an export
+    check_running_tasks()
+
+    # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
+    export_id = export_cv(dov_ver, last_export)
+
+    # Now we need to wait for the export to complete
+    helpers.wait_for_task(export_id)
+
+    # Check if the export completed OK. If not we exit the script.
+    tinfo = helpers.get_task_status(export_id)
+    if tinfo['state'] != 'running' and tinfo['result'] == 'success':
+        msg = "Content View Export OK"
+        helpers.log_msg(msg, 'INFO')
+        print msg
+    else:
+        msg = "Content View Export FAILED"
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
+
+    # Now we need to process the on-disk export data
+    # Find the name of our export dir. This ASSUMES that the export dir is the ONLY dir.
+    sat_export_dir = os.listdir(helpers.EXPORTDIR)
+    export_dir = sat_export_dir[0]
+    
+    # Run GPG Checks on the exported RPMs
+    do_gpg_check(export_dir)
+
+    # Add our exported data to a tarfile
+    create_tar(export_dir)
 
 
-    # Now we have a CV ID we can run the export.
-
-
-    # We're done. Write the start timestamp to file for next time.
+    # We're done. Write the start timestamp to file for next time
 #    write_timestamp(start_time)
 
 

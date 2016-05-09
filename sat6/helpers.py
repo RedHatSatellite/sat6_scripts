@@ -3,6 +3,8 @@
 
 import sys, os, time, yaml, datetime, argparse
 import logging
+from time import sleep
+import simplejson as json
 
 try:
     import requests
@@ -18,6 +20,7 @@ URL = config["satellite"]["url"]
 USERNAME = config["satellite"]["username"]
 PASSWORD = config["satellite"]["password"]
 LOGDIR = config["logging"]["dir"]
+EXPORTDIR = config["export"]["dir"]
 DEBUG = config["logging"]["debug"]
 
 
@@ -91,6 +94,33 @@ def get_org_id(org_name):
         log_msg(msg, 'DEBUG')
 
     return org_id
+
+
+def wait_for_task(task_id):
+    """Wait for the given task ID to complete"""
+    msg = "Waiting for task " + str(task_id) + " to complete..."
+    print msg
+    log_msg(msg, 'INFO')
+    while True:
+        info = get_json(FOREMAN_API + "tasks/" + str(task_id))
+        if info['state'] == 'paused' and info['result'] == 'error':
+            msg = "Error with Content View Update " + str(task_id)
+            log_msg(msg, 'ERROR')
+            break
+        if info['pending'] != 1:
+            break
+        sleep(30)
+
+
+def get_task_status(task_id):
+    """Check of the status of the given task ID"""
+    info = get_json(FOREMAN_API + "tasks/" + str(task_id))
+    if info['state'] != 'running':
+        error_info = info['humanized']['errors']
+        for error_detail in error_info:
+            msg = error_detail
+            log_message(msg, 'ERROR')
+    return info
 
 
 # Get details about Content Views and versions
@@ -170,7 +200,10 @@ def log_msg(msg, level):
     if level == 'DEBUG':
         if DEBUG:
             logging.debug(msg)
-            print msg
+            print "DEBUG: " + msg
+    elif level == 'ERROR':
+        logging.error(msg)
+        print "ERROR: " + msg 
     # Otherwise if we ARE in debug, write everything to the log AND stdout
     else:
         logging.info(msg)
