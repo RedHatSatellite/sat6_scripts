@@ -7,10 +7,11 @@ NOTE:  This file is managed by the STASH git repository. Any modifications to
 """
 
 import sys, argparse, datetime, os, shutil
-import glob, fnmatch, subprocess, tarfile
+import fnmatch, subprocess, tarfile
 import simplejson as json
-from time import sleep
+#from time import sleep
 import helpers
+from helpers import bcolors
 
 # Get details about Content Views and versions
 def get_cv(org_id):
@@ -23,8 +24,6 @@ def get_cv(org_id):
     # Query API to get all content views for our org
     cvs = helpers.get_json(
         helpers.KATELLO_API + "organizations/" + str(org_id) + "/content_views/")
-    ver_list = {}
-    ver_descr = {}
     for cv_result in cvs['results']:
         if cv_result['name'] == "Default Organization View":
             msg = "CV Name: " + cv_result['name']
@@ -53,17 +52,16 @@ def export_cv(dov_ver, last_export):
     msg = "Exporting DOV version " + str(dov_ver) + " from start date " + last_export
     helpers.log_msg(msg, 'INFO')
 
-    # /katello/api/content_view_versions/:id/export
     try:
         task_id = helpers.post_json(
             helpers.KATELLO_API + "content_view_versions/" + str(dov_ver) + "/export/", \
                 json.dumps(
-                {
-                    "since": last_export,
-                }
+                    {
+                        "since": last_export,
+                    }
                 ))["id"]
     except:
-        msg = "Unable to start export - Export already in progress"
+        msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
         sys.exit(-1)
 
@@ -86,7 +84,7 @@ def check_running_tasks():
     """
     tasks = helpers.get_json(
         helpers.FOREMAN_API + "tasks/")
-    
+
     # From the list of tasks, look for any running export or sync jobs.
     # If e have any we exit, as we can't export in this state.
     for task_result in tasks['results']:
@@ -99,9 +97,10 @@ def check_running_tasks():
                 msg = "Unable to export - a Sync task is currently running"
                 helpers.log_msg(msg, 'ERROR')
                 sys.exit(-1)
-        
+
 
 def locate(pattern, root=os.curdir):
+    """Provides simple 'locate' functionality for file search"""
     for path, dirs, files in os.walk(os.path.abspath(root)):
         for filename in fnmatch.filter(files, pattern):
             yield os.path.join(path, filename)
@@ -137,38 +136,80 @@ def do_gpg_check(export_dir):
         msg = "------ Export Aborted ------"
         helpers.log_msg(msg, 'ERROR')
 #        sys.exit(-1)
-  
+    else:
+        print bcolors.GREEN + "GPG Check - Pass" + bcolors.ENDC
+
 
 def create_tar(export_dir):
     """
     Create a TAR of the content we have exported
+    Creates a single tar, then splits into DVD size chunks and calculates
+    sha256sum for each chunk.
     """
     export_path = helpers.EXPORTDIR + "/" + export_dir
-    msg = "Creating TAR file"
+    today = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+    msg = "Creating TAR files"
     helpers.log_msg(msg, 'INFO')
     print msg
 
     os.chdir(export_path)
-    with tarfile.open(helpers.EXPORTDIR + "/content_export" + '.tar', 'w') as archive:
+    full_tarfile = helpers.EXPORTDIR + '/sat6_export_' + today
+    short_tarfile = 'sat6_export_' + today
+    with tarfile.open(full_tarfile, 'w') as archive:
         archive.add(os.curdir, recursive=True)
+
+    # When we've tar'd up the content we can delete the export dir.
+    os.chdir(helpers.EXPORTDIR)
+    shutil.rmtree(export_path)
+
+    # Split the resulting tar into DVD size chunks & remove the original.
+    os.system("split -d -b 4200M " + full_tarfile + " " + full_tarfile + "_")
+    os.remove(full_tarfile)
+
+    # Temporary until pythonic method is done
+    msg = "Calculating Checksums"
+    helpers.log_msg(msg, 'INFO')
+    print msg
+    os.system('sha256sum ' + short_tarfile + '_* > ' + short_tarfile + '.sha256')
+
+#    helpers.sha256sum()
+
+    # Write the expand script for the disconnected system
+    f_handle = open('sat6_export_expand.sh', 'w')
+    f_handle('#!/bin/bash\n')
+    f_handle('if [ -f ' + short_tarfile + '_00 ]; then\n')
+    f_handle('  sha256sum -c ' + short_tarfile + '.sha256\n')
+    f_handle('  if [ $? -eq 0 ]; then\n')
+    f_handle('    cat ' + short_tarfile + '_* | tar xzpf -\n')
+    f_handle('  else\n')
+    f_handle('    echo ' + short_tarfile + ' checksum failure\n')
+    f_handle('  fi\n')
+    f_handle('fi\n')
+    f_handle.close()
 
 
 def write_timestamp(start_time):
     """
     Append the start timestamp to our export record
     """
-    f = open('../var/exports.dat','a')
-    f.write(start_time + "\n")
-    f.close()
+    f_handle = open('../var/exports.dat', 'a')
+    f_handle.write(start_time + "\n")
+    f_handle.close()
 
 
 def read_timestamp():
     """
     Read the last successful export timestamp from our export record file
     """
-    with open('../var/exports.dat','r') as f:
+    if not os.path.exists('../var/exports.dat'):
+        if not os.path.exists('../var'):
+            os.makedirs('../var')
         last = None
-        for line in (line for line in f if line.rstrip('\n')):
+        return last
+
+    with open('../var/exports.dat', 'r') as f_handle:
+        last = None
+        for line in (line for line in f_handle if line.rstrip('\n')):
             last = line.rstrip('\n')
     return last
 
@@ -205,21 +246,30 @@ def main():
 
     # Get the last export date. If we're exporting all, this isn't relevant
     # If we are given a start date, use that, otherwise we need to get the last date from file
-    if not args.all:
+    # If there is no last export, we'll set an arbitrary start date to grab everything (2000-01-01)
+    last_export = read_timestamp()
+    if args.all:
+        print "Performing full content export"
+        last_export = '2000-01-01 00:00:00'
+    else:
         if not since:
-            last_export = read_timestamp()
             if args.last:
-                print "Last successful export was started at " + last_export
+                if last_export:
+                    print "Last successful export was started at " + last_export
+                else:
+                    print "Export has never been performed"
                 sys.exit(-1)
+            if not last_export:
+                print "No previous export recorded, performing full content export"
+                last_export = '2000-01-01 00:00:00'
         else:
             last_export = str(since)
-     
-        # We have our timestamp so we can kick of an incremental export
-        print "Incremental export of content synchronised after " + last_export
-    else:
-        print "Full export of content"
 
-    # TODO 
+            # We have our timestamp so we can kick of an incremental export
+            print "Incremental export of content synchronised after " + last_export
+
+
+    # TODO
     # Remove any previous exported content
 #    os.chdir(helpers.EXPORTDIR)
 #    shutil.rmtree()
@@ -241,7 +291,7 @@ def main():
     if tinfo['state'] != 'running' and tinfo['result'] == 'success':
         msg = "Content View Export OK"
         helpers.log_msg(msg, 'INFO')
-        print msg
+        print bcolors.GREEN + msg + bcolors.ENDC
     else:
         msg = "Content View Export FAILED"
         helpers.log_msg(msg, 'ERROR')
@@ -249,20 +299,25 @@ def main():
 
     # Now we need to process the on-disk export data
     # Find the name of our export dir. This ASSUMES that the export dir is the ONLY dir.
-    sat_export_dir = os.listdir(helpers.EXPORTDIR)
+    sat_export_dir = os.walk(helpers.EXPORTDIR).next()[1]
     export_dir = sat_export_dir[0]
-    
+
     # Run GPG Checks on the exported RPMs
     do_gpg_check(export_dir)
 
     # Add our exported data to a tarfile
     create_tar(export_dir)
 
-
     # We're done. Write the start timestamp to file for next time
 #    write_timestamp(start_time)
+
+    # And we're done!
+    print bcolors.GREEN + "Export complete.\n" + bcolors.ENDC
+    print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
+        'to your disconnected Satellite system content import location. Once the \n' \
+        'content is transferred, please run ' + bcolors.BOLD + 'sat6_export_expand.sh' \
+        + bcolors.ENDC + 'to extract it.'
 
 
 if __name__ == "__main__":
     main()
-

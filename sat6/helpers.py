@@ -4,7 +4,8 @@
 import sys, os, time, yaml, datetime, argparse
 import logging
 from time import sleep
-import simplejson as json
+from hashlib import sha256
+#import simplejson as json
 
 try:
     import requests
@@ -69,13 +70,38 @@ def post_json(location, json_data):
     return result.json()
 
 
-def valid_date(s):
+class bcolors:
+    """
+    Colour Strings for message display
+    """
+    HEADER = '\033[95m'
+    BLUE = '\033[94m'
+    GREEN = '\033[92m'
+    WARNING = '\033[93m'
+    ERROR = '\033[91m'
+    ENDC = '\033[0m'
+    BOLD = '\033[1m'
+    UNDERLINE = '\033[4m'
+
+
+def valid_date(indate):
+    """
+    Check date format is valid
+    """
     try:
-        return datetime.datetime.strptime(s, "%Y-%m-%d %H:%M:%S")
+        return datetime.datetime.strptime(indate, "%Y-%m-%d %H:%M:%S")
     except ValueError:
-        msg = "Not a valid date: '{0}'.".format(s)
+        msg = "Not a valid date: '{0}'.".format(indate)
         raise argparse.ArgumentTypeError(msg)
 
+
+def sha256sum(filename):
+    """
+    Perform sha256sum of given file
+    """
+    f_name = open(filename, 'rb')
+    shasum = (sha256(f_name.read()).hexdigest(), filename)
+    return shasum
 
 def get_org_id(org_name):
     """
@@ -85,7 +111,8 @@ def get_org_id(org_name):
     org = get_json(SAT_API + "organizations/" + org_name)
     # If the requested organization is not found, exit
     if org.get('error', None):
-        print "Organization '%s' does not exist." % org_name
+        msg = "Organization '%s' does not exist." % org_name
+        log_msg(msg, 'ERROR')
         sys.exit(-1)
     else:
         # Our organization exists, so let's grab the ID and write some debug
@@ -119,7 +146,7 @@ def get_task_status(task_id):
         error_info = info['humanized']['errors']
         for error_detail in error_info:
             msg = error_detail
-            log_message(msg, 'ERROR')
+            log_msg(msg, 'ERROR')
     return info
 
 
@@ -200,10 +227,10 @@ def log_msg(msg, level):
     if level == 'DEBUG':
         if DEBUG:
             logging.debug(msg)
-            print "DEBUG: " + msg
+            print bcolors.BOLD + "DEBUG: " + msg + bcolors.ENDC
     elif level == 'ERROR':
         logging.error(msg)
-        print "ERROR: " + msg 
+        print bcolors.ERROR + "ERROR: " + msg + bcolors.ENDC
     # Otherwise if we ARE in debug, write everything to the log AND stdout
     else:
         logging.info(msg)

@@ -1,7 +1,7 @@
 satellite:
   url: https://sat62.example.org
   username: svc-api
-  password: pa$$w0rd
+  password: AP1Us3r
 
 logging:
   dir: /var/log/satellite
