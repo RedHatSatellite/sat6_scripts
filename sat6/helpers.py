@@ -103,6 +103,19 @@ def sha256sum(filename):
     shasum = (sha256(f_name.read()).hexdigest(), filename)
     return shasum
 
+
+def disk_usage(path):
+    """Return disk usage associated with path, in percent."""
+    st = os.statvfs(path)
+    total = (st.f_blocks * st.f_frsize)
+    used = (st.f_blocks - st.f_bfree) * st.f_frsize
+    try:
+        percent = ret = (float(used) / total) * 100
+    except ZeroDivisionError:
+        percent = 0
+    return round(percent, 1)
+
+
 def get_org_id(org_name):
     """
     Return the Organisation ID for a given Org Name

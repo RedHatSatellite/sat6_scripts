@@ -9,7 +9,7 @@ NOTE:  This file is managed by the STASH git repository. Any modifications to
 import sys, argparse, datetime, os, shutil
 import fnmatch, subprocess, tarfile
 import simplejson as json
-#from time import sleep
+from glob import glob
 import helpers
 from helpers import bcolors
 
@@ -97,6 +97,27 @@ def check_running_tasks():
                 msg = "Unable to export - a Sync task is currently running"
                 helpers.log_msg(msg, 'ERROR')
                 sys.exit(-1)
+        if task_result['state'] == 'paused':
+            if task_result['humanized']['action'] == 'Export':
+                msg = "Unable to export - an Export task is paused. Please resolve this issue first"
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(-1)
+            if task_result['humanized']['action'] == 'Synchronize':
+                msg = "Unable to export - a Sync task is paused. Resume any paused sync tasks."
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(-1)
+
+
+def check_disk_space(export_type):
+    """
+    Check the disk usage of the pulp partition
+    For a full export we need at least 50% free, as we spool to /var/lib/pulp.
+    """
+    pulp_used = str(helpers.disk_usage('/var/lib/pulp'))
+    if export_type == 'full' and pulp_used > '50':
+        msg = "Insufficient space in /var/lib/pulp for a full export. >50% free space is required."
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
 
 
 def locate(pattern, root=os.curdir):
@@ -135,7 +156,7 @@ def do_gpg_check(export_dir):
             helpers.log_msg(msg, 'ERROR')
         msg = "------ Export Aborted ------"
         helpers.log_msg(msg, 'ERROR')
-#        sys.exit(-1)
+        sys.exit(-1)
     else:
         print bcolors.GREEN + "GPG Check - Pass" + bcolors.ENDC
 
@@ -157,6 +178,16 @@ def create_tar(export_dir):
     short_tarfile = 'sat6_export_' + today
     with tarfile.open(full_tarfile, 'w') as archive:
         archive.add(os.curdir, recursive=True)
+
+    # Get a list of all the RPM content we are exporting
+    result = [y for x in os.walk(export_path) for y in glob(os.path.join(x[0], '*.rpm'))]
+    if result:
+        f_handle = open(helpers.LOGDIR + '/export_' + today + '.log', 'a+')
+        f_handle.write('-------------------\n')
+        for rpm in result:
+            m_rpm = os.path.join(*(rpm.split(os.path.sep)[6:]))
+            f_handle.write(m_rpm + '\n')
+        f_handle.close
 
     # When we've tar'd up the content we can delete the export dir.
     os.chdir(helpers.EXPORTDIR)
@@ -192,7 +223,7 @@ def write_timestamp(start_time):
     """
     Append the start timestamp to our export record
     """
-    f_handle = open('../var/exports.dat', 'a')
+    f_handle = open('../var/exports.dat', 'a+')
     f_handle.write(start_time + "\n")
     f_handle.close()
 
@@ -232,10 +263,12 @@ def main():
     parser.add_argument('-l', '--last', help='Display time of last export', required=False, action="store_true")
     args = parser.parse_args()
 
-
     # Set our script variables from the input args
     org_name = args.org
     since = args.since
+
+    # Record where we are running from
+    script_dir = str(os.getcwd())
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
@@ -248,9 +281,11 @@ def main():
     # If we are given a start date, use that, otherwise we need to get the last date from file
     # If there is no last export, we'll set an arbitrary start date to grab everything (2000-01-01)
     last_export = read_timestamp()
+    export_type = 'incr'
     if args.all:
         print "Performing full content export"
         last_export = '2000-01-01 00:00:00'
+        export_type = 'full'
     else:
         if not since:
             if args.last:
@@ -262,12 +297,15 @@ def main():
             if not last_export:
                 print "No previous export recorded, performing full content export"
                 last_export = '2000-01-01 00:00:00'
+                export_type = 'full'
         else:
             last_export = str(since)
 
             # We have our timestamp so we can kick of an incremental export
             print "Incremental export of content synchronised after " + last_export
 
+    # Check the available space in /var/lib/pulp
+    check_disk_space(export_type)
 
     # TODO
     # Remove any previous exported content
@@ -309,14 +347,15 @@ def main():
     create_tar(export_dir)
 
     # We're done. Write the start timestamp to file for next time
-#    write_timestamp(start_time)
+    os.chdir(script_dir)
+    write_timestamp(start_time)
 
     # And we're done!
     print bcolors.GREEN + "Export complete.\n" + bcolors.ENDC
     print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
         'to your disconnected Satellite system content import location. Once the \n' \
         'content is transferred, please run ' + bcolors.BOLD + 'sat6_export_expand.sh' \
-        + bcolors.ENDC + 'to extract it.'
+        + bcolors.ENDC + ' to extract it.'
 
 
 if __name__ == "__main__":
