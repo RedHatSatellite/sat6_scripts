@@ -1,9 +1,13 @@
 #!/usr/bin/python
+#title           :sat_export.py
+#description     :Exports Satellite 6 Default Content View for disconnected environments
+#URL             :https://github.com/ggatward/sat6_scripts
+#author          :Geoff Gatward <ggatward@redhat.com>
+#notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
+#license         :GPLv3
+#==============================================================================
 """
 Exports Default Org Content View.
-
-NOTE:  This file is managed by the STASH git repository. Any modifications to
-       this file must be made in the source repository and then deployed.
 """
 
 import sys, argparse, datetime, os, shutil
@@ -11,7 +15,6 @@ import fnmatch, subprocess, tarfile
 import simplejson as json
 from glob import glob
 import helpers
-from helpers import bcolors
 
 # Get details about Content Views and versions
 def get_cv(org_id):
@@ -60,7 +63,7 @@ def export_cv(dov_ver, last_export):
                         "since": last_export,
                     }
                 ))["id"]
-    except:
+    except: # pylint: disable-msg=W0702
         msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
         sys.exit(-1)
@@ -107,6 +110,8 @@ def check_running_tasks():
                 helpers.log_msg(msg, 'ERROR')
                 sys.exit(-1)
 
+        # TODO: Check for other incomplete-sync status tasks.
+        # All need to be complete to ensure consistent sync
 
 def check_disk_space(export_type):
     """
@@ -122,6 +127,7 @@ def check_disk_space(export_type):
 
 def locate(pattern, root=os.curdir):
     """Provides simple 'locate' functionality for file search"""
+    # pylint: disable=unused-variable
     for path, dirs, files in os.walk(os.path.abspath(root)):
         for filename in fnmatch.filter(files, pattern):
             yield os.path.join(path, filename)
@@ -160,7 +166,7 @@ def do_gpg_check(export_dir):
     else:
         msg = "GPG check completed successfully"
         helpers.log_msg(msg, 'INFO')
-        print bcolors.GREEN + "GPG Check - Pass" + bcolors.ENDC
+        print helpers.GREEN + "GPG Check - Pass" + helpers.ENDC
 
 
 def create_tar(export_dir):
@@ -189,7 +195,7 @@ def create_tar(export_dir):
         for rpm in result:
             m_rpm = os.path.join(*(rpm.split(os.path.sep)[6:]))
             f_handle.write(m_rpm + '\n')
-        f_handle.close
+        f_handle.close()
 
     # When we've tar'd up the content we can delete the export dir.
     os.chdir(helpers.EXPORTDIR)
@@ -254,6 +260,8 @@ def main():
     """
     Main Routine
     """
+    #pylint: disable-msg=R0914,R0915
+
     # Log the fact we are starting
     msg = "------------- Content export started by ..user.. ----------------"
     helpers.log_msg(msg, 'INFO')
@@ -261,11 +269,16 @@ def main():
     # Check for sane input
     parser = argparse.ArgumentParser(description='Performs Export of Default Content View.')
     group = parser.add_mutually_exclusive_group()
+    # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization', required=True)
-    group.add_argument('-a', '--all', help='Export ALL content', required=False, action="store_true")
-    group.add_argument('-i', '--incr', help='Incremental Export of content since last run', required=False, action="store_true")
-    group.add_argument('-s', '--since', help='Export content since YYYY-MM-DD HH:MM:SS', required=False, type=helpers.valid_date)
-    parser.add_argument('-l', '--last', help='Display time of last export', required=False, action="store_true")
+    group.add_argument('-a', '--all', help='Export ALL content', required=False,
+        action="store_true")
+    group.add_argument('-i', '--incr', help='Incremental Export of content since last run',
+        required=False, action="store_true")
+    group.add_argument('-s', '--since', help='Export content since YYYY-MM-DD HH:MM:SS',
+        required=False, type=helpers.valid_date)
+    parser.add_argument('-l', '--last', help='Display time of last export', required=False,
+        action="store_true")
     args = parser.parse_args()
 
     # Set our script variables from the input args
@@ -312,8 +325,7 @@ def main():
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)
 
-    # TODO
-    # Remove any previous exported content
+    # TODO: Remove any previous exported content
 #    os.chdir(helpers.EXPORTDIR)
 #    shutil.rmtree()
 
@@ -334,7 +346,7 @@ def main():
     if tinfo['state'] != 'running' and tinfo['result'] == 'success':
         msg = "Content View Export OK"
         helpers.log_msg(msg, 'INFO')
-        print bcolors.GREEN + msg + bcolors.ENDC
+        print helpers.GREEN + msg + helpers.ENDC
     else:
         msg = "Content View Export FAILED"
         helpers.log_msg(msg, 'ERROR')
@@ -356,11 +368,11 @@ def main():
     write_timestamp(start_time)
 
     # And we're done!
-    print bcolors.GREEN + "Export complete.\n" + bcolors.ENDC
+    print helpers.GREEN + "Export complete.\n" + helpers.ENDC
     print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
         'to your disconnected Satellite system content import location. Once the \n' \
-        'content is transferred, please run ' + bcolors.BOLD + 'sat6_export_expand.sh' \
-        + bcolors.ENDC + ' to extract it.'
+        'content is transferred, please run ' + helpers.BOLD + 'sat6_export_expand.sh' \
+        + helpers.ENDC + ' to extract it.'
 
 
 if __name__ == "__main__":

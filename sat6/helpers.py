@@ -1,4 +1,12 @@
 #!/usr/bin/python
+#title           :helpers.py
+#description     :Various helper routines for Satellite 6 scripts
+#URL             :https://github.com/ggatward/sat6_scripts
+#author          :Geoff Gatward <ggatward@redhat.com>
+#notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
+#license         :GPLv3
+#==============================================================================
+
 """Functions common to various Satellite 6 scripts"""
 
 import sys, os, time, yaml, datetime, argparse
@@ -14,15 +22,15 @@ except ImportError:
     sys.exit(-1)
 
 # Import the site-specific configs
-config = yaml.safe_load(open('../config/config.yml', 'r'))
+CONFIG = yaml.safe_load(open('../config/config.yml', 'r'))
 
 # Read in the config parameters
-URL = config["satellite"]["url"]
-USERNAME = config["satellite"]["username"]
-PASSWORD = config["satellite"]["password"]
-LOGDIR = config["logging"]["dir"]
-EXPORTDIR = config["export"]["dir"]
-DEBUG = config["logging"]["debug"]
+URL = CONFIG["satellite"]["url"]
+USERNAME = CONFIG["satellite"]["username"]
+PASSWORD = CONFIG["satellite"]["password"]
+LOGDIR = CONFIG["logging"]["dir"]
+EXPORTDIR = CONFIG["export"]["dir"]
+DEBUG = CONFIG["logging"]["debug"]
 
 
 # 'Global' Satellite 6 parameters
@@ -35,6 +43,15 @@ FOREMAN_API = "%s/foreman_tasks/api/" % URL
 # HTML Headers for all API POST calls
 POST_HEADERS = {'content-type': 'application/json'}
 
+# Define our global message colours
+HEADER = '\033[95m'
+BLUE = '\033[94m'
+GREEN = '\033[92m'
+WARNING = '\033[93m'
+ERROR = '\033[91m'
+ENDC = '\033[0m'
+BOLD = '\033[1m'
+UNDERLINE = '\033[4m'
 
 # Define the GET and POST methods
 def get_json(location):
@@ -70,20 +87,6 @@ def post_json(location, json_data):
     return result.json()
 
 
-class bcolors:
-    """
-    Colour Strings for message display
-    """
-    HEADER = '\033[95m'
-    BLUE = '\033[94m'
-    GREEN = '\033[92m'
-    WARNING = '\033[93m'
-    ERROR = '\033[91m'
-    ENDC = '\033[0m'
-    BOLD = '\033[1m'
-    UNDERLINE = '\033[4m'
-
-
 def valid_date(indate):
     """
     Check date format is valid
@@ -106,11 +109,11 @@ def sha256sum(filename):
 
 def disk_usage(path):
     """Return disk usage associated with path, in percent."""
-    st = os.statvfs(path)
-    total = (st.f_blocks * st.f_frsize)
-    used = (st.f_blocks - st.f_bfree) * st.f_frsize
+    stat = os.statvfs(path)
+    total = (stat.f_blocks * stat.f_frsize)
+    used = (stat.f_blocks - stat.f_bfree) * stat.f_frsize
     try:
-        percent = ret = (float(used) / total) * 100
+        percent = (float(used) / total) * 100
     except ZeroDivisionError:
         percent = 0
     return round(percent, 1)
@@ -240,10 +243,10 @@ def log_msg(msg, level):
     if level == 'DEBUG':
         if DEBUG:
             logging.debug(msg)
-            print bcolors.BOLD + "DEBUG: " + msg + bcolors.ENDC
+            print BOLD + "DEBUG: " + msg + ENDC
     elif level == 'ERROR':
         logging.error(msg)
-        print bcolors.ERROR + "ERROR: " + msg + bcolors.ENDC
+        print ERROR + "ERROR: " + msg + ENDC
     # Otherwise if we ARE in debug, write everything to the log AND stdout
     else:
         logging.info(msg)
