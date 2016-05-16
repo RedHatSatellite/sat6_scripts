@@ -158,6 +158,8 @@ def do_gpg_check(export_dir):
         helpers.log_msg(msg, 'ERROR')
         sys.exit(-1)
     else:
+        msg = "GPG check completed successfully"
+        helpers.log_msg(msg, 'INFO')
         print bcolors.GREEN + "GPG Check - Pass" + bcolors.ENDC
 
 
@@ -169,7 +171,7 @@ def create_tar(export_dir):
     """
     export_path = helpers.EXPORTDIR + "/" + export_dir
     today = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
-    msg = "Creating TAR files"
+    msg = "Creating TAR files..."
     helpers.log_msg(msg, 'INFO')
     print msg
 
@@ -194,11 +196,14 @@ def create_tar(export_dir):
     shutil.rmtree(export_path)
 
     # Split the resulting tar into DVD size chunks & remove the original.
+    msg = "Splitting TAR file..."
+    helpers.log_msg(msg, 'INFO')
+    print msg
     os.system("split -d -b 4200M " + full_tarfile + " " + full_tarfile + "_")
     os.remove(full_tarfile)
 
     # Temporary until pythonic method is done
-    msg = "Calculating Checksums"
+    msg = "Calculating Checksums..."
     helpers.log_msg(msg, 'INFO')
     print msg
     os.system('sha256sum ' + short_tarfile + '_* > ' + short_tarfile + '.sha256')
@@ -207,15 +212,15 @@ def create_tar(export_dir):
 
     # Write the expand script for the disconnected system
     f_handle = open('sat6_export_expand.sh', 'w')
-    f_handle('#!/bin/bash\n')
-    f_handle('if [ -f ' + short_tarfile + '_00 ]; then\n')
-    f_handle('  sha256sum -c ' + short_tarfile + '.sha256\n')
-    f_handle('  if [ $? -eq 0 ]; then\n')
-    f_handle('    cat ' + short_tarfile + '_* | tar xzpf -\n')
-    f_handle('  else\n')
-    f_handle('    echo ' + short_tarfile + ' checksum failure\n')
-    f_handle('  fi\n')
-    f_handle('fi\n')
+    f_handle.write('#!/bin/bash\n')
+    f_handle.write('if [ -f ' + short_tarfile + '_00 ]; then\n')
+    f_handle.write('  sha256sum -c ' + short_tarfile + '.sha256\n')
+    f_handle.write('  if [ $? -eq 0 ]; then\n')
+    f_handle.write('    cat ' + short_tarfile + '_* | tar xzpf -\n')
+    f_handle.write('  else\n')
+    f_handle.write('    echo ' + short_tarfile + ' checksum failure\n')
+    f_handle.write('  fi\n')
+    f_handle.write('fi\n')
     f_handle.close()
 
 
