@@ -37,7 +37,7 @@ def get_inputfiles(expdate):
     result = os.system('sha256sum -c ' + shafile)
 
     # Return code from sha256sum is 0 if all is fine.
-    if result != '0':
+    if result != 0:
         msg = "Import Aborted - Tarfile checksum verification failed"
         helpers.log_msg(msg, 'ERROR')
         sys.exit(-1)
@@ -46,8 +46,20 @@ def get_inputfiles(expdate):
     msg = "Tarfile checksum verification passed"
     helpers.log_msg(msg, 'DEBUG')
 
-
     return basename
+
+
+def extract_content(basename):
+    """
+    Extract the tar archive
+    """
+    os.chdir(helpers.IMPORTDIR)
+
+    # Extract the archives (Using OS call for this at the moment)
+    msg = "Extracting tarfiles"
+    helpers.log_msg(msg, 'INFO')
+    print msg
+    os.system('cat ' + basename + '_* | tar xpf -')
 
 
 
@@ -91,7 +103,7 @@ def main():
     basename = get_inputfiles(expdate)
 
     # Extract the input files
-
+    extract_content(basename)
 
     # GPG check the RPM content ?
 
