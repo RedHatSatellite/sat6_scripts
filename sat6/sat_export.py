@@ -110,8 +110,43 @@ def check_running_tasks():
                 helpers.log_msg(msg, 'ERROR')
                 sys.exit(-1)
 
-        # TODO: Check for other incomplete-sync status tasks.
-        # All need to be complete to ensure consistent sync
+    check_incomplete_sync()
+
+def check_incomplete_sync():
+    """
+    Check for any sync tasks that are in an Incomplete state.
+    These are not paused or locked, but are the orange 100% complete ones in the UI
+    """
+    repo_list = helpers.get_json(
+        helpers.KATELLO_API + "/content_view_versions")
+
+    # Extract the list of repo ids, then check the state of each one.
+    for repo in repo_list['results']:
+        for repo_id in repo['repositories']:
+            repo_status = helpers.get_json(
+                helpers.KATELLO_API + "/repositories/" + str(repo_id['id']))
+
+            if repo_status['content_type'] == 'yum':
+                if repo_status['last_sync']['state'] == 'stopped':
+                    if repo_status['last_sync']['result'] == 'warning':
+                        incomplete_sync = 1
+                        msg = "Repo ID " + str(repo_id['id']) + " Sync Incomplete"
+                        helpers.log_msg(msg, 'DEBUG')
+
+    # If we have detected incomplete sync tasks, ask the user if they want to export anyway.
+    # This isn't fatal, but *MAY* lead to inconsistent repositories on the dieconnected sat.
+    if incomplete_sync:
+        msg = "Incomplete sync jobs detected"
+        helpers.log_msg(msg, 'WARNING')
+        answer = helpers.query_yes_no("Continue with export?", "no")
+        if not answer:
+            msg = "Export Aborted"
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(-1)
+        else:
+            msg = "Export continued by user"
+            helpers.log_msg(msg, 'INFO')
+
 
 def check_disk_space(export_type):
     """
@@ -262,8 +297,16 @@ def main():
     """
     #pylint: disable-msg=R0914,R0915
 
+    if helpers.DISCONNECTED:
+        msg = "Export cannot be run on the disconnected Satellite host"
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
+
+    # Who is running this script?
+    runuser = helpers.who_is_running()
+
     # Log the fact we are starting
-    msg = "------------- Content export started by ..user.. ----------------"
+    msg = "------------- Content export started by " + runuser + " ----------------"
     helpers.log_msg(msg, 'INFO')
 
     # Check for sane input
@@ -334,6 +377,8 @@ def main():
 
     # Check if there are any currently running tasks that will conflict with an export
     check_running_tasks()
+
+    sys.exit(-1)
 
     # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
     export_id = export_cv(dov_ver, last_export)

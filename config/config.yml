@@ -2,6 +2,7 @@ satellite:
   url: https://sat62.example.org
   username: svc-api
   password: AP1Us3r
+  disconnected: False
 
 logging:
   dir: /var/log/satellite
@@ -9,3 +10,6 @@ logging:
 
 export:
   dir: /var/sat-export
+
+import:
+  dir: /var/sat-content

@@ -30,7 +30,9 @@ USERNAME = CONFIG["satellite"]["username"]
 PASSWORD = CONFIG["satellite"]["password"]
 LOGDIR = CONFIG["logging"]["dir"]
 EXPORTDIR = CONFIG["export"]["dir"]
+IMPORTDIR = CONFIG["import"]["dir"]
 DEBUG = CONFIG["logging"]["debug"]
+DISCONNECTED = CONFIG["satellite"]["disconnected"]
 
 
 # 'Global' Satellite 6 parameters
@@ -52,6 +54,17 @@ ERROR = '\033[91m'
 ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
+
+
+def who_is_running():
+    """ Return the OS user that is running the script """
+    # Who is running this script?
+    if os.environ.get('SUDO_USER'):
+        runuser = str(os.environ.get('SUDO_USER'))
+    else:
+        runuser = 'root'
+    return runuser
+
 
 # Define the GET and POST methods
 def get_json(location):
@@ -218,6 +231,41 @@ def watch_tasks(task_list, ref_list):
     # All tasks are complete if we get here.
     print "FINISHED"
 
+
+def query_yes_no(question, default="yes"):
+    """
+    Ask a yes/no question via raw_input() and return their answer.
+
+    'question' is a string that is presented to the user.
+    'default' is the presumed answer if the user just hits <Enter>.
+        It must be 'yes' (the default), 'no' or None (meaning
+        an answer is required of the user).
+
+    The 'answer' return value is True for 'yes' or False for 'no'.
+    """
+    valid = {"yes": True, "y": True, "ye": True,
+             "no": False, "n": False}
+    if default is None:
+        prompt = " [y/n] "
+    elif default == "yes":
+        prompt = " [Y/n] "
+    elif default == "no":
+        prompt = " [y/N] "
+    else:
+        raise ValueError("invalid default answer: '%s'" % default)
+
+    while True:
+        sys.stdout.write(question + prompt)
+        choice = raw_input().lower()
+        if default is not None and choice == '':
+            return valid[default]
+        elif choice in valid:
+            return valid[choice]
+        else:
+            sys.stdout.write("Please respond with 'yes' or 'no' "
+                             "(or 'y' or 'n').\n")
+
+
 #-----------------------
 # Configure logging
 if not os.path.exists(LOGDIR):
@@ -247,6 +295,10 @@ def log_msg(msg, level):
     elif level == 'ERROR':
         logging.error(msg)
         print ERROR + "ERROR: " + msg + ENDC
+    elif level == 'WARNING':
+        logging.warning(msg)
+        print WARNING + "WARNING: " + msg + ENDC
     # Otherwise if we ARE in debug, write everything to the log AND stdout
     else:
         logging.info(msg)
+
