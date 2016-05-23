@@ -46,23 +46,33 @@ def get_cv(org_id):
 
 
 # Promote a content view version
-def export_cv(dov_ver, last_export):
+def export_cv(dov_ver, last_export, export_type):
     """
     Export Content View
     Takes the content view version and a start time (API 'since' value)
     """
-
-    msg = "Exporting DOV version " + str(dov_ver) + " from start date " + last_export
+    if export_type == 'full':
+        msg = "Exporting complete DOV version " + str(dov_ver)
+    else:
+        msg = "Exporting DOV version " + str(dov_ver) + " from start date " + last_export
     helpers.log_msg(msg, 'INFO')
 
     try:
-        task_id = helpers.post_json(
-            helpers.KATELLO_API + "content_view_versions/" + str(dov_ver) + "/export/", \
-                json.dumps(
-                    {
-                        "since": last_export,
-                    }
-                ))["id"]
+        if export_type == 'full':
+            task_id = helpers.post_json(
+                helpers.KATELLO_API + "content_view_versions/" + str(dov_ver) + "/export", \
+                    json.dumps(
+                        {
+                        }
+                    ))["id"]
+        else:
+            task_id = helpers.post_json(
+                helpers.KATELLO_API + "content_view_versions/" + str(dov_ver) + "/export/", \
+                    json.dumps(
+                        {
+                            "since": last_export,
+                        }
+                    ))["id"]
     except: # pylint: disable-msg=W0702
         msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
@@ -112,6 +122,7 @@ def check_running_tasks():
 
     check_incomplete_sync()
 
+
 def check_incomplete_sync():
     """
     Check for any sync tasks that are in an Incomplete state.
@@ -121,6 +132,7 @@ def check_incomplete_sync():
         helpers.KATELLO_API + "/content_view_versions")
 
     # Extract the list of repo ids, then check the state of each one.
+    incomplete_sync = False
     for repo in repo_list['results']:
         for repo_id in repo['repositories']:
             repo_status = helpers.get_json(
@@ -129,7 +141,7 @@ def check_incomplete_sync():
             if repo_status['content_type'] == 'yum':
                 if repo_status['last_sync']['state'] == 'stopped':
                     if repo_status['last_sync']['result'] == 'warning':
-                        incomplete_sync = 1
+                        incomplete_sync = True
                         msg = "Repo ID " + str(repo_id['id']) + " Sync Incomplete"
                         helpers.log_msg(msg, 'DEBUG')
 
@@ -154,7 +166,7 @@ def check_disk_space(export_type):
     For a full export we need at least 50% free, as we spool to /var/lib/pulp.
     """
     pulp_used = str(helpers.disk_usage('/var/lib/pulp'))
-    if export_type == 'full' and pulp_used > '50':
+    if export_type == 'full' and int(float(pulp_used)) > 50:
         msg = "Insufficient space in /var/lib/pulp for a full export. >50% free space is required."
         helpers.log_msg(msg, 'ERROR')
         sys.exit(-1)
@@ -251,19 +263,6 @@ def create_tar(export_dir):
 
 #    helpers.sha256sum()
 
-    # Write the expand script for the disconnected system
-    f_handle = open('sat6_export_expand.sh', 'w')
-    f_handle.write('#!/bin/bash\n')
-    f_handle.write('if [ -f ' + short_tarfile + '_00 ]; then\n')
-    f_handle.write('  sha256sum -c ' + short_tarfile + '.sha256\n')
-    f_handle.write('  if [ $? -eq 0 ]; then\n')
-    f_handle.write('    cat ' + short_tarfile + '_* | tar xzpf -\n')
-    f_handle.write('  else\n')
-    f_handle.write('    echo ' + short_tarfile + ' checksum failure\n')
-    f_handle.write('  fi\n')
-    f_handle.write('fi\n')
-    f_handle.close()
-
 
 def write_timestamp(start_time):
     """
@@ -345,7 +344,6 @@ def main():
     export_type = 'incr'
     if args.all:
         print "Performing full content export"
-        last_export = '2000-01-01 00:00:00'
         export_type = 'full'
     else:
         if not since:
@@ -357,7 +355,6 @@ def main():
                 sys.exit(-1)
             if not last_export:
                 print "No previous export recorded, performing full content export"
-                last_export = '2000-01-01 00:00:00'
                 export_type = 'full'
         else:
             last_export = str(since)
@@ -378,10 +375,8 @@ def main():
     # Check if there are any currently running tasks that will conflict with an export
     check_running_tasks()
 
-    sys.exit(-1)
-
     # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
-    export_id = export_cv(dov_ver, last_export)
+    export_id = export_cv(dov_ver, last_export, export_type)
 
     # Now we need to wait for the export to complete
     helpers.wait_for_task(export_id)
@@ -416,7 +411,7 @@ def main():
     print helpers.GREEN + "Export complete.\n" + helpers.ENDC
     print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
         'to your disconnected Satellite system content import location. Once the \n' \
-        'content is transferred, please run ' + helpers.BOLD + 'sat6_export_expand.sh' \
+        'content is transferred, please run ' + helpers.BOLD + 'sat_import' \
         + helpers.ENDC + ' to extract it.'
 
 

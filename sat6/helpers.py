@@ -9,7 +9,7 @@
 
 """Functions common to various Satellite 6 scripts"""
 
-import sys, os, time, yaml, datetime, argparse
+import sys, os, time, datetime, argparse
 import logging
 from time import sleep
 from hashlib import sha256
@@ -20,6 +20,13 @@ try:
 except ImportError:
     print "Please install the python-requests module."
     sys.exit(-1)
+
+try:
+    import yaml
+except ImportError:
+    print "Please install the PyYAML module."
+    sys.exit(-1)
+
 
 # Import the site-specific configs
 CONFIG = yaml.safe_load(open('../config/config.yml', 'r'))
@@ -287,7 +294,7 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 def log_msg(msg, level):
     """Write message to logfile"""
 
-    # If we are NOT in debug mode, only write non-debug messages to the lot
+    # If we are NOT in debug mode, only write non-debug messages to the log
     if level == 'DEBUG':
         if DEBUG:
             logging.debug(msg)
@@ -301,4 +308,3 @@ def log_msg(msg, level):
     # Otherwise if we ARE in debug, write everything to the log AND stdout
     else:
         logging.info(msg)
-
