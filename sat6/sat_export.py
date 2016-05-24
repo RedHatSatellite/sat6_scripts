@@ -184,13 +184,12 @@ def do_gpg_check(export_dir):
     """
     Find and GPG Check all RPM files
     """
-    export_path = helpers.EXPORTDIR + "/" + export_dir
-    msg = "Checking GPG integrity of RPMs in " + export_path
+    msg = "Checking GPG integrity of RPMs in\n   " + export_dir
     helpers.log_msg(msg, 'INFO')
     print msg
 
     badrpms = []
-    os.chdir(export_path)
+    os.chdir(export_dir)
     for rpm in locate("*.rpm"):
         return_code = subprocess.call("rpm -K " + rpm, shell=True, stdout=open(os.devnull, 'wb'))
 
@@ -216,26 +215,25 @@ def do_gpg_check(export_dir):
         print helpers.GREEN + "GPG Check - Pass" + helpers.ENDC
 
 
-def create_tar(export_dir):
+def create_tar(export_dir, export_path):
     """
     Create a TAR of the content we have exported
     Creates a single tar, then splits into DVD size chunks and calculates
     sha256sum for each chunk.
     """
-    export_path = helpers.EXPORTDIR + "/" + export_dir
     today = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
     msg = "Creating TAR files..."
     helpers.log_msg(msg, 'INFO')
     print msg
 
-    os.chdir(export_path)
+    os.chdir(export_dir)
     full_tarfile = helpers.EXPORTDIR + '/sat6_export_' + today
     short_tarfile = 'sat6_export_' + today
     with tarfile.open(full_tarfile, 'w') as archive:
         archive.add(os.curdir, recursive=True)
 
     # Get a list of all the RPM content we are exporting
-    result = [y for x in os.walk(export_path) for y in glob(os.path.join(x[0], '*.rpm'))]
+    result = [y for x in os.walk(export_dir) for y in glob(os.path.join(x[0], '*.rpm'))]
     if result:
         f_handle = open(helpers.LOGDIR + '/export_' + today + '.log', 'a+')
         f_handle.write('-------------------\n')
@@ -395,13 +393,19 @@ def main():
     # Now we need to process the on-disk export data
     # Find the name of our export dir. This ASSUMES that the export dir is the ONLY dir.
     sat_export_dir = os.walk(helpers.EXPORTDIR).next()[1]
-    export_dir = sat_export_dir[0]
+    export_path = sat_export_dir[0]
+
+    # This portion finds the full directory tree of the Library content view
+    for dirpath, subdirs, files in os.walk(helpers.EXPORTDIR):
+        for tdir in subdirs:
+            if tdir == "Library":
+                export_dir = os.path.join(dirpath, tdir)
 
     # Run GPG Checks on the exported RPMs
     do_gpg_check(export_dir)
 
     # Add our exported data to a tarfile
-    create_tar(export_dir)
+    create_tar(export_dir, export_path)
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
@@ -410,8 +414,8 @@ def main():
     # And we're done!
     print helpers.GREEN + "Export complete.\n" + helpers.ENDC
     print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
-        'to your disconnected Satellite system content import location. Once the \n' \
-        'content is transferred, please run ' + helpers.BOLD + 'sat_import' \
+        'to your disconnected Satellite system content import location.\n' \
+        'Once transferred, please run ' + helpers.BOLD + ' sat_import' \
         + helpers.ENDC + ' to extract it.'
 
 
