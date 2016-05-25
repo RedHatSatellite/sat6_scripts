@@ -10,8 +10,7 @@
 Imports Default Org Content View exported by sat_export.py
 """
 
-import sys, argparse, datetime, os, shutil
-import fnmatch, subprocess, tarfile
+import sys, argparse, os
 import simplejson as json
 import helpers
 
@@ -44,7 +43,8 @@ def get_inputfiles(expdate):
 
     # We're good
     msg = "Tarfile checksum verification passed"
-    helpers.log_msg(msg, 'DEBUG')
+    helpers.log_msg(msg, 'INFO')
+    print helpers.GREEN + "Checksum verification - Pass" + helpers.ENDC
 
     return basename
 
@@ -62,12 +62,42 @@ def extract_content(basename):
     os.system('cat ' + basename + '_* | tar xpf -')
 
 
+def sync_content(org_id):
+    """
+    Synchronize the repositories
+    Triggers a sync of all repositories belonging to the configured sync plan
+    """
+    # Check that the configured sync plan exists
+    splans = helpers.get_json(
+        helpers.KATELLO_API + "organizations/" + str(org_id) + "/sync_plans/")
+    for sp_result in splans['results']:
+        if sp_result['name'] == helpers.SYNCPLAN:
+            sp_id = sp_result['id']
+            msg = helpers.SYNCPLAN + " ID: " + sp_id
+            helpers.log_msg(msg, 'DEBUG')
+
+    if not sp_id:
+        msg = "Sync plan not found"
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
+    else:
+        # Run the sync plan
+        task_id = helpers.put_json(
+            helpers.KATELLO_API + "organizations/" + org_id + "/sync_plans/" + str(sp_id) \
+                + "/sync", json.dumps(
+                    {
+                    }
+                ))["id"]
+
+
+    return task_id
+
 
 def main():
     """
     Main Routine
     """
-    #pylint: disable-msg=R0914,R0915
+    #pylint: disable-msg=R0912,R0914,R0915
 
     if not helpers.DISCONNECTED:
         msg = "Import cannot be run on the connected Satellite (Sync) host"
@@ -87,6 +117,8 @@ def main():
     parser.add_argument('-o', '--org', help='Organization', required=True)
     parser.add_argument('-d', '--date', help='Date of Import fileset to process (YYYY-MM-DD)',
         required=True)
+    parser.add_argument('-s', '--sync', help='Trigger a sync after extracting content',
+        required=False, action="store_true")
     args = parser.parse_args()
 
     # Set our script variables from the input args
@@ -109,7 +141,8 @@ def main():
 
 
     # Trigger a sync of the content into the Library
-
+    if args.sync:
+        sync_content(org_id)
 
 if __name__ == "__main__":
     main()

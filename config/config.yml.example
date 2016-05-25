@@ -13,3 +13,4 @@ export:
 
 import:
   dir: /var/sat-content
+  syncplan: 'Daily Sync'

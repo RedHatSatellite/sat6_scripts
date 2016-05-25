@@ -35,11 +35,12 @@ CONFIG = yaml.safe_load(open('../config/config.yml', 'r'))
 URL = CONFIG["satellite"]["url"]
 USERNAME = CONFIG["satellite"]["username"]
 PASSWORD = CONFIG["satellite"]["password"]
+DISCONNECTED = CONFIG["satellite"]["disconnected"]
 LOGDIR = CONFIG["logging"]["dir"]
+DEBUG = CONFIG["logging"]["debug"]
 EXPORTDIR = CONFIG["export"]["dir"]
 IMPORTDIR = CONFIG["import"]["dir"]
-DEBUG = CONFIG["logging"]["debug"]
-DISCONNECTED = CONFIG["satellite"]["disconnected"]
+SYNCPLAN = CONFIG["import"]["syncplan"]
 
 
 # 'Global' Satellite 6 parameters
