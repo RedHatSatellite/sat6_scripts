@@ -77,12 +77,12 @@ def check_running_tasks():
     # From the list of tasks, look for any running sync jobs.
     # If e have any we exit, as we can't trigger a new sync in this state.
     for task_result in tasks['results']:
-        if task_result['state'] == 'running':
+        if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Synchronize':
                 msg = "Unable to start sync - a Sync task is currently running"
                 helpers.log_msg(msg, 'ERROR')
                 sys.exit(-1)
-        if task_result['state'] == 'paused':
+        if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Synchronize':
                 msg = "Unable to start sync - a Sync task is paused. Resume any paused sync tasks."
                 helpers.log_msg(msg, 'ERROR')
@@ -160,9 +160,6 @@ def main():
     org_name = args.org
     expdate = args.date
 
-    # Record where we are running from
-#    script_dir = str(os.getcwd())
-
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
 
@@ -172,17 +169,17 @@ def main():
     # Extract the input files
     extract_content(basename)
 
-    # GPG check the RPM content ?
-
-
     # Trigger a sync of the content into the Library
     if args.sync:
         sync_content(org_id)
+        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
+        print 'Please wait for sync to complete, then publish content views to make new' \
+            'content available.'
     else:
-        msg = "Import Complete"
-        helpers.log_msg(msg, 'INFO')
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please synchronise all repositories to make new content available for publishing.'
+    msg = "Import Complete"
+    helpers.log_msg(msg, 'INFO')
 
 
 if __name__ == "__main__":

@@ -15,8 +15,7 @@ Call with -l switch to loop until all sync tasks are complete, otherwise runs
 as a one-shot check.
 """
 
-import sys, os, argparse, datetime, time
-import simplejson as json
+import sys, os, argparse, time
 import helpers
 
 
@@ -25,6 +24,7 @@ def check_running_tasks(clear):
     Check for any currently running Sync tasks
     Checks for any Synchronize tasks in running/paused or Incomplete state.
     """
+    #pylint: disable-msg=R0912,R0914,R0915
     # Clear the screen
     if clear:
         os.system('clear')
@@ -37,11 +37,11 @@ def check_running_tasks(clear):
     # If e have any we exit, as we can't export in this state.
     running_sync = 0
     for task_result in tasks['results']:
-        if task_result['state'] == 'running':
+        if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Synchronize':
                 running_sync = 1
                 print helpers.BOLD + "Running: " + helpers.ENDC + task_result['input']['repository']['name']
-        if task_result['state'] == 'paused':
+        if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Synchronize':
                 running_sync = 1
                 print helpers.ERROR + "Paused:  " + helpers.ENDC + task_result['input']['repository']['name']
@@ -56,7 +56,7 @@ def check_running_tasks(clear):
         helpers.KATELLO_API + "/content_view_versions")
 
     # Extract the list of repo ids, then check the state of each one.
-    incomplete_sync = check_2 = 0
+    incomplete_sync = 0
     for repo in repo_list['results']:
         for repo_id in repo['repositories']:
             repo_status = helpers.get_json(
@@ -110,4 +110,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
