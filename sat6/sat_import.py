@@ -61,6 +61,33 @@ def extract_content(basename):
     print msg
     os.system('cat ' + basename + '_* | tar xpf -')
 
+    #TODO: Optional delete input files
+    # If successful untar:
+    # rm basename + '_*'
+
+
+def check_running_tasks():
+    """
+    Check for any currently running Sync tasks
+    Exits script if any Synchronize or Export tasks are found in a running state.
+    """
+    tasks = helpers.get_json(
+        helpers.FOREMAN_API + "tasks/")
+
+    # From the list of tasks, look for any running sync jobs.
+    # If e have any we exit, as we can't trigger a new sync in this state.
+    for task_result in tasks['results']:
+        if task_result['state'] == 'running':
+            if task_result['humanized']['action'] == 'Synchronize':
+                msg = "Unable to start sync - a Sync task is currently running"
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(-1)
+        if task_result['state'] == 'paused':
+            if task_result['humanized']['action'] == 'Synchronize':
+                msg = "Unable to start sync - a Sync task is paused. Resume any paused sync tasks."
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(-1)
+
 
 def sync_content(org_id):
     """
@@ -73,22 +100,30 @@ def sync_content(org_id):
     for sp_result in splans['results']:
         if sp_result['name'] == helpers.SYNCPLAN:
             sp_id = sp_result['id']
-            msg = helpers.SYNCPLAN + " ID: " + sp_id
+            msg = "Sync plan '" + helpers.SYNCPLAN + "' ID: " + str(sp_id)
             helpers.log_msg(msg, 'DEBUG')
 
     if not sp_id:
-        msg = "Sync plan not found"
+        msg = "Sync plan '" + helpers.SYNCPLAN + "' not found"
         helpers.log_msg(msg, 'ERROR')
         sys.exit(-1)
     else:
+        # Check that no sync tasks are already running
+        check_running_tasks()
+
+        msg = "No existing running or paused sync tasks detected"
+        helpers.log_msg(msg, 'DEBUG')
+
         # Run the sync plan
         task_id = helpers.put_json(
-            helpers.KATELLO_API + "organizations/" + org_id + "/sync_plans/" + str(sp_id) \
+            helpers.KATELLO_API + "organizations/" + str(org_id) + "/sync_plans/" + str(sp_id) \
                 + "/sync", json.dumps(
                     {
                     }
                 ))["id"]
 
+        msg = "Sync plan started - task_id " + task_id
+        helpers.log_msg(msg, 'DEBUG')
 
     return task_id
 
@@ -126,7 +161,7 @@ def main():
     expdate = args.date
 
     # Record where we are running from
-    script_dir = str(os.getcwd())
+#    script_dir = str(os.getcwd())
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
@@ -143,6 +178,12 @@ def main():
     # Trigger a sync of the content into the Library
     if args.sync:
         sync_content(org_id)
+    else:
+        msg = "Import Complete"
+        helpers.log_msg(msg, 'INFO')
+        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
+        print 'Please synchronise all repositories to make new content available for publishing.'
+
 
 if __name__ == "__main__":
     main()
