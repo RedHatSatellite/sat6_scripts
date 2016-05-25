@@ -1,0 +1,161 @@
+#
+# This script provides the framework to configure a CONNECTED Satellite 6.2 server for use
+# as a sync host in a disconnected environment.
+#
+
+subscription-manager config --server.proxy_hostname=proxy.example.org --server.proxy_port=8080
+subscription-manager register
+subscription-manager attach --auto
+
+
+# Install tools we need
+yum install -y vim bash-completion bind-utils policycoreutils-python chrony tree
+yum -y update
+
+# Setup chrony
+systemctl enable chronyd
+systemctl start chronyd
+
+
+# Subscription-manager setup - substitute your pool-id's
+# RHSCL
+subscription-manager attach --pool=xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
+
+# Satellite Beta
+subscription-manager attach --pool=yyyyyyyyyyyyyyyyyyyyyyyyyyyyyyyy
+
+subscription-manager repos --disable "*"
+subscription-manager repos --enable rhel-7-server-rpms --enable rhel-server-rhscl-7-rpms --enable rhel-server-7-satellite-6-beta-rpms
+
+
+firewall-cmd --permanent --add-service=RH-Satellite-6
+firewall-cmd --reload
+
+reboot
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+yum -y install satellite
+
+
+# Install Satellite
+foreman-installer --scenario katello \
+  --foreman-initial-organization "MyOrg" \
+  --foreman-initial-location "Outside" \
+  --foreman-admin-username admin \
+  --foreman-admin-password ChangeMe
+
+# Configure proxy
+export http_proxy=""
+export https_proxy=$http_proxy
+export no_proxy=$http_proxy
+
+foreman-installer --katello-proxy-url=http://proxy.example.org --katello-proxy-port=8080
+
+
+mkdir ~/.hammer
+chmod 0600 ~/.hammer
+cat << EOF > ~/.hammer/cli_config.yml
+:foreman:
+    :host: 'https://localhost'
+    :username: 'admin'
+    :password: 'ChangeMe'
+EOF
+chmod 0600 ~/.hammer/cli_config.yml
+
+# Set default hammer org
+hammer defaults add --param-name organization_id --param-value 1
+
+
+# Import Manifest    (Timeout on large manifest - SEE BZ:1329091)
+hammer subscription upload --file /tmp/manifest.zip --organization='MyOrg'
+
+
+- Enable repos (GUI)
+
+
+#~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+# Sync Plan (** TIME IS UTC ** 12:00UTC = 22:00LOCAL)
+hammer sync-plan create --interval=daily --name='Daily Sync' --organization-id=1 --sync-date "2016-05-02 12:00:00" --enabled=true
+
+
+- Sync repos
+
+
+
+
+######################
+# Configure OSTree support
+yum install ostree pulp-ostree-plugins tfm-rubygem-katello_ostree
+
+foreman-installer --katello-enable-ostree
+
+
+#######################
+# Configure content export
+hammer settings set --name pulp_export_destination --value /var/sat-export
+chown foreman:foreman /var/sat-export
+semanage fcontext -a -t foreman_var_run_t "/var/sat-export(/.*)?"
+restorecon -RvF /var/sat-export
+hammer settings set --name default_download_policy --value immediate
+
+
+#######################
+# 3rd Party GPG keys
+export http_proxy=http://proxy.example.org:8080
+export https_proxy=$http_proxy
+wget -O /tmp/RPM-GPG-KEY-EPEL-6 https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-6
+wget -O /tmp/RPM-GPG-KEY-EPEL-7 https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+wget -O /tmp/hpPublicKey1024.pub http://downloads.linux.hpe.com/SDR/hpPublicKey1024.pub
+wget -O /tmp/hpPublicKey2048.pub http://downloads.linux.hpe.com/SDR/hpPublicKey2048.pub
+wget -O /tmp/hpPublicKey2048_key1.pub http://downloads.linux.hpe.com/SDR/hpPublicKey2048_key1.pub
+
+unset http_proxy; unset https_proxy
+hammer gpg create --name='RPM-GPG-KEY-EPEL-6' --organization='Defence-AU' --key='/tmp/RPM-GPG-KEY-EPEL-6'
+hammer gpg create --name='RPM-GPG-KEY-EPEL-7' --organization='Defence-AU' --key='/tmp/RPM-GPG-KEY-EPEL-7'
+hammer gpg create --name='hpPublicKey1024.pub' --organization='Defence-AU' --key='/tmp/hpPublicKey1024.pub'
+hammer gpg create --name='hpPublicKey2048.pub' --organization='Defence-AU' --key='/tmp/hpPublicKey2048.pub'
+hammer gpg create --name='hpPublicKey2048_key1.pub' --organization='Defence-AU' --key='/tmp/hpPublicKey2048_key1.pub'
+
+#######################
+# 3rd Party Content
+hammer product create --name='EPEL-6' --description='EPEL-6' --organization-id=1
+hammer repository create --name='epel-6-x86_64' --organization-id=1 --product='EPEL-6' \
+  --content-type='yum' --publish-via-http=false --gpg-key='RPM-GPG-KEY-EPEL-6' \
+  --url='https://dl.fedoraproject.org/pub/epel/6/x86_64'
+hammer product set-sync-plan --sync-plan-id=1 --organization-id=1 --name='EPEL-6'
+
+hammer product create --name='EPEL-7' --description='EPEL-7' --organization-id=1
+hammer repository create --name='epel-7-x86_64' --organization-id=1 --product='EPEL-7' \
+  --content-type='yum' --publish-via-http=false --gpg-key='RPM-GPG-KEY-EPEL-7' \
+  --url='https://dl.fedoraproject.org/pub/epel/7/x86_64'
+hammer product set-sync-plan --sync-plan-id=1 --organization-id=1 --name='EPEL-7'
+
+
+
+######
+## TODO:  Still Testing !!
+######
+
+#########################
+# OVAL (SCAP) content updates
+hammer product create --name='Red Hat File Content' --description='Red Hat file content' --organization-id=1
+hammer repository create --name='OVAL Definitions' --organization-id=1 --product='Red Hat' \
+  --content-type='file' --url='https://www.redhat.com/security/data/oval/'
+
+
+#######################
+# Configure Docker Support
+subscription-manager repos --enable rhel-7-server-extras-rpms
+yum -y install docker
+
+groupadd docker
+usermod -aG docker foreman
+
+sed -i "s/^OPTIONS=.*/OPTIONS='--selinux-enabled -G docker'/" /etc/sysconfig/docker
+
+systemctl restart docker.service
+katello-service restart
+
+hammer compute-resource create --name Docker --organization-ids 1 --provider Docker --url unix://var/run/docker.sock

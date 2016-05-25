@@ -292,7 +292,7 @@ def main():
     """
     Main Routine
     """
-    #pylint: disable-msg=R0914,R0915
+    #pylint: disable-msg=R0912,R0914,R0915
 
     if helpers.DISCONNECTED:
         msg = "Export cannot be run on the disconnected Satellite host"
@@ -396,6 +396,7 @@ def main():
     export_path = sat_export_dir[0]
 
     # This portion finds the full directory tree of the Library content view
+    # pylint: disable=unused-variable
     for dirpath, subdirs, files in os.walk(helpers.EXPORTDIR):
         for tdir in subdirs:
             if tdir == "Library":
