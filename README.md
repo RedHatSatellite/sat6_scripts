@@ -25,6 +25,14 @@ Other scripts may be run from the Satellite server or from a management host.
   --mail no-reply@example.org --auth-source-id 1 --organization-ids 1 --default-organization-id 1 \
   --timezone 'Canberra' --admin true`
 
+
+## Assumptions
+For content import to a disconnected Satellite, it is assumed that the relevant 
+subscription manifest has been uploaded on the disconnected satellite. For the
+_import and sync_ option, the repositories on the disconnected satellite must 
+have already been enabled and added to the import sync plan.
+
+
 ## Configuration
 A YAML based configuration file is in config/config.yml.example  
 The example file needs to be copied to config/config.yml and customised as required:
