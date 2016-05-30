@@ -127,5 +127,13 @@ To target a specific content view, the *name* of the content view must be given
 in quotes. (e.g. ./clean_content_view -v 'RHEL Server')
 
 ```
+usage: clean_content_views.py [-h] -o ORG [-a | -v VIEW]
 
+Removes unused Content Views for specified organization.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o ORG, --org ORG     Organization
+  -a, --all             Clean ALL views
+  -v VIEW, --view VIEW  Name of Content View to clean
 ```
