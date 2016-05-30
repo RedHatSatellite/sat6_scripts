@@ -2,4 +2,3 @@
 
 BINPATH=`dirname $0`
 python "$BINPATH/../sat6/sat_export.py" $@
-

@@ -117,3 +117,15 @@ optional arguments:
   -d DATE, --date DATE  Date of Import fileset to process (YYYY-MM-DD)
   -s, --sync            Trigger a sync after extracting content
 ```
+
+- **clean_content_views**
+This script removes orphaned versions of either all or nominated content views.
+This should be run periodically to clean out old/unused content view data from
+the mongo database and improve the responsiveness of the Satellite server.
+
+To target a specific content view, the *name* of the content view must be given
+in quotes. (e.g. ./clean_content_view -v 'RHEL Server')
+
+```
+
+```
