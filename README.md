@@ -123,8 +123,8 @@ This script removes orphaned versions of either all or nominated content views.
 This should be run periodically to clean out old/unused content view data from
 the mongo database and improve the responsiveness of the Satellite server.
 
-To target a specific content view, the *name* of the content view must be given
-in quotes. (e.g. ./clean_content_view -v 'RHEL Server')
+To target a specific content view, the **name** of the content view must be given
+in quotes. (e.g. `./clean_content_view -o ORG -v 'RHEL Server'`)
 
 ```
 usage: clean_content_views.py [-h] -o ORG [-a | -v VIEW]

@@ -52,19 +52,22 @@ def get_content_view_info(cvid):
     return cv_info
 
 
-def remove_content_view_version(cv_id, version_id, cv_name):
+def remove_content_view_version(cv_id, vers_id, cv_name, cv_vers):
     """
     Removes Content View version
     Input is the Content View ID and the view version to delete.
     Returns the task ID of the delete job.
     """
-    msg = "Removing '" + cv_name + "' (cv_id " + str(cv_id) + ") version_id " + str(version_id)
+    msg = "Removing content view " + str(cv_id) + " version " + str(vers_id)
     helpers.log_msg(msg, 'DEBUG')
+    msg = "Removing '" + cv_name + "' Version " + cv_vers
+    helpers.log_msg(msg, 'INFO')
+    print msg
     rinfo = helpers.put_json(
         helpers.KATELLO_API + "content_views/" + str(cv_id) + "/remove/",
         json.dumps({
             "id": cv_id,
-            "content_view_version_ids": version_id
+            "content_view_version_ids": vers_id
             }))
 
     return rinfo
@@ -128,8 +131,14 @@ def main():
                 if not version['environment_ids']:
                     # Delete the view version from the content view
                     cvrtask = remove_content_view_version(
-                        cv_results['id'], version['id'], cv_results['name']
+                        cv_results['id'], version['id'], cv_results['name'], version['version']
                         )
+
+                    # Trap some other error conditions
+                    if "Required lock is already taken" in str(cvrtask):
+                        msg = "Unable to remove version - Content view publish or promote in progress"
+                        helpers.log_msg(msg, 'WARNING')
+                        continue
 
                     # Wait for it to complete
                     helpers.wait_for_task(cvrtask['id'])
@@ -137,11 +146,11 @@ def main():
                     # Check if the deletion completed successfully
                     tinfo = helpers.get_task_status(cvrtask['id'])
                     if tinfo['state'] != 'running' and tinfo['result'] == 'success':
-                        msg = "Removal of content view version ID=" + str(version['id']) + " OK"
+                        msg = "Removal of content view OK"
                         helpers.log_msg(msg, 'INFO')
                         print msg
                     else:
-                        msg = "Removal of content view version ID=" + str(version['id']) + " failed"
+                        msg = "Removal of content view failed"
                         helpers.log_msg(msg, 'ERROR')
     else:
         # Unable to get CV list, or specific view not found
@@ -152,3 +161,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

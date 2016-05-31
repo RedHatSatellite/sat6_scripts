@@ -63,7 +63,11 @@ def check_running_tasks(clear):
                 helpers.KATELLO_API + "/repositories/" + str(repo_id['id']))
 
             if repo_status['content_type'] == 'yum':
-                if repo_status['last_sync']['state'] == 'stopped':
+                if repo_status['last_sync'] is None:
+                    if repo_status['library_instance_id'] is None:
+                        incomplete_sync = 1
+                        print helpers.ERROR + "Broken Repo: " + helpers.ENDC + repo_status['name']
+                elif repo_status['last_sync']['state'] == 'stopped':
                     if repo_status['last_sync']['result'] == 'warning':
                         incomplete_sync = 1
                         print helpers.WARNING + "Incomplete: " + helpers.ENDC + repo_status['name']
@@ -110,3 +114,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
