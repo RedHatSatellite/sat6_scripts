@@ -62,7 +62,7 @@ def remove_content_view_version(cv_id, vers_id, cv_name, cv_vers):
     helpers.log_msg(msg, 'DEBUG')
     msg = "Removing '" + cv_name + "' Version " + cv_vers
     helpers.log_msg(msg, 'INFO')
-    print msg
+    print helpers.HEADER + msg + helpers.ENDC
     rinfo = helpers.put_json(
         helpers.KATELLO_API + "content_views/" + str(cv_id) + "/remove/",
         json.dumps({
@@ -136,7 +136,7 @@ def main():
 
                     # Trap some other error conditions
                     if "Required lock is already taken" in str(cvrtask):
-                        msg = "Unable to remove version - Content view publish or promote in progress"
+                        msg = "Unable to remove version - Publish or promote in progress"
                         helpers.log_msg(msg, 'WARNING')
                         continue
 
@@ -148,9 +148,9 @@ def main():
                     if tinfo['state'] != 'running' and tinfo['result'] == 'success':
                         msg = "Removal of content view OK"
                         helpers.log_msg(msg, 'INFO')
-                        print msg
+                        print helpers.GREEN + "OK" + helpers.ENDC
                     else:
-                        msg = "Removal of content view failed"
+                        msg = "Failed"
                         helpers.log_msg(msg, 'ERROR')
     else:
         # Unable to get CV list, or specific view not found
@@ -161,4 +161,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

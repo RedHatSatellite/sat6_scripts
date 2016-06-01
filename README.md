@@ -137,3 +137,65 @@ optional arguments:
   -a, --all             Clean ALL views
   -v VIEW, --view VIEW  Name of Content View to clean
 ```
+
+- **publish_content_views**
+Publishes new content to the Library environment. The following can be published:
+  - All content views (-a)
+  - All content views defined in an input file (-i)
+  - All content views EXCEPT those defined in an input file (-x)
+
+The dry run (-d) option can be used to see what would be published for a 
+given command input 
+
+```
+usage: publish_content_view.py [-h] -o ORG [-x FILE | -i FILE | -a] [-d]
+
+Publishes content views for specified organization.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o ORG, --org ORG     Organization
+  -x FILE, --exfile FILE
+                        Publish all content views EXCEPT those listed in file
+  -i FILE, --infile FILE
+                        Publish only content views listed in file
+  -a, --all             Publish ALL content views
+  -d, --dryrun          Dry Run - Only show what will be published
+```
+
+- **promote_content_views**
+Promotes content from the previous lifecycle environment stage.
+If a lifecycle is defined as Library -> Test -> Quality -> Production, defining
+the target environment (-e) as 'Quality' will promote matching content views 
+from Test -> Quality.
+
+The following can be promoted:
+  - All content views (-a)
+  - All content views defined in an input file (-i)
+  - All content views EXCEPT those defined in an input file (-x)
+
+The dry run (-d) option can be used to see what would be promoted for a 
+given command input 
+
+If multiple lifecycle streams are used in your Satellite installation, the 
+use of include/exclude files is strongly recommended to avoid views being
+promoted into the wrong lifecycle stream. This is more likely to be an 
+issue promoting views from the Library, as this is shared by all environments.
+
+```
+usage: promote_content_view.py [-h] -e ENV -o ORG [-x FILE | -i FILE | -a] [-d]
+
+Promotes content views for specified organization to the target environment.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -e ENV, --env ENV     Target Environment (Development, Quality, Production)
+  -o ORG, --org ORG     Organization
+  -x FILE, --exfile FILE
+                        Promote all content views EXCEPT those listed in file
+  -i FILE, --infile FILE
+                        Promote only content views listed in file
+  -a, --all             Promote ALL content views
+  -d, --dryrun          Dry Run - Only show what will be promoted
+```
+

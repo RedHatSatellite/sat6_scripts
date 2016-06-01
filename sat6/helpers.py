@@ -54,11 +54,14 @@ FOREMAN_API = "%s/foreman_tasks/api/" % URL
 POST_HEADERS = {'content-type': 'application/json'}
 
 # Define our global message colours
-HEADER = '\033[95m'
+PURPLE = '\033[95m'
 BLUE = '\033[94m'
 GREEN = '\033[92m'
-WARNING = '\033[93m'
-ERROR = '\033[91m'
+YELLOW = '\033[93m'
+RED = '\033[91m'
+HEADER = PURPLE
+WARNING = YELLOW
+ERROR = RED
 ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
@@ -161,10 +164,15 @@ def get_org_id(org_name):
 
 
 def wait_for_task(task_id):
-    """Wait for the given task ID to complete"""
-    msg = "Waiting for task " + str(task_id) + " to complete..."
-    print msg
+    """
+    Wait for the given task ID to complete
+    This displays a message without CR/LF waiting for an OK/FAIL status to be shown
+    """
+    msg = "Waiting for task " + str(task_id) + " to complete...     "
+    print msg,
     log_msg(msg, 'INFO')
+    # Force the status message to be shown to the user
+    sys.stdout.flush()
     while True:
         info = get_json(FOREMAN_API + "tasks/" + str(task_id))
         if info['state'] == 'paused' and info['result'] == 'error':
@@ -188,7 +196,7 @@ def get_task_status(task_id):
 
 
 # Get details about Content Views and versions
-def watch_tasks(task_list, ref_list):
+def watch_tasks(task_list, ref_list, task_name):
     """
     Watch the status of tasks provided in taskList.
     Loops until all tasks in the list have completed.
@@ -204,6 +212,8 @@ def watch_tasks(task_list, ref_list):
     sleep_time = 10
     while do_loop == 1:
         if len(task_list) >= 1:
+            print "-----\n" + BOLD + task_name + ENDC
+
             for task_id in task_list:
 
                 # Whilst there are pending tasks, loop through the task status
@@ -216,10 +226,14 @@ def watch_tasks(task_list, ref_list):
                     pct_done = (status['progress'] * 100)
                     pct_done1 = round(pct_done, 1)
 
-                    print "TASK: " + task_id + " (" + str(ref_list[task_id]) + \
-                    ")  STATE: " + str(status['state']) + "  RESULT: "\
-                    + str(status['result']) + "  PROGRESS: " + str(pct_done1) \
-                    + "%"
+                    if status['result'] == 'success':
+                        colour = GREEN
+                    else:
+                        colour = YELLOW
+
+                    print "TASK: " + task_id + "  STATE: " + str(status['state']) +\
+                        "  RESULT: " + colour + str(status['result']) + ENDC + "  PROGRESS: " +\
+                        str(pct_done1) + "% (" + str(ref_list[task_id]) + ")"
 
                     if status['result'] != "pending":
                         # Update the pendingList dictionary to say this task is done
@@ -230,14 +244,15 @@ def watch_tasks(task_list, ref_list):
                     sleep_time = 0
 
             # Sleep for 10 seconds between checks
-            print "-----\n"
             time.sleep(sleep_time)
         else:
             do_loop = 0
             print "ERROR (watchTasks): no tasks passed to us"
 
     # All tasks are complete if we get here.
-    print "FINISHED"
+    msg = task_name + "complete"
+    log_msg(msg, 'INFO')
+    print GREEN + "\nAll tasks complete" + ENDC
 
 
 def query_yes_no(question, default="yes"):
