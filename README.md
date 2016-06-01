@@ -42,22 +42,27 @@ required:
 
 ```
 satellite:
-  url: https://*FQDN of Satellite Server*
-  username: *API Username*
-  password: *API user password*
-  disconnected: *Is direct internet connection available* (True|False)
+  url: https://sat6.example.org
+  username: svc-api-user
+  password: 1t$a$3cr3t
+  disconnected: [True|False]     (Is direct internet connection available?)
 
 logging:
-  dir: *Directory to use for logging*
-  debug: False  
+  dir: /var/log/sat6-scripts     (Directory to use for logging)
+  debug: [True|False]
 
 export:
-  dir: *Directory to export content to (Connected Satellite)*
+  dir: /var/sat-export           (Directory to export content to - Connected Satellite)
 
 import:
-  dir: *Directory to import content from (Disconnected Satellite)*
-  syncplan: *Name of sync plan triggered after content import*
+  dir: /var/sat-content          (Directory to import content from - Disconnected Satellite)
+  syncplan: 'Import Sync'        (Name of sync plan triggered after content import)
 ```
+
+## Log files
+Most scripts in this project will write output to satellite.log in the directory
+specified in the config file.
+
 
 ## Scripts in this project
 
@@ -82,6 +87,10 @@ For all exports, the exported RPMs are verified for GPG integrity before being
 added to a chunked tar archive, with each part of the archive being sha256sum'd
 for cross domain transfer integrity checking.
 
+For each export performed, a log of all RPM packages that are exported is kept
+in the configured log directory. This has been found to be a useful tool to see
+when (or if) a specific package has been imported into the disconnected host.
+
 ```
 usage: sat_export.py [-h] -o ORG [-a | -i | -s SINCE] [-l]
 
@@ -104,7 +113,7 @@ performs a sha256sum verification of each part of the specified archive prior
 to extracting the transferred content to disk.
 
 Once the content has been extracted, a sync can be triggered (-s) of all
-repositories belonging to a sync plan, defined in the config.yml
+repositories belonging to a sync plan, defined in the config file.
 
 ```
 usage: sat_import.py [-h] -o ORG -d DATE [-s]
@@ -144,8 +153,10 @@ Publishes new content to the Library environment. The following can be published
   - All content views defined in an input file (-i)
   - All content views EXCEPT those defined in an input file (-x)
 
-The dry run (-d) option can be used to see what would be published for a 
-given command input 
+The dry run (-d) option can be used to see what would be published for a
+given command input.
+
+If using an input file, the format is one content view name per line.
 
 ```
 usage: publish_content_view.py [-h] -o ORG [-x FILE | -i FILE | -a] [-d]
@@ -166,7 +177,7 @@ optional arguments:
 - **promote_content_views**
 Promotes content from the previous lifecycle environment stage.
 If a lifecycle is defined as Library -> Test -> Quality -> Production, defining
-the target environment (-e) as 'Quality' will promote matching content views 
+the target environment (-e) as 'Quality' will promote matching content views
 from Test -> Quality.
 
 The following can be promoted:
@@ -175,11 +186,13 @@ The following can be promoted:
   - All content views EXCEPT those defined in an input file (-x)
 
 The dry run (-d) option can be used to see what would be promoted for a 
-given command input 
+given command input.
 
-If multiple lifecycle streams are used in your Satellite installation, the 
+If using an input file, the format is one content view name per line.
+
+If multiple lifecycle streams are used in your Satellite installation, the
 use of include/exclude files is strongly recommended to avoid views being
-promoted into the wrong lifecycle stream. This is more likely to be an 
+promoted into the wrong lifecycle stream. This is more likely to be an
 issue promoting views from the Library, as this is shared by all environments.
 
 ```
@@ -198,4 +211,3 @@ optional arguments:
   -a, --all             Promote ALL content views
   -d, --dryrun          Dry Run - Only show what will be promoted
 ```
-
