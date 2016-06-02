@@ -1,163 +1,220 @@
 #!/usr/bin/python
-#title           :clean_content_views.py
-#description     :Cleans orphaned versions of Satellite 6 content views
+#title           :clean_content_view.py
+#description     :Removes orphaned versions of Satellite 6 content views
 #URL             :https://github.com/ggatward/sat6_scripts
 #author          :Geoff Gatward <ggatward@redhat.com>
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
 """
-Removes unused (orphaned) Content View versions from each environment.
+Removes content view versions that don't belong to any environment
+
 """
+#pylint: disable-msg=R0912,R0913,R0914,R0915
 
 import sys, argparse
 import simplejson as json
 import helpers
 
 
-# Get details about Content Views and versions
-def get_content_views(org_id, view_name):
-    """
-    Returns a list of all Content View IDs and Names for a given Org ID
-    """
+def get_cv(org_id, cleanup_list, exclude_list):
+    """Get the content views"""
+
+    if cleanup_list:
+        cleanstring = ', '.join(str(e) for e in cleanup_list)
+        msg = "Cleaning only specified content view '" + cleanstring + "'"
+        helpers.log_msg(msg, 'DEBUG')
+
+    if exclude_list:
+        exstring = ', '.join(str(e) for e in exclude_list)
+        msg = "Cleaning all content views except '" + exstring + "'"
+        helpers.log_msg(msg, 'DEBUG')
+
+
     # Query API to get all content views for our org
-    cvlist1 = []
-    cvlist2 = []
-    cv_list = helpers.get_json(
-        helpers.KATELLO_API + "organizations/" + str(org_id) +
-        "/content_views/")
+    cvs = helpers.get_json(
+        helpers.KATELLO_API + "organizations/" + str(org_id) + "/content_views/")
+    ver_list = {}
+    ver_descr = {}
 
-    # Only append CV ID's that match the given name
-    for cv_results in cv_list['results']:
-        cvl = {}
-        cvl['id'] = cv_results.get('id')
-        cvl['name'] = cv_results.get('name')
-        if view_name and cvl['name'] == view_name:
-            cvlist1.append(cvl)
-        else:
-            cvlist2.append(cvl)
+    for cv_result in cvs['results']:
+        # We will never clean the DOV
+        if cv_result['name'] != "Default Organization View":
 
-    if view_name:
-        return cvlist1
-    else:
-        return cvlist2
+            # Handle specific includes and excludes
+            if cleanup_list and cv_result['name'] not in cleanup_list:
+                msg = "Skipping content view '" + cv_result['name'] + "'"
+                helpers.log_msg(msg, 'DEBUG')
+                continue
+
+            if exclude_list and cv_result['name'] in exclude_list:
+                msg = "Skipping content view '" + cv_result['name'] + "'"
+                helpers.log_msg(msg, 'DEBUG')
+                continue
+
+            # Get the ID of each Content View
+            msg = "Processing content view '" + cv_result['name'] + "' " + str(cv_result['id'])
+            helpers.log_msg(msg, 'DEBUG')
+
+            # Find the next version of the view
+            ver_list[cv_result['id']] = cv_result['id']
+            ver_descr[cv_result['id']] = cv_result['name']
+
+    return ver_list, ver_descr
 
 
 def get_content_view_info(cvid):
     """
     Return Content View Info for a given CV ID
     """
-    cv_info = helpers.get_json(
+    cvinfo = helpers.get_json(
         helpers.KATELLO_API + "content_views/" + str(cvid))
-    return cv_info
+
+    return cvinfo
 
 
-def remove_content_view_version(cv_id, vers_id, cv_name, cv_vers):
-    """
-    Removes Content View version
-    Input is the Content View ID and the view version to delete.
-    Returns the task ID of the delete job.
-    """
-    msg = "Removing content view " + str(cv_id) + " version " + str(vers_id)
-    helpers.log_msg(msg, 'DEBUG')
-    msg = "Removing '" + cv_name + "' Version " + cv_vers
-    helpers.log_msg(msg, 'INFO')
-    print helpers.HEADER + msg + helpers.ENDC
-    rinfo = helpers.put_json(
-        helpers.KATELLO_API + "content_views/" + str(cv_id) + "/remove/",
-        json.dumps({
-            "id": cv_id,
-            "content_view_version_ids": vers_id
-            }))
+def cleanup(ver_list, ver_descr, dry_run, runuser):
+    """Clean Content Views"""
 
-    return rinfo
+    # Set the task name to be displayed in the task monitoring stage
+    task_name = "Cleanup content views"
+
+    # Now we have all the info needed, we can actually trigger the cleanup.
+    task_list = []
+    ref_list = {}
+
+    # Catch scenario that no CV versions are found matching cleanup criteria
+    if not ver_list:
+        msg = "No content view versions found matching cleanup criteria"
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
+
+    for cvid in ver_list.keys():
+
+        # Check if there is a publish/promote already running on this content view
+        locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
+
+        # For the given content view we need to find the orphaned versions
+        cvinfo = get_content_view_info(cvid)
+
+        for version in cvinfo['versions']:
+            # Find versions that are not in any environment
+            if not version['environment_ids']:
+                if not locked:
+                    msg = "Orphan view id " + str(version['id']) + " found in '" +\
+                        str(ver_descr[cvid]) + "'"
+                    helpers.log_msg(msg, 'DEBUG')
+                    msg = "Removing '" + str(ver_descr[cvid]) + "' version " + str(version['version'])
+                    helpers.log_msg(msg, 'INFO')
+                    print helpers.HEADER + msg + helpers.ENDC
+
+                # Delete the view version from the content view
+                if not dry_run and not locked:
+                    try:
+                        task_id = helpers.put_json(
+                            helpers.KATELLO_API + "content_views/" + str(cvid) + "/remove/",
+                            json.dumps(
+                                {
+                                    "id": cvid,
+                                    "content_view_version_ids": version['id']
+                                }
+                                ))['id']
+
+                        # Wait for the task to complete
+                        helpers.wait_for_task(task_id)
+
+                        # Check if the deletion completed successfully
+                        tinfo = helpers.get_task_status(task_id)
+                        if tinfo['state'] != 'running' and tinfo['result'] == 'success':
+                            msg = "Removal of content view version OK"
+                            helpers.log_msg(msg, 'INFO')
+                            print helpers.GREEN + "OK" + helpers.ENDC
+                        else:
+                            msg = "Failed"
+                            helpers.log_msg(msg, 'ERROR')
+
+                    except Warning:
+                        msg = "Failed to initiate removal"
+                        helpers.log_msg(msg, 'WARNING')
+
+
+    # Exit in the case of a dry-run
+    if dry_run:
+        msg = "Dry run - not actually performing removal"
+        helpers.log_msg(msg, 'WARNING')
+        sys.exit(-1)
 
 
 def main():
-    """Main Routine"""
+    """
+    Main routine
+    """
 
     # Who is running this script?
     runuser = helpers.who_is_running()
 
     # Check for sane input
-    parser = argparse.ArgumentParser(description='Removes unused Content Views \
-        for specified organization.')
+    parser = argparse.ArgumentParser(
+        description='Cleans content views for specified organization.')
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization', required=True)
-    group.add_argument('-a', '--all', help='Clean ALL views', required=False,
+    group.add_argument('-x', '--exfile',
+        help='Cleans all content views EXCEPT those listed in file', required=False)
+    group.add_argument('-i', '--infile', help='Clean only content views listed in file',
+        required=False)
+    group.add_argument('-a', '--all', help='Clean ALL content views', required=False,
         action="store_true")
-    group.add_argument('-v', '--view', help='Name of Content View to clean', required=False)
+    parser.add_argument('-d', '--dryrun', help='Dry Run - Only show what will be cleaned',
+        required=False, action="store_true")
 
     args = parser.parse_args()
 
     # Log the fact we are starting
-    msg = "-------- Content View Cleanup started by " + runuser + " -----------"
+    msg = "-------- Content view cleanup started by " + runuser + " -----------"
     helpers.log_msg(msg, 'INFO')
 
     # Set our script variables from the input args
     org_name = args.org
-    view_name = args.view
+    dry_run = args.dryrun
+    cleanup_file = args.infile
+    exclude_file = args.exfile
 
-    if not view_name and not args.all:
-        msg = "Content View name not specified, and 'all' was not selected"
+    if not exclude_file and not cleanup_file and not args.all:
+        msg = "Content view to clean not specified, and 'all' was not selected"
         helpers.log_msg(msg, 'WARNING')
-        answer = helpers.query_yes_no("Proceed to clean ALL Content Views?", "no")
+        answer = helpers.query_yes_no("Proceed to clean ALL content views?", "no")
         if not answer:
             msg = "Cleanup aborted by user"
             helpers.log_msg(msg, 'INFO')
             sys.exit(-1)
 
+    # Read in the exclusion file to the exclude list
+    exclude_list = []
+    cleanup_list = []
+    if exclude_file or cleanup_file:
+        try:
+            if exclude_file:
+                xfile = open(exclude_file, 'r')
+                exclude_list = [line.rstrip('\n') for line in xfile]
+            if cleanup_file:
+                xfile = open(cleanup_file, 'r')
+                cleanup_list = [line.rstrip('\n') for line in xfile]
+        except IOError:
+            msg = "Cannot find input file"
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(-1)
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
 
-    # Get the list of content views
-    cvlist = get_content_views(org_id, view_name)
+    # Get the list of Content Views along with the latest view version in each environment
+    (ver_list, ver_descr) = get_cv(org_id, cleanup_list, exclude_list)
 
-    # Log what we are doing
-    if view_name:
-        msg = "Cleaning content view " + view_name
-    else:
-        msg = "Cleaning all content views"
-    helpers.log_msg(msg, 'DEBUG')
-
-    # Run the cleanup
-    if cvlist:
-        for cv_results in cvlist:
-            # We need to find all versions of each affected content view
-            cvinfo = get_content_view_info(cv_results['id'])
-            for version in cvinfo['versions']:
-                if not version['environment_ids']:
-                    # Delete the view version from the content view
-                    cvrtask = remove_content_view_version(
-                        cv_results['id'], version['id'], cv_results['name'], version['version']
-                        )
-
-                    # Trap some other error conditions
-                    if "Required lock is already taken" in str(cvrtask):
-                        msg = "Unable to remove version - Publish or promote in progress"
-                        helpers.log_msg(msg, 'WARNING')
-                        continue
-
-                    # Wait for it to complete
-                    helpers.wait_for_task(cvrtask['id'])
-
-                    # Check if the deletion completed successfully
-                    tinfo = helpers.get_task_status(cvrtask['id'])
-                    if tinfo['state'] != 'running' and tinfo['result'] == 'success':
-                        msg = "Removal of content view OK"
-                        helpers.log_msg(msg, 'INFO')
-                        print helpers.GREEN + "OK" + helpers.ENDC
-                    else:
-                        msg = "Failed"
-                        helpers.log_msg(msg, 'ERROR')
-    else:
-        # Unable to get CV list, or specific view not found
-        msg = "Content view not found"
-        helpers.log_msg(msg, 'ERROR')
-        sys.exit(1)
+    # Clean the content views. Returns a list of task IDs.
+    cleanup(ver_list, ver_descr, dry_run, runuser)
 
 
 if __name__ == "__main__":
     main()
+

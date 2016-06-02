@@ -132,19 +132,30 @@ This script removes orphaned versions of either all or nominated content views.
 This should be run periodically to clean out old/unused content view data from
 the mongo database and improve the responsiveness of the Satellite server.
 
-To target a specific content view, the **name** of the content view must be given
-in quotes. (e.g. `./clean_content_view -o ORG -v 'RHEL Server'`)
+Content views to clean can be defined by:
+  - All content views (-a)
+  - All content views defined in an input file (-i)
+  - All content views EXCEPT those defined in an input file (-x)
+
+The dry run (-d) option can be used to see what would be published for a
+given command input.
+
+If using an input file, the format is one content view name per line.
 
 ```
-usage: clean_content_views.py [-h] -o ORG [-a | -v VIEW]
+usage: clean_content_views.py [-h] -o ORG [-x FILE | -i FILE | -a] [-d]
 
-Removes unused Content Views for specified organization.
+Cleans content views for specified organization.
 
 optional arguments:
   -h, --help            show this help message and exit
   -o ORG, --org ORG     Organization
-  -a, --all             Clean ALL views
-  -v VIEW, --view VIEW  Name of Content View to clean
+  -x FILE, --exfile FILE
+                        Cleans all content views EXCEPT those listed in file
+  -i FILE, --infile FILE
+                        Clean only content views listed in file
+  -a, --all             Clean ALL content views
+  -d, --dryrun          Dry Run - Only show what will be cleaned
 ```
 
 - **publish_content_views**
