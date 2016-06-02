@@ -1,5 +1,5 @@
 #!/usr/bin/python
-#title           :clean_content_view.py
+#title           :clean_content_views.py
 #description     :Removes orphaned versions of Satellite 6 content views
 #URL             :https://github.com/ggatward/sat6_scripts
 #author          :Geoff Gatward <ggatward@redhat.com>
