@@ -66,29 +66,6 @@ def extract_content(basename):
     # rm basename + '_*'
 
 
-def check_running_tasks():
-    """
-    Check for any currently running Sync tasks
-    Exits script if any Synchronize or Export tasks are found in a running state.
-    """
-    tasks = helpers.get_json(
-        helpers.FOREMAN_API + "tasks/")
-
-    # From the list of tasks, look for any running sync jobs.
-    # If e have any we exit, as we can't trigger a new sync in this state.
-    for task_result in tasks['results']:
-        if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
-            if task_result['humanized']['action'] == 'Synchronize':
-                msg = "Unable to start sync - a Sync task is currently running"
-                helpers.log_msg(msg, 'ERROR')
-                sys.exit(-1)
-        if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
-            if task_result['humanized']['action'] == 'Synchronize':
-                msg = "Unable to start sync - a Sync task is paused. Resume any paused sync tasks."
-                helpers.log_msg(msg, 'ERROR')
-                sys.exit(-1)
-
-
 def sync_content(org_id):
     """
     Synchronize the repositories
@@ -109,7 +86,7 @@ def sync_content(org_id):
         sys.exit(-1)
     else:
         # Check that no sync tasks are already running
-        check_running_tasks()
+        helpers.check_running_tasks()
 
         msg = "No existing running or paused sync tasks detected"
         helpers.log_msg(msg, 'DEBUG')
@@ -184,3 +161,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
