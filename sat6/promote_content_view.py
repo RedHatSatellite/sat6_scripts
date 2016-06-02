@@ -140,12 +140,17 @@ def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, 
         sys.exit(-1)
 
     for cvid in ver_list.keys():
-        msg = "Promoting '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) +\
-            " from " + prior_env + " to " + str(target_env)
-        helpers.log_msg(msg, 'INFO')
-        print helpers.HEADER + msg + helpers.ENDC
 
-        if not dry_run:
+        # Check if there is a publish/promote already running on this content view
+        locked = helpers.check_running_publish(cvid, ver_descr[cvid])
+
+        if not locked:
+            msg = "Promoting '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) +\
+                " from " + prior_env + " to " + str(target_env)
+            helpers.log_msg(msg, 'INFO')
+            print helpers.HEADER + msg + helpers.ENDC
+
+        if not dry_run and not locked:
             try:
                 task_id = helpers.post_json(
                     helpers.KATELLO_API + "content_view_versions/" + str(ver_list[cvid]) +\
@@ -254,3 +259,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+

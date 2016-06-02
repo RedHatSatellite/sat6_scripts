@@ -82,14 +82,19 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser):
         sys.exit(-1)
 
     for cvid in ver_list.keys():
-        msg = "Publishing '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) + ".0"
-        helpers.log_msg(msg, 'INFO')
-        print helpers.HEADER + msg + helpers.ENDC
+
+        # Check if there is a publish/promote already running on this content view
+        locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
+
+        if not locked:
+            msg = "Publishing '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) + ".0"
+            helpers.log_msg(msg, 'INFO')
+            print helpers.HEADER + msg + helpers.ENDC
 
         # Set up the description that will be added to the published version
         description = "Published by " + runuser + "\n via API script"
 
-        if not dry_run:
+        if not dry_run and not locked:
             try:
                 task_id = helpers.post_json(
                     helpers.KATELLO_API + "content_views/" + str(ver_list[cvid]) +\
@@ -190,3 +195,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
