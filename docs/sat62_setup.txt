@@ -29,17 +29,13 @@ subscription-manager repos --enable rhel-7-server-rpms --enable rhel-server-rhsc
 
 
 firewall-cmd --permanent --add-service=RH-Satellite-6
-firewall-cmd --reload
 
 reboot
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-yum -y install satellite
-
-
 # Install Satellite
-foreman-installer --scenario katello \
+satellite-installer --scenario satellite \
   --foreman-initial-organization "MyOrg" \
   --foreman-initial-location "Outside" \
   --foreman-admin-username admin \
@@ -50,8 +46,13 @@ export http_proxy=""
 export https_proxy=$http_proxy
 export no_proxy=$http_proxy
 
-foreman-installer --katello-proxy-url=http://proxy.example.org --katello-proxy-port=8080
+satellite-installer --scenario satellite \
+  --katello-proxy-url=http://proxy.example.org \
+  --katello-proxy-port=8080
 
+# Configure OSTree support
+yum install ostree pulp-ostree-plugins tfm-rubygem-katello_ostree
+satellite-installer --katello-enable-ostree=true
 
 mkdir ~/.hammer
 chmod 0600 ~/.hammer
@@ -66,31 +67,62 @@ chmod 0600 ~/.hammer/cli_config.yml
 # Set default hammer org
 hammer defaults add --param-name organization_id --param-value 1
 
-
 # Import Manifest    (Timeout on large manifest - SEE BZ:1329091)
 hammer subscription upload --file /tmp/manifest.zip --organization='MyOrg'
 
-
-- Enable repos (GUI)
-
-
 #~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-# Sync Plan (** TIME IS UTC ** 12:00UTC = 22:00LOCAL)
-hammer sync-plan create --interval=daily --name='Daily Sync' --organization-id=1 --sync-date "2016-05-02 12:00:00" --enabled=true
+# Enable repos
+
+# List entitled products
+hammer product list --organization-id=1
+
+# List repositories within products
+hammer repository-set list --product 'Red Hat Enterprise Linux Server' --organization 'Defence-AU'
+
+# List specific repos within repository
+hammer repository-set available-repositories --id=3327 --product 'Red Hat Enterprise Linux Server' --organization 'Defence-AU'
+
+# Kickstarts:
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7.2 --id 2455
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6.8 --id 1952
 
 
-- Sync repos
+# RHEL 7 Server RPMs:
+for i in 2456 2463 2472 2476 ; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7Server --id $i
+done
+
+# RHEL 6 Server RPMs:
+for i in 2396 166 168 1673; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6Server --id $i
+done
 
 
+# Server Extras RPMs (No releasever)
+for i in 3026 3030; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --id $i
+done
+
+# RHSCL
+hammer repository-set enable --organization-id 1 --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch x86_64 --releasever 7Server --id 2808
+hammer repository-set enable --organization-id 1 --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch x86_64 --releasever 6Server --id 1997
 
 
-######################
-# Configure OSTree support
-yum install ostree pulp-ostree-plugins tfm-rubygem-katello_ostree
+# ISOs:
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6.8 --id 164
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7.2 --id 2454
 
-foreman-installer --katello-enable-ostree
-
+#~~~~~~~~~~~~~~~~~~~~~~~~~~
 
 #######################
 # Configure content export
@@ -124,38 +156,37 @@ hammer product create --name='EPEL-6' --description='EPEL-6' --organization-id=1
 hammer repository create --name='epel-6-x86_64' --organization-id=1 --product='EPEL-6' \
   --content-type='yum' --publish-via-http=false --gpg-key='RPM-GPG-KEY-EPEL-6' \
   --url='https://dl.fedoraproject.org/pub/epel/6/x86_64'
-hammer product set-sync-plan --sync-plan-id=1 --organization-id=1 --name='EPEL-6'
 
 hammer product create --name='EPEL-7' --description='EPEL-7' --organization-id=1
 hammer repository create --name='epel-7-x86_64' --organization-id=1 --product='EPEL-7' \
   --content-type='yum' --publish-via-http=false --gpg-key='RPM-GPG-KEY-EPEL-7' \
   --url='https://dl.fedoraproject.org/pub/epel/7/x86_64'
-hammer product set-sync-plan --sync-plan-id=1 --organization-id=1 --name='EPEL-7'
-
-
-
-######
-## TODO:  Still Testing !!
-######
 
 #########################
 # OVAL (SCAP) content updates
 hammer product create --name='Red Hat File Content' --description='Red Hat file content' --organization-id=1
-hammer repository create --name='OVAL Definitions' --organization-id=1 --product='Red Hat' \
+hammer repository create --name='OVAL Definitions' --organization-id=1 --product='Red Hat File Content' \
   --content-type='file' --url='https://www.redhat.com/security/data/oval/'
 
+#########################
+# Docker Containers
+hammer product create --name='Red Hat Docker' --description='Red Hat Docker Containers' --organization-id=1
+hammer repository create --name='openshift3/ose-ose-docker-builder' --organization-id=1 --product='Red Hat Docker' --content-type='docker' \
+--url='https://registry.access.redhat.com' --docker-upstream-name 'openshift3/ose-docker-builder'
+hammer repository create --name='openshift3/ose-deployer' --organization-id=1 --product='Red Hat Docker' --content-type='docker' \
+--url='https://registry.access.redhat.com' --docker-upstream-name 'openshift3/ose-deployer'
 
-#######################
-# Configure Docker Support
-subscription-manager repos --enable rhel-7-server-extras-rpms
-yum -y install docker
 
-groupadd docker
-usermod -aG docker foreman
 
-sed -i "s/^OPTIONS=.*/OPTIONS='--selinux-enabled -G docker'/" /etc/sysconfig/docker
+# Sync Plan (** TIME IS UTC ** 12:00UTC = 22:00LOCAL)
+hammer sync-plan create --interval=daily --name='Daily Sync' --organization-id=1 --sync-date "2016-05-02 12:00:00" --enabled=true
 
-systemctl restart docker.service
-katello-service restart
 
-hammer compute-resource create --name Docker --organization-ids 1 --provider Docker --url unix://var/run/docker.sock
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat Enterprise Linux Server' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat Software Collections for RHEL Server' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'EPEL-6' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'EPEL-7' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat File Content' --sync-plan 'Daily Sync'
+
+- Sync repos
+
