@@ -36,24 +36,20 @@ rpm -Uvh selinux*.rpm
 
 # Copy Satellite 6.2 ISO to /root *
 mkdir /media/sat6
-mount -o loop /root/satellite-6.2.0-rhel-7-beta-1-x86_64-dvd.iso /media/sat6
+mount -o loop /root/satellite-6.2.0-rhel-7-beta-2-x86_64-dvd.iso /media/sat6
 cd /media/sat6/
 ./install_packages
 cd && umount /media/sat6
 
 firewall-cmd --permanent --add-service=RH-Satellite-6
 firewall-cmd --permanent --add-port 69/udp
-firewall-cmd --reload
 
 reboot
 
 #~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~
 
-yum -y install satellite
-
-
 # Install Satellite
-foreman-installer --scenario katello \
+satellite-installer --scenario satellite \
   --foreman-initial-organization "MyOrg" \
   --foreman-initial-location "Inside" \
   --foreman-admin-username admin \
