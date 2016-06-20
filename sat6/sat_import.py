@@ -86,7 +86,7 @@ def sync_content(org_id):
         sys.exit(-1)
     else:
         # Check that no sync tasks are already running
-        helpers.check_running_tasks()
+        helpers.check_running_sync()
 
         msg = "No existing running or paused sync tasks detected"
         helpers.log_msg(msg, 'DEBUG')
