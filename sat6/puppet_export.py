@@ -11,22 +11,21 @@ Exports Puppet modules.
 """
 
 import sys, argparse, datetime, os, shutil
-import fnmatch, subprocess, tarfile
-import simplejson as json
+import fnmatch, tarfile
 from glob import glob
 import helpers
 
 
-# Promote a content view version
+# Export Puppet modules
 def export_puppet(last_export, export_type):
     """
     Export Puppet modules
     Takes the type (full/incr) and the date of the last run
     """
-    PUPEXPORTDIR = helpers.EXPORTDIR + '/puppet'
-    if not os.path.exists(PUPEXPORTDIR):
+    pupexportdir = helpers.EXPORTDIR + '/puppet'
+    if not os.path.exists(pupexportdir):
         print "Creating puppet export directory"
-        os.makedirs(PUPEXPORTDIR)
+        os.makedirs(pupexportdir)
 
     if export_type == 'full':
         msg = "Exporting all puppet modules"
@@ -35,12 +34,12 @@ def export_puppet(last_export, export_type):
     helpers.log_msg(msg, 'INFO')
 
     if export_type == 'full':
-        os.system("find -L /var/lib/pulp/published/puppet/http/repos -type f -exec cp --parents -Lrp {} " \
-            + PUPEXPORTDIR + " \;")
+        os.system('find -L /var/lib/pulp/published/puppet/http/repos -type f -exec cp --parents -Lrp {} ' \
+            + pupexportdir + ' \;')
 
     else:
         os.system('find -L /var/lib/pulp/published/puppet/http/repos -type f -newerct $(date +%Y-%m-%d -d "' \
-            + last_export + '") -exec cp --parents -Lrp {} ' + PUPEXPORTDIR + ' \;')
+            + last_export + '") -exec cp --parents -Lrp {} ' + pupexportdir + ' \;')
 
     return
 
@@ -235,7 +234,7 @@ def main():
     script_dir = str(os.getcwd())
 
     # Get the org_id (Validates our connection to the API)
-    org_id = helpers.get_org_id(org_name)
+    helpers.get_org_id(org_name)
 
     # Get the current time - this will be the 'last export' time if the export is OK
     start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
@@ -304,4 +303,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

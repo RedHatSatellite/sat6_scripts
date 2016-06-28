@@ -390,6 +390,11 @@ def main():
         helpers.log_msg(msg, 'ERROR')
         sys.exit(-1)
 
+    # TODO: Need to now collect a list of repositories that are in the DOV.
+    # Need this as we possibly need to loop through individual repositories during
+    # incremental import on the other end :-)
+
+
     # Now we need to process the on-disk export data
     # Find the name of our export dir. This ASSUMES that the export dir is the ONLY dir.
     sat_export_dir = os.walk(helpers.EXPORTDIR).next()[1]

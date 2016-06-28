@@ -99,6 +99,17 @@ def sync_content(org_id):
                     }
                 ))["id"]
 
+# Possibly need to loop through repo ID's and use this one instead
+#        task_id = helpers.put_json(
+#            helpers.KATELLO_API + "repositories/" + str(repo_id) + "/sync", +\
+#                json.dumps(
+#                    {
+#                        source_url: 'http://localhost/pub/.cdn',
+#                        incremental: true
+#                    }
+#                ))["id"]
+
+
         msg = "Sync plan started - task_id " + task_id
         helpers.log_msg(msg, 'DEBUG')
 
@@ -129,7 +140,7 @@ def main():
     parser.add_argument('-o', '--org', help='Organization', required=True)
     parser.add_argument('-d', '--date', help='Date of Import fileset to process (YYYY-MM-DD)',
         required=True)
-    parser.add_argument('-s', '--sync', help='Trigger a sync after extracting content',
+    parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
         required=False, action="store_true")
     args = parser.parse_args()
 
@@ -147,18 +158,17 @@ def main():
     extract_content(basename)
 
     # Trigger a sync of the content into the Library
-    if args.sync:
+    if args.nosync:
+        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
+        print 'Please synchronise all repositories to make new content available for publishing.'
+    else:
         sync_content(org_id)
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please wait for sync to complete, then publish content views to make new' \
             'content available.'
-    else:
-        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
-        print 'Please synchronise all repositories to make new content available for publishing.'
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
 
 
 if __name__ == "__main__":
     main()
-
