@@ -16,6 +16,7 @@ as a one-shot check.
 """
 
 import sys, os, argparse, time
+import simplejson as json
 import helpers
 
 
@@ -30,8 +31,13 @@ def check_running_tasks(clear):
         os.system('clear')
 
     print helpers.HEADER + "Checking for running/paused yum sync tasks..." + helpers.ENDC
-    tasks = helpers.get_json(
-        helpers.FOREMAN_API + "tasks/")
+    tasks = helpers.get_p_json(
+        helpers.FOREMAN_API + "tasks/", \
+                json.dumps(
+                        {
+                           "per_page": "100",
+                        }
+                ))
 
     # From the list of tasks, look for any running export or sync jobs.
     # If e have any we exit, as we can't export in this state.

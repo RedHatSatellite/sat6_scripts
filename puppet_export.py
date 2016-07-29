@@ -1,13 +1,13 @@
 #!/usr/bin/python
-#title           :iso_export.py
-#description     :Exports Satellite 6 ISO content for disconnected environments
+#title           :puppet_export.py
+#description     :Exports Satellite 6 Puppet content for disconnected environments
 #URL             :https://github.com/ggatward/sat6_scripts
 #author          :Geoff Gatward <ggatward@redhat.com>
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
 """
-Exports ISO content.
+Exports Puppet modules.
 """
 
 import sys, argparse, datetime, os, shutil
@@ -18,51 +18,29 @@ import helpers
 
 
 # Promote a content view version
-def export_iso(last_export, export_type):
+def export_puppet(last_export, export_type):
     """
-    Export ISO content modules
+    Export Puppet modules
     Takes the type (full/incr) and the date of the last run
     """
-
-    ISOEXPORTDIR = helpers.EXPORTDIR + '/iso'
-    if not os.path.exists(ISOEXPORTDIR):
-        print "Creating ISO export directory"
-        os.makedirs(ISOEXPORTDIR)
+    PUPEXPORTDIR = helpers.EXPORTDIR + '/puppet'
+    if not os.path.exists(PUPEXPORTDIR):
+        print "Creating puppet export directory"
+        os.makedirs(PUPEXPORTDIR)
 
     if export_type == 'full':
-        msg = "Exporting all ISO content"
+        msg = "Exporting all puppet modules"
     else:
-        msg = "Exporting ISO content from start date " + last_export
+        msg = "Exporting puppet modules from start date " + last_export
     helpers.log_msg(msg, 'INFO')
 
     if export_type == 'full':
-        os.system("find -L /var/lib/pulp/published/http/isos -type f -exec cp --parents -Lrp {} " \
-            + ISOEXPORTDIR + " \;")
+        os.system("find -L /var/lib/pulp/published/puppet/http/repos -type f -exec cp --parents -Lrp {} " \
+            + PUPEXPORTDIR + " \;")
 
     else:
-        os.system('find -L /var/lib/pulp/published/http/isos -type f -newerct $(date +%Y-%m-%d -d "' \
-            + last_export + '") -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + ' \;')
-
-
-    # At this point the iso/ export dir will contain individual repos - we need to 'normalise' them
-    # This is a 'dirty' workaround, but puts the content where it is expected to be for importing.
-    #
-    # /.../Red_Hat_Enterprise_Linux_Server-Red_Hat_Enterprise_Linux_7_Server_ISOs_x86_64_7_2
-    # => /.../content/dist/rhel/server/7/7.2/x86_64/iso
-
-    for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
-        for tdir in subdirs:
-            if 'Red_Hat_Enterprise_Linux_7_Server_ISOs_x86_64_7_2' in tdir:
-                INDIR = os.path.join(dirpath, tdir)
-                OUTDIR = helpers.EXPORTDIR + '/content/dist/rhel/server/7/7.2/x86_64/iso'
-            elif 'Red_Hat_Enterprise_Linux_6_Server_ISOs_x86_64_6_8' in tdir:
-                INDIR = os.path.join(dirpath, tdir)
-                OUTDIR = helpers.EXPORTDIR + '/content/dist/rhel/server/6/6.8/x86_64/iso'
-
-
-            print INDIR + ' => ' + OUTDIR
-            if not os.path.exists(OUTDIR):
-                shutil.move(INDIR, OUTDIR)
+        os.system('find -L /var/lib/pulp/published/puppet/http/repos -type f -newerct $(date +%Y-%m-%d -d "' \
+            + last_export + '") -exec cp --parents -Lrp {} ' + PUPEXPORTDIR + ' \;')
 
     return
 
@@ -115,7 +93,7 @@ def check_incomplete_sync():
             repo_status = helpers.get_json(
                 helpers.KATELLO_API + "/repositories/" + str(repo_id['id']))
 
-            if repo_status['content_type'] == 'file':
+            if repo_status['content_type'] == 'puppet':
                 if repo_status['last_sync']['state'] == 'stopped':
                     if repo_status['last_sync']['result'] == 'warning':
                         incomplete_sync = True
@@ -157,15 +135,15 @@ def create_tar(export_dir, export_path):
     print msg
 
     os.chdir(export_dir)
-    full_tarfile = helpers.EXPORTDIR + '/iso_export_' + today
-    short_tarfile = 'iso_export_' + today
+    full_tarfile = helpers.EXPORTDIR + '/puppet_export_' + today
+    short_tarfile = 'puppet_export_' + today
     with tarfile.open(full_tarfile, 'w') as archive:
         archive.add(os.curdir, recursive=True)
 
     # Get a list of all the RPM content we are exporting
-    result = [y for x in os.walk(export_dir) for y in glob(os.path.join(x[0], '*'))]
+    result = [y for x in os.walk(export_dir) for y in glob(os.path.join(x[0], '*.tar.gz'))]
     if result:
-        f_handle = open(helpers.LOGDIR + '/iso_export_' + today + '.log', 'a+')
+        f_handle = open(helpers.LOGDIR + '/puppet_export_' + today + '.log', 'a+')
         f_handle.write('-------------------\n')
         for module in result:
             m_module = os.path.join(*(module.split(os.path.sep)[4:]))
@@ -194,7 +172,7 @@ def write_timestamp(start_time):
     """
     Append the start timestamp to our export record
     """
-    f_handle = open('../var/iso_exports.dat', 'a+')
+    f_handle = open('var/puppet_exports.dat', 'a+')
     f_handle.write(start_time + "\n")
     f_handle.close()
 
@@ -203,13 +181,13 @@ def read_timestamp():
     """
     Read the last successful export timestamp from our export record file
     """
-    if not os.path.exists('../var/iso_exports.dat'):
-        if not os.path.exists('../var'):
-            os.makedirs('../var')
+    if not os.path.exists('var/puppet_exports.dat'):
+        if not os.path.exists('var'):
+            os.makedirs('var')
         last = None
         return last
 
-    with open('../var/iso_exports.dat', 'r') as f_handle:
+    with open('var/puppet_exports.dat', 'r') as f_handle:
         last = None
         for line in (line for line in f_handle if line.rstrip('\n')):
             last = line.rstrip('\n')
@@ -231,19 +209,19 @@ def main():
     runuser = helpers.who_is_running()
 
     # Log the fact we are starting
-    msg = "------------- ISO export started by " + runuser + " ----------------"
+    msg = "------------- Puppet export started by " + runuser + " ----------------"
     helpers.log_msg(msg, 'INFO')
 
     # Check for sane input
-    parser = argparse.ArgumentParser(description='Performs Export of ISO content.')
+    parser = argparse.ArgumentParser(description='Performs Export of Puppet modules.')
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization', required=True)
-    group.add_argument('-a', '--all', help='Export ALL ISO content', required=False,
+    group.add_argument('-a', '--all', help='Export ALL puppet modules', required=False,
         action="store_true")
-    group.add_argument('-i', '--incr', help='Incremental Export of ISO content since last run',
+    group.add_argument('-i', '--incr', help='Incremental Export of puppet modules since last run',
         required=False, action="store_true")
-    group.add_argument('-s', '--since', help='Export ISO content since YYYY-MM-DD HH:MM:SS',
+    group.add_argument('-s', '--since', help='Export puppet modules since YYYY-MM-DD HH:MM:SS',
         required=False, type=helpers.valid_date)
     parser.add_argument('-l', '--last', help='Display time of last export', required=False,
         action="store_true")
@@ -269,7 +247,7 @@ def main():
     last_export = read_timestamp()
     export_type = 'incr'
     if args.all:
-        print "Performing full ISO content export"
+        print "Performing full puppet module export"
         export_type = 'full'
     else:
         if not since:
@@ -280,13 +258,13 @@ def main():
                     print "Export has never been performed"
                 sys.exit(-1)
             if not last_export:
-                print "No previous export recorded, performing full ISO content export"
+                print "No previous export recorded, performing full puppet module export"
                 export_type = 'full'
         else:
             last_export = str(since)
 
             # We have our timestamp so we can kick of an incremental export
-            print "Incremental export of ISO content synchronised after " + last_export
+            print "Incremental export of puppet modules synchronised after " + last_export
 
     # TODO: Remove any previous exported content
 #    os.chdir(helpers.EXPORTDIR)
@@ -296,19 +274,19 @@ def main():
     check_running_tasks()
 
     # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
-    export_iso(last_export, export_type)
+    export_puppet(last_export, export_type)
 
     # Now we need to process the on-disk export data
     # Find the name of our export dir. This ASSUMES that the export dir is the ONLY dir.
     sat_export_dir = os.walk(helpers.EXPORTDIR).next()[1]
     export_path = sat_export_dir[0]
 
-    # This portion finds the full directory tree of the ISO content, starting at the level
-    # containing the isos root (/var/lib/pulp/published/http/isos/...)
+    # This portion finds the full directory tree of the Puppet repo, starting at the level
+    # containing the Org_Name (/var/lib/pulp/published/puppet/http/repos/<org_name>/...)
     # pylint: disable=unused-variable
     for dirpath, subdirs, files in os.walk(helpers.EXPORTDIR):
         for tdir in subdirs:
-            if 'isos' in tdir:
+            if org_name in tdir:
                 export_dir = os.path.join(dirpath, tdir)
 
     # Add our exported data to a tarfile
@@ -319,9 +297,9 @@ def main():
     write_timestamp(start_time)
 
     # And we're done!
-    print helpers.GREEN + "ISO content export complete.\n" + helpers.ENDC
+    print helpers.GREEN + "Puppet module export complete.\n" + helpers.ENDC
     print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
-        ' to your disconnected server content location.\n'
+        ' to your disconnected puppet-forge server content location.\n'
 
 
 if __name__ == "__main__":

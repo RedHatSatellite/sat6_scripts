@@ -29,7 +29,7 @@ except ImportError:
 
 
 # Import the site-specific configs
-CONFIG = yaml.safe_load(open('../config/config.yml', 'r'))
+CONFIG = yaml.safe_load(open('config/config.yml', 'r'))
 
 # Read in the config parameters
 URL = CONFIG["satellite"]["url"]
@@ -82,9 +82,23 @@ def get_json(location):
     """
     Performs a GET using the passed URL location
     """
-    req = requests.get(location, auth=(USERNAME, PASSWORD),\
-    verify=True)
-    return req.json()
+    result = requests.get(
+        location,
+        auth=(USERNAME, PASSWORD),
+        verify=True)
+    return result.json()
+
+def get_p_json(location, json_data):
+    """
+    Performs a GET with input data to the URL location
+    """
+    result = requests.get(
+        location,
+        data=json_data,
+        auth=(USERNAME, PASSWORD),
+        verify=True,
+        headers=POST_HEADERS)
+    return result.json()
 
 def put_json(location, json_data):
     """
@@ -168,7 +182,7 @@ def wait_for_task(task_id):
     Wait for the given task ID to complete
     This displays a message without CR/LF waiting for an OK/FAIL status to be shown
     """
-    msg = "Waiting for task " + str(task_id) + " to complete...     "
+    msg = "Waiting for export to complete...                        "
     print msg,
     log_msg(msg, 'INFO')
     # Force the status message to be shown to the user

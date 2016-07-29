@@ -16,6 +16,12 @@ import simplejson as json
 from glob import glob
 import helpers
 
+try:
+    import yaml
+except ImportError:
+    print "Please install the PyYAML module."
+    sys.exit(-1)
+
 # Get details about Content Views and versions
 def get_cv(org_id):
     """
@@ -90,37 +96,108 @@ def export_cv(dov_ver, last_export, export_type):
     return str(task_id)
 
 
-def check_running_tasks():
+def export_repo(repo_id, last_export, export_type):
+    """
+    Export individual repository
+    Takes the repository id and a start time (API 'since' value)
+    """
+    if export_type == 'full':
+        msg = "Exporting repository id " + str(repo_id)
+    else:
+        msg = "Exporting repository id " + str(repo_id) + " from start date " + last_export
+    helpers.log_msg(msg, 'INFO')
+
+    try:
+        if export_type == 'full':
+            task_id = helpers.post_json(
+                helpers.KATELLO_API + "repositories/" + str(repo_id) + "/export", \
+                    json.dumps(
+                        {
+                        }
+                    ))["id"]
+        else:
+            task_id = helpers.post_json(
+                helpers.KATELLO_API + "repositories/" + str(repo_id) + "/export/", \
+                    json.dumps(
+                        {
+                            "since": last_export,
+                        }
+                    ))["id"]
+    except: # pylint: disable-msg=W0702
+        msg = "Unable to start export - Conflicting Sync or Export already in progress"
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
+
+    # Trap some other error conditions
+    if "Required lock is already taken" in str(task_id):
+        msg = "Unable to start export - Sync in progress"
+        helpers.log_msg(msg, 'ERROR')
+        sys.exit(-1)
+
+    msg = "Export started, task_id = " + str(task_id)
+    helpers.log_msg(msg, 'DEBUG')
+
+    return str(task_id)
+
+
+def check_running_tasks(label, name):
     """
     Check for any currently running Sync or Export tasks
     Exits script if any Synchronize or Export tasks are found in a running state.
     """
-    tasks = helpers.get_json(
-        helpers.FOREMAN_API + "tasks/")
+    tasks = helpers.get_p_json(
+        helpers.FOREMAN_API + "tasks/", \
+                json.dumps(
+                        {
+                           "per_page": "100",
+                        }
+                ))
 
     # From the list of tasks, look for any running export or sync jobs.
     # If e have any we exit, as we can't export in this state.
+    ok_to_export = True
     for task_result in tasks['results']:
         if task_result['state'] == 'running':
             if task_result['humanized']['action'] == 'Export':
-                msg = "Unable to export - an Export task is already running"
-                helpers.log_msg(msg, 'ERROR')
-                sys.exit(-1)
+                if task_result['input']['repository']['label'] == label:
+                    msg = "Unable to export due to export task in progress"
+                    if name == 'DoV':
+                        helpers.log_msg(msg, 'ERROR')
+                        sys.exit(-1)
+                    else:
+                        helpers.log_msg(msg, 'WARNING')
+                        ok_to_export = False
             if task_result['humanized']['action'] == 'Synchronize':
-                msg = "Unable to export - a Sync task is currently running"
-                helpers.log_msg(msg, 'ERROR')
-                sys.exit(-1)
+                if task_result['input']['repository']['label'] == label:
+                    msg = "Unable to export due to sync task in progress"
+                    if name == 'DoV':
+                        helpers.log_msg(msg, 'ERROR')
+                        sys.exit(-1)
+                    else:
+                        helpers.log_msg(msg, 'WARNING')
+                        ok_to_export = False
         if task_result['state'] == 'paused':
             if task_result['humanized']['action'] == 'Export':
-                msg = "Unable to export - an Export task is paused. Please resolve this issue first"
-                helpers.log_msg(msg, 'ERROR')
-                sys.exit(-1)
+                if task_result['input']['repository']['label'] == label:
+                    msg = "Unable to export due to paused export task - Please resolve this issue."
+                    if name == 'DoV':
+                        helpers.log_msg(msg, 'ERROR')
+                        sys.exit(-1)
+                    else:
+                        helpers.log_msg(msg, 'WARNING')
+                        ok_to_export = False
             if task_result['humanized']['action'] == 'Synchronize':
-                msg = "Unable to export - a Sync task is paused. Resume any paused sync tasks."
-                helpers.log_msg(msg, 'ERROR')
-                sys.exit(-1)
+                if task_result['input']['repository']['label'] == label:
+                    msg = "Unable to export due to paused sync task."
+                    if name == 'DoV':
+                        helpers.log_msg(msg, 'ERROR')
+                        sys.exit(-1)
+                    else:
+                        helpers.log_msg(msg, 'WARNING')
+                        ok_to_export = False
 
     check_incomplete_sync()
+    return(ok_to_export)
 
 
 def check_incomplete_sync():
@@ -262,26 +339,26 @@ def create_tar(export_dir, export_path):
 #    helpers.sha256sum()
 
 
-def write_timestamp(start_time):
+def write_timestamp(start_time, name):
     """
     Append the start timestamp to our export record
     """
-    f_handle = open('../var/exports.dat', 'a+')
+    f_handle = open('var/exports_' + name + '.dat', 'a+')
     f_handle.write(start_time + "\n")
     f_handle.close()
 
 
-def read_timestamp():
+def read_timestamp(name):
     """
     Read the last successful export timestamp from our export record file
     """
-    if not os.path.exists('../var/exports.dat'):
-        if not os.path.exists('../var'):
-            os.makedirs('../var')
+    if not os.path.exists('var/exports_' + name + '.dat'):
+        if not os.path.exists('var'):
+            os.makedirs('var')
         last = None
         return last
 
-    with open('../var/exports.dat', 'r') as f_handle:
+    with open('var/exports_' + name + '.dat', 'r') as f_handle:
         last = None
         for line in (line for line in f_handle if line.rstrip('\n')):
             last = line.rstrip('\n')
@@ -311,6 +388,7 @@ def main():
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization', required=True)
+    parser.add_argument('-e', '--env', help='Environment config file', required=False)
     group.add_argument('-a', '--all', help='Export ALL content', required=False,
         action="store_true")
     group.add_argument('-i', '--incr', help='Incremental Export of content since last run',
@@ -331,34 +409,52 @@ def main():
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
 
+    # If a specific environment is requested, find and read that config file
+    if args.env:
+        CFG = yaml.safe_load(open("config/" + args.env + ".yml", 'r'))
+        NAME = args.env
+        REPOS = CFG["env"]["repos"]
+        msg = "Specific environment export called for " + NAME + ". Configured repos:"
+        helpers.log_msg(msg, 'DEBUG')
+        for repo in REPOS:
+            msg = "  - " + repo
+            helpers.log_msg(msg, 'DEBUG')
+
+    else:
+        NAME = 'DoV'
+        label = 'DoV'
+        msg = "DoV export called"
+        helpers.log_msg(msg, 'DEBUG')
+
     # Get the current time - this will be the 'last export' time if the export is OK
     start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
-    print "START: " + start_time
+    print "START: " + start_time + " (" + NAME + " export)"
 
     # Get the last export date. If we're exporting all, this isn't relevant
     # If we are given a start date, use that, otherwise we need to get the last date from file
     # If there is no last export, we'll set an arbitrary start date to grab everything (2000-01-01)
-    last_export = read_timestamp()
+    last_export = read_timestamp(NAME)
     export_type = 'incr'
+
     if args.all:
-        print "Performing full content export"
+        print "Performing full content export for " + NAME
         export_type = 'full'
     else:
         if not since:
             if args.last:
                 if last_export:
-                    print "Last successful export was started at " + last_export
+                    print "Last successful export for " + NAME + " was started at " + last_export
                 else:
-                    print "Export has never been performed"
+                    print "Export has never been performed for " + NAME
                 sys.exit(-1)
             if not last_export:
-                print "No previous export recorded, performing full content export"
+                print "No previous export recorded for " + NAME + ", performing full content export"
                 export_type = 'full'
         else:
             last_export = str(since)
 
             # We have our timestamp so we can kick of an incremental export
-            print "Incremental export of content synchronised after " + last_export
+            print "Incremental export of content for " + NAME + " synchronised after " + last_export
 
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)
@@ -367,33 +463,99 @@ def main():
 #    os.chdir(helpers.EXPORTDIR)
 #    shutil.rmtree()
 
-    # Get the version of the CV (Default Org View) to export
-    dov_ver = get_cv(org_id)
 
-    # Check if there are any currently running tasks that will conflict with an export
-    check_running_tasks()
+    # Collect a list of enabled repositories. This is needed for:
+    # 1. Matching specific repo exports, and
+    # 2. Running import sync per repo on the disconnected side
+    repolist = helpers.get_p_json(
+        helpers.KATELLO_API + "/repositories/", \
+                json.dumps(
+                        {
+                           "organization_id": org_id,
+                        }
+                ))
 
-    # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
-    export_id = export_cv(dov_ver, last_export, export_type)
+    # If we are running a full DoV export we run a different set of API calls...
+    if NAME == 'DoV':
+        # Check if there are any currently running tasks that will conflict with an export
+        check_running_tasks(label, NAME)
 
-    # Now we need to wait for the export to complete
-    helpers.wait_for_task(export_id)
+        # Get the version of the CV (Default Org View) to export
+        dov_ver = get_cv(org_id)
 
-    # Check if the export completed OK. If not we exit the script.
-    tinfo = helpers.get_task_status(export_id)
-    if tinfo['state'] != 'running' and tinfo['result'] == 'success':
-        msg = "Content View Export OK"
-        helpers.log_msg(msg, 'INFO')
-        print helpers.GREEN + msg + helpers.ENDC
+        # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
+        export_id = export_cv(dov_ver, last_export, export_type)
+
+        # Now we need to wait for the export to complete
+        helpers.wait_for_task(export_id)
+
+        # Check if the export completed OK. If not we exit the script.
+        tinfo = helpers.get_task_status(export_id)
+        if tinfo['state'] != 'running' and tinfo['result'] == 'success':
+            msg = "Content View Export OK"
+            helpers.log_msg(msg, 'INFO')
+            print helpers.GREEN + msg + helpers.ENDC
+        else:
+            msg = "Content View Export FAILED"
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(-1)
+
     else:
-        msg = "Content View Export FAILED"
-        helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        # Verify that defined repos exist in our DoV
+        for repo_result in repolist['results']:
+            if repo_result['content_type'] == 'yum':
+                # If we have a match, do the export
+                if repo_result['label'] in REPOS:
+                    msg = "Exporting " + repo_result['label']
+                    helpers.log_msg(msg, 'INFO')
+                    print msg
 
-    # TODO: Need to now collect a list of repositories that are in the DOV.
-    # Need this as we possibly need to loop through individual repositories during
-    # incremental import on the other end :-)
+                    # Check if there are any currently running tasks that will conflict
+                    ok_to_export = check_running_tasks(repo_result['label'], NAME)
 
+                    if ok_to_export:
+                        # Trigger export on the repo
+                        export_id = export_repo(repo_result['id'], last_export, export_type)
+
+                        # Now we need to wait for the export to complete
+                        helpers.wait_for_task(export_id)
+
+                        # Check if the export completed OK. If not we exit the script.
+                        tinfo = helpers.get_task_status(export_id)
+                        if tinfo['state'] != 'running' and tinfo['result'] == 'success':
+                            msg = "Repository Export OK"
+                            helpers.log_msg(msg, 'INFO')
+                            print helpers.GREEN + msg + helpers.ENDC
+                        else:
+                            msg = "Export FAILED"
+                            helpers.log_msg(msg, 'ERROR')
+
+                else:
+                    msg = "Skipping  " + repo_result['label']
+                    helpers.log_msg(msg, 'DEBUG')
+
+
+    # Combine resulting directory structures into a single repo format (top level = /content)
+    msg = "Preparing export directory tree..."
+    helpers.log_msg(msg, 'INFO')
+    print msg
+    DEVNULL = open(os.devnull, 'wb')
+    # Haven't found a nice python way to do this - yet...
+    subprocess.call("cp -rp " + helpers.EXPORTDIR + "/" + org_name + "*/" + org_name + \
+        "/Library/* " + helpers.EXPORTDIR, shell=True, stdout=DEVNULL, stderr=DEVNULL)
+    # Remove original directores
+    os.system("rm -rf " + helpers.EXPORTDIR + "/" + org_name + "*/")
+
+    # We need to re-generate the 'listing' files as we will have overwritten some during the merge
+
+
+
+
+
+
+    print "D-E-B-U-G"
+    sys.exit(-1)
+    ####
 
     # Now we need to process the on-disk export data
     # Find the name of our export dir. This ASSUMES that the export dir is the ONLY dir.
@@ -415,7 +577,7 @@ def main():
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
-    write_timestamp(start_time)
+    write_timestamp(start_time, NAME)
 
     # And we're done!
     print helpers.GREEN + "Export complete.\n" + helpers.ENDC
@@ -427,3 +589,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
