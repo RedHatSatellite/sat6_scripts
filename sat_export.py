@@ -411,6 +411,9 @@ def main():
 
     # If a specific environment is requested, find and read that config file
     if args.env:
+        if not os.path.exists('config/' + args.env + '.yml'):
+            print "ERROR: Config file 'config/" + args.env + ".yml' not found."
+            sys.exit(-1)
         CFG = yaml.safe_load(open("config/" + args.env + ".yml", 'r'))
         NAME = args.env
         REPOS = CFG["env"]["repos"]
