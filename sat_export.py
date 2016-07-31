@@ -382,36 +382,15 @@ def create_listing_file(directory):
     listing_file.close()
 
 
-def write_timestamp(start_time, name):
-    """
-    Append the start timestamp to our export record
-    """
-    f_handle = open('var/exports_' + name + '.dat', 'a+')
-    f_handle.write(start_time + "\n")
-    f_handle.close()
-
-
-def read_timestamp(name):
-    """
-    Read the last successful export timestamp from our export record file
-    """
-    if not os.path.exists('var/exports_' + name + '.dat'):
+def read_pickle(name):
+    if not os.path.exists('var/exports_' + name + '.pkl'):
         if not os.path.exists('var'):
             os.makedirs('var')
-        last = None
-        return last
+        export_times = {}
+        return export_times
 
-    with open('var/exports_' + name + '.dat', 'r') as f_handle:
-        last = None
-        for line in (line for line in f_handle if line.rstrip('\n')):
-            last = line.rstrip('\n')
-
-    return last
-
-
-def read_pickle(name):
-    export_times = {}
-
+    # Read in the export time pickle
+    export_times = pickle.load(open('var/exports_' + name + '.pkl', 'rb'))
     return export_times
 
 
@@ -483,14 +462,8 @@ def main():
     start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
     print "START: " + start_time + " (" + ename + " export)"
 
-    # Get the last export date. If we're exporting all, this isn't relevant
-    # If we are given a start date, use that, otherwise we need to get the last date from file
-    # If there is no last export, we'll set an arbitrary start date to grab everything (2000-01-01)
-    last_export = read_timestamp(ename)
-
-    # Read the last export date pickle for our selected group
+    # Read the last export date pickle for our selected repo group.
     export_times = read_pickle(ename)
-
     export_type = 'incr'
 
     if args.all:
@@ -499,20 +472,23 @@ def main():
     else:
         if not since:
             if args.last:
-                if last_export:
-                    print "Last successful export for " + ename + " was started at " + last_export
+                if export_times:
+                    print "Last successful export for " + ename + ":"
+                    for x in export_times:
+                        print str(x) + '\t' + str(export_times[x])
                 else:
                     print "Export has never been performed for " + ename
                 sys.exit(-1)
-            if not last_export:
+            if not export_times:
                 print "No prior export recorded for " + ename + ", performing full content export"
                 export_type = 'full'
         else:
-            last_export = str(since)
+            # TODO: Re-populate export_times dictionary so each repo has 'since' date
+#            last_export = str(since)
 
             # We have our timestamp so we can kick of an incremental export
             print "Incremental export of content for " + ename + " synchronised after " \
-            + last_export
+            + str(since)
 
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)
@@ -535,6 +511,9 @@ def main():
 
     # If we are running a full DoV export we run a different set of API calls...
     if ename == 'DoV':
+        # TODO: Last export will be the only entry in the export_times pickle
+        last_export = '2000-01-01 12:00:00'
+
         # Check if there are any currently running tasks that will conflict with an export
         check_running_tasks(label, ename)
 
@@ -564,7 +543,15 @@ def main():
             if repo_result['content_type'] == 'yum':
                 # If we have a match, do the export
                 if repo_result['label'] in erepos:
-                    msg = "Exporting " + repo_result['label']
+                    # Extract the last export time for this repo
+                    if repo_result['label'] in export_times:
+                        export_type = 'incr'
+                        last_export = export_times[repo_result['label']]
+                        msg = "Exporting " + repo_result['label'] + " (INCR since " + last_export + ")"
+                    else:
+                        export_type = 'full'
+                        last_export = '2000-01-01 12:00:00' # This is a dummy value, never used.
+                        msg = "Exporting " + repo_result['label'] + "(FULL)"
                     helpers.log_msg(msg, 'INFO')
                     print msg
 
@@ -584,27 +571,25 @@ def main():
                             msg = "Repository Export OK"
                             helpers.log_msg(msg, 'INFO')
                             print helpers.GREEN + msg + helpers.ENDC
+
+                            # Update the export timestamp for this repo
+                            export_times[repo_result['label']] = start_time
                         else:
                             msg = "Export FAILED"
                             helpers.log_msg(msg, 'ERROR')
 
-                        # Add repo export timestamp to repo_dict
-                        export_times[repo_result['label']] = start_time
 
                 else:
                     msg = "Skipping  " + repo_result['label']
                     helpers.log_msg(msg, 'DEBUG')
 
-    # DEBUG: Dump the export_times dictionary
-    print export_times
-    # TEMPORARY - Move to correct location post-debugging
-    pickle.dump(export_times, open('var/exports_' + name + '.pkl', "wb"))
- 
-
     # Combine resulting directory structures into a single repo format (top level = /content)
     prep_export_tree(org_name)
 
 
+    # TEMPORARY - Move to correct location post-debugging
+    pickle.dump(export_times, open('var/exports_' + ename + '.pkl', "wb"))
+ 
     print "D-E-B-U-G"
     sys.exit(-1)
     ####
