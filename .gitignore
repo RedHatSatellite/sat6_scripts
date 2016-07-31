@@ -1,5 +1,6 @@
 # Project specific files
 config/config.yml
+config/[A-D].yml
 
 # Byte-compiled / optimized / DLL files
 __pycache__/

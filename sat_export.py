@@ -336,7 +336,51 @@ def create_tar(export_dir, export_path):
     print msg
     os.system('sha256sum ' + short_tarfile + '_* > ' + short_tarfile + '.sha256')
 
-#    helpers.sha256sum()
+
+def prep_export_tree(org_name):
+    """
+    Function to combine individual export directories into single export tree
+    Export top level contains /content and /custom directories with 'listing'
+    files through the tree.
+    """
+    msg = "Preparing export directory tree..."
+    helpers.log_msg(msg, 'INFO')
+    print msg
+    DEVNULL = open(os.devnull, 'wb')
+    # Haven't found a nice python way to do this - yet...
+    subprocess.call("cp -rp " + helpers.EXPORTDIR + "/" + org_name + "*/" + org_name + \
+        "/Library/* " + helpers.EXPORTDIR, shell=True, stdout=DEVNULL, stderr=DEVNULL)
+    # Remove original directores
+    os.system("rm -rf " + helpers.EXPORTDIR + "/" + org_name + "*/")
+
+    # We need to re-generate the 'listing' files as we will have overwritten some during the merge
+    create_listing_file(helpers.EXPORTDIR)
+
+    for root, directories, filenames in os.walk(helpers.EXPORTDIR):
+        for subdir in directories:
+                currentdir = os.path.join(root, subdir)
+                create_listing_file(currentdir)
+
+
+def get_immediate_subdirectories(a_dir):
+    """ Return a list of subdirectories """
+    return [name for name in os.listdir(a_dir)
+            if os.path.isdir(os.path.join(a_dir, name))]
+
+
+def create_listing_file(directory):
+    """
+    Function to create the listing file containing the subdirectories 
+    """
+    listing_file = open(directory + "/listing", "w")
+    sorted_subdirs = sorted(get_immediate_subdirectories(directory))
+    print "CURRENTDIR - %s " % directory
+    print "\t SUBDIRS - %s " % sorted_subdirs
+    for directory in sorted_subdirs:
+        listing_file.write(directory + "\n")
+    listing_file.close()
+
+
 
 
 def write_timestamp(start_time, name):
@@ -539,21 +583,7 @@ def main():
 
 
     # Combine resulting directory structures into a single repo format (top level = /content)
-    msg = "Preparing export directory tree..."
-    helpers.log_msg(msg, 'INFO')
-    print msg
-    DEVNULL = open(os.devnull, 'wb')
-    # Haven't found a nice python way to do this - yet...
-    subprocess.call("cp -rp " + helpers.EXPORTDIR + "/" + org_name + "*/" + org_name + \
-        "/Library/* " + helpers.EXPORTDIR, shell=True, stdout=DEVNULL, stderr=DEVNULL)
-    # Remove original directores
-    os.system("rm -rf " + helpers.EXPORTDIR + "/" + org_name + "*/")
-
-    # We need to re-generate the 'listing' files as we will have overwritten some during the merge
-
-
-
-
+    prep_export_tree(org_name)
 
 
     print "D-E-B-U-G"
