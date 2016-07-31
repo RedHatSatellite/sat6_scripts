@@ -297,6 +297,7 @@ def check_running_publish(cvid, desc):
     Check for any currently running Promotion/Publication tasks
     Exits script if any Publish/Promote tasks are found in a running state.
     """
+    #pylint: disable-msg=R0912,R0914,R0915
     tasks = get_json(
         FOREMAN_API + "tasks/")
 
@@ -306,33 +307,31 @@ def check_running_publish(cvid, desc):
         if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Publish':
                 if task_result['input']['content_view']['id'] == cvid:
-                    msg = "Unable to start '" + desc + "' - content view is locked by another task"
+                    msg = "Unable to start '" + desc + "': content view is locked by another task"
                     log_msg(msg, 'WARNING')
                     locked = True
-                    return(locked)
+                    return locked
         if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Publish':
                 if task_result['input']['content_view']['id'] == cvid:
-                    msg = "Unable to start '" + desc + "' - content view is locked by a paused task."
+                    msg = "Unable to start '" + desc + "': content view is locked by a paused task"
                     log_msg(msg, 'WARNING')
                     locked = True
-                    return(locked)
+                    return locked
         if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Promotion':
                 if task_result['input']['content_view']['id'] == cvid:
-                    msg = "Unable to start '" + desc + "' - content view is locked by another task"
+                    msg = "Unable to start '" + desc + "': content view is locked by another task"
                     log_msg(msg, 'WARNING')
                     locked = True
-                    return(locked)
+                    return locked
         if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Promotion':
                 if task_result['input']['content_view']['id'] == cvid:
-                    msg = "Unable to start '" + desc + "' - content view is locked by a paused task."
+                    msg = "Unable to start '" + desc + "': content view is locked by a paused task"
                     log_msg(msg, 'WARNING')
                     locked = True
-                    return(locked)
-
-
+                    return locked
 
 
 def query_yes_no(question, default="yes"):
@@ -404,4 +403,3 @@ def log_msg(msg, level):
     # Otherwise if we ARE in debug, write everything to the log AND stdout
     else:
         logging.info(msg)
-

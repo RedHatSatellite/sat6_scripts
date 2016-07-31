@@ -145,12 +145,13 @@ def check_running_tasks(label, name):
     Check for any currently running Sync or Export tasks
     Exits script if any Synchronize or Export tasks are found in a running state.
     """
+    #pylint: disable-msg=R0912,R0914,R0915
     tasks = helpers.get_p_json(
         helpers.FOREMAN_API + "tasks/", \
                 json.dumps(
-                        {
-                           "per_page": "100",
-                        }
+                    {
+                        "per_page": "100",
+                    }
                 ))
 
     # From the list of tasks, look for any running export or sync jobs.
@@ -197,7 +198,7 @@ def check_running_tasks(label, name):
                         ok_to_export = False
 
     check_incomplete_sync()
-    return(ok_to_export)
+    return ok_to_export
 
 
 def check_incomplete_sync():
@@ -346,10 +347,10 @@ def prep_export_tree(org_name):
     msg = "Preparing export directory tree..."
     helpers.log_msg(msg, 'INFO')
     print msg
-    DEVNULL = open(os.devnull, 'wb')
+    devnull = open(os.devnull, 'wb')
     # Haven't found a nice python way to do this - yet...
     subprocess.call("cp -rp " + helpers.EXPORTDIR + "/" + org_name + "*/" + org_name + \
-        "/Library/* " + helpers.EXPORTDIR, shell=True, stdout=DEVNULL, stderr=DEVNULL)
+        "/Library/* " + helpers.EXPORTDIR, shell=True, stdout=devnull, stderr=devnull)
     # Remove original directores
     os.system("rm -rf " + helpers.EXPORTDIR + "/" + org_name + "*/")
 
@@ -358,19 +359,18 @@ def prep_export_tree(org_name):
 
     for root, directories, filenames in os.walk(helpers.EXPORTDIR):
         for subdir in directories:
-                currentdir = os.path.join(root, subdir)
-                create_listing_file(currentdir)
+            currentdir = os.path.join(root, subdir)
+            create_listing_file(currentdir)
 
 
 def get_immediate_subdirectories(a_dir):
     """ Return a list of subdirectories """
-    return [name for name in os.listdir(a_dir)
-            if os.path.isdir(os.path.join(a_dir, name))]
+    return [name for name in os.listdir(a_dir) if os.path.isdir(os.path.join(a_dir, name))]
 
 
 def create_listing_file(directory):
     """
-    Function to create the listing file containing the subdirectories 
+    Function to create the listing file containing the subdirectories
     """
     listing_file = open(directory + "/listing", "w")
     sorted_subdirs = sorted(get_immediate_subdirectories(directory))
@@ -379,8 +379,6 @@ def create_listing_file(directory):
     for directory in sorted_subdirs:
         listing_file.write(directory + "\n")
     listing_file.close()
-
-
 
 
 def write_timestamp(start_time, name):
@@ -458,50 +456,51 @@ def main():
         if not os.path.exists('config/' + args.env + '.yml'):
             print "ERROR: Config file 'config/" + args.env + ".yml' not found."
             sys.exit(-1)
-        CFG = yaml.safe_load(open("config/" + args.env + ".yml", 'r'))
-        NAME = args.env
-        REPOS = CFG["env"]["repos"]
-        msg = "Specific environment export called for " + NAME + ". Configured repos:"
+        cfg = yaml.safe_load(open("config/" + args.env + ".yml", 'r'))
+        ename = args.env
+        erepos = cfg["env"]["repos"]
+        msg = "Specific environment export called for " + ename + ". Configured repos:"
         helpers.log_msg(msg, 'DEBUG')
-        for repo in REPOS:
+        for repo in erepos:
             msg = "  - " + repo
             helpers.log_msg(msg, 'DEBUG')
 
     else:
-        NAME = 'DoV'
+        ename = 'DoV'
         label = 'DoV'
         msg = "DoV export called"
         helpers.log_msg(msg, 'DEBUG')
 
     # Get the current time - this will be the 'last export' time if the export is OK
     start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
-    print "START: " + start_time + " (" + NAME + " export)"
+    print "START: " + start_time + " (" + ename + " export)"
 
     # Get the last export date. If we're exporting all, this isn't relevant
     # If we are given a start date, use that, otherwise we need to get the last date from file
     # If there is no last export, we'll set an arbitrary start date to grab everything (2000-01-01)
-    last_export = read_timestamp(NAME)
+    last_export = read_timestamp(ename)
     export_type = 'incr'
 
     if args.all:
-        print "Performing full content export for " + NAME
+        print "Performing full content export for " + ename
         export_type = 'full'
     else:
         if not since:
             if args.last:
                 if last_export:
-                    print "Last successful export for " + NAME + " was started at " + last_export
+                    print "Last successful export for " + ename + " was started at " + last_export
                 else:
-                    print "Export has never been performed for " + NAME
+                    print "Export has never been performed for " + ename
                 sys.exit(-1)
             if not last_export:
-                print "No previous export recorded for " + NAME + ", performing full content export"
+                print "No prior export recorded for " + ename + ", performing full content export"
                 export_type = 'full'
         else:
             last_export = str(since)
 
             # We have our timestamp so we can kick of an incremental export
-            print "Incremental export of content for " + NAME + " synchronised after " + last_export
+            print "Incremental export of content for " + ename + " synchronised after " \
+            + last_export
 
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)
@@ -523,9 +522,9 @@ def main():
                 ))
 
     # If we are running a full DoV export we run a different set of API calls...
-    if NAME == 'DoV':
+    if ename == 'DoV':
         # Check if there are any currently running tasks that will conflict with an export
-        check_running_tasks(label, NAME)
+        check_running_tasks(label, ename)
 
         # Get the version of the CV (Default Org View) to export
         dov_ver = get_cv(org_id)
@@ -552,13 +551,13 @@ def main():
         for repo_result in repolist['results']:
             if repo_result['content_type'] == 'yum':
                 # If we have a match, do the export
-                if repo_result['label'] in REPOS:
+                if repo_result['label'] in erepos:
                     msg = "Exporting " + repo_result['label']
                     helpers.log_msg(msg, 'INFO')
                     print msg
 
                     # Check if there are any currently running tasks that will conflict
-                    ok_to_export = check_running_tasks(repo_result['label'], NAME)
+                    ok_to_export = check_running_tasks(repo_result['label'], ename)
 
                     if ok_to_export:
                         # Trigger export on the repo
@@ -610,7 +609,7 @@ def main():
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
-    write_timestamp(start_time, NAME)
+    write_timestamp(start_time, ename)
 
     # And we're done!
     print helpers.GREEN + "Export complete.\n" + helpers.ENDC
@@ -622,4 +621,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

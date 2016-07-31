@@ -33,11 +33,11 @@ def check_running_tasks(clear):
     print helpers.HEADER + "Checking for running/paused yum sync tasks..." + helpers.ENDC
     tasks = helpers.get_p_json(
         helpers.FOREMAN_API + "tasks/", \
-                json.dumps(
-                        {
-                           "per_page": "100",
-                        }
-                ))
+            json.dumps(
+                {
+                    "per_page": "100",
+                }
+            ))
 
     # From the list of tasks, look for any running export or sync jobs.
     # If e have any we exit, as we can't export in this state.
@@ -46,11 +46,13 @@ def check_running_tasks(clear):
         if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Synchronize':
                 running_sync = 1
-                print helpers.BOLD + "Running: " + helpers.ENDC + task_result['input']['repository']['name']
+                print helpers.BOLD + "Running: " + helpers.ENDC \
+                    + task_result['input']['repository']['name']
         if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Synchronize':
                 running_sync = 1
-                print helpers.ERROR + "Paused:  " + helpers.ENDC + task_result['input']['repository']['name']
+                print helpers.ERROR + "Paused:  " + helpers.ENDC \
+                    + task_result['input']['repository']['name']
 
     if not running_sync:
         print helpers.GREEN + "None detected" + helpers.ENDC
@@ -120,4 +122,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
