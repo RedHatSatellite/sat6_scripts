@@ -10,7 +10,7 @@
 Exports Default Org Content View.
 """
 
-import sys, argparse, datetime, os, shutil
+import sys, argparse, datetime, os, shutil, pickle
 import fnmatch, subprocess, tarfile
 import simplejson as json
 from glob import glob
@@ -405,7 +405,14 @@ def read_timestamp(name):
         last = None
         for line in (line for line in f_handle if line.rstrip('\n')):
             last = line.rstrip('\n')
+
     return last
+
+
+def read_pickle(name):
+    export_times = {}
+
+    return export_times
 
 
 def main():
@@ -480,6 +487,10 @@ def main():
     # If we are given a start date, use that, otherwise we need to get the last date from file
     # If there is no last export, we'll set an arbitrary start date to grab everything (2000-01-01)
     last_export = read_timestamp(ename)
+
+    # Read the last export date pickle for our selected group
+    export_times = read_pickle(ename)
+
     export_type = 'incr'
 
     if args.all:
@@ -577,10 +588,18 @@ def main():
                             msg = "Export FAILED"
                             helpers.log_msg(msg, 'ERROR')
 
+                        # Add repo export timestamp to repo_dict
+                        export_times[repo_result['label']] = start_time
+
                 else:
                     msg = "Skipping  " + repo_result['label']
                     helpers.log_msg(msg, 'DEBUG')
 
+    # DEBUG: Dump the export_times dictionary
+    print export_times
+    # TEMPORARY - Move to correct location post-debugging
+    pickle.dump(export_times, open('var/exports_' + name + '.pkl', "wb"))
+ 
 
     # Combine resulting directory structures into a single repo format (top level = /content)
     prep_export_tree(org_name)
