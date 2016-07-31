@@ -355,6 +355,9 @@ def prep_export_tree(org_name):
     os.system("rm -rf " + helpers.EXPORTDIR + "/" + org_name + "*/")
 
     # We need to re-generate the 'listing' files as we will have overwritten some during the merge
+    msg = "Rebuilding listing files..."
+    helpers.log_msg(msg, 'INFO')
+    print msg
     create_listing_file(helpers.EXPORTDIR)
 
     for root, directories, filenames in os.walk(helpers.EXPORTDIR):
@@ -372,9 +375,6 @@ def create_listing_file(directory):
     """
     Function to create the listing file containing the subdirectories
     """
-    msg = "Rebuilding listing files..."
-    helpers.log_msg(msg, 'INFO')
-    print msg
     listing_file = open(directory + "/listing", "w")
     sorted_subdirs = sorted(get_immediate_subdirectories(directory))
     for directory in sorted_subdirs:
