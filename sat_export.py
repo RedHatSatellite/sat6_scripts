@@ -372,10 +372,11 @@ def create_listing_file(directory):
     """
     Function to create the listing file containing the subdirectories
     """
+    msg = "Rebuilding listing files..."
+    helpers.log_msg(msg, 'INFO')
+    print msg
     listing_file = open(directory + "/listing", "w")
     sorted_subdirs = sorted(get_immediate_subdirectories(directory))
-    print "CURRENTDIR - %s " % directory
-    print "\t SUBDIRS - %s " % sorted_subdirs
     for directory in sorted_subdirs:
         listing_file.write(directory + "\n")
     listing_file.close()
