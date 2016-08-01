@@ -359,10 +359,10 @@ def prep_export_tree(org_name):
     msg = "Rebuilding listing files..."
     helpers.log_msg(msg, 'INFO')
     print msg
-    create_listing_file(helpers.EXPORTDIR)
+    create_listing_file(helpers.EXPORTDIR + "/export")
 
     # pylint: disable=unused-variable
-    for root, directories, filenames in os.walk(helpers.EXPORTDIR):
+    for root, directories, filenames in os.walk(helpers.EXPORTDIR + "/export"):
         for subdir in directories:
             currentdir = os.path.join(root, subdir)
             create_listing_file(currentdir)
@@ -519,8 +519,7 @@ def main():
 
     # If we are running a full DoV export we run a different set of API calls...
     if ename == 'DoV':
-        if export_type != 'full' and 'DoV' in export_times:
-            export_type = 'incr'
+        if export_type == 'incr' and 'DoV' in export_times:
             last_export = export_times['DoV']
             if since:
                 last_export = since_export
@@ -572,8 +571,7 @@ def main():
                 # If we have a match, do the export
                 if repo_result['label'] in erepos:
                     # Extract the last export time for this repo
-                    if repo_result['label'] in export_times:
-                        export_type = 'incr'
+                    if export_type == 'incr' and repo_result['label'] in export_times:
                         last_export = export_times[repo_result['label']]
                         if since:
                             last_export = since_export
@@ -649,3 +647,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
