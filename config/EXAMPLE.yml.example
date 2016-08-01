@@ -1,7 +1,7 @@
 env:
   name: EXAMPLE
   repos: [
-          Red_Hat_Enterprise_Linux_7_Server_RPMs_x86_64_7Server,
-          Red_Hat_Enterprise_Linux_7_Server_-_Extras_RPMs_x86_64,
-          Red_Hat_Enterprise_Linux_7_Server_-_RH_Common_RPMs_x86_64_7Server,
-        ]
+           Red_Hat_Enterprise_Linux_7_Server_RPMs_x86_64_7Server,
+           Red_Hat_Enterprise_Linux_7_Server_-_Extras_RPMs_x86_64,
+           Red_Hat_Enterprise_Linux_7_Server_-_RH_Common_RPMs_x86_64_7Server,
+         ]

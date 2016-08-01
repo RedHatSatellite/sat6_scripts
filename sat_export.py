@@ -549,6 +549,13 @@ def main():
 
             # Update the export timestamp for this repo
             export_times['DoV'] = start_time
+
+            # Generate a list of repositories that were exported
+            for repo_result in repolist['results']:
+                if repo_result['content_type'] == 'yum':
+                    # Add the repo to the successfully exported list
+                    exported_repos.append(repo_result['label'])
+
         else:
             msg = "Content View Export FAILED"
             helpers.log_msg(msg, 'ERROR')
@@ -556,6 +563,7 @@ def main():
 
     else:
         # Verify that defined repos exist in our DoV
+        exported_repos = []
         for repo_result in repolist['results']:
             if repo_result['content_type'] == 'yum':
                 # If we have a match, do the export
@@ -593,6 +601,9 @@ def main():
 
                             # Update the export timestamp for this repo
                             export_times[repo_result['label']] = start_time
+
+                            # Add the repo to the successfully exported list
+                            exported_repos.append(repo_result['label'])
                         else:
                             msg = "Export FAILED"
                             helpers.log_msg(msg, 'ERROR')
@@ -606,9 +617,13 @@ def main():
     # Combine resulting directory structures into a single repo format (top level = /content)
     prep_export_tree(org_name)
 
-    # Now we need to process the on-disk export data
-    # Find the name of our export dir.
+    # Now we need to process the on-disk export data.
+    # Define the location of our exported data.
     export_dir = helpers.EXPORTDIR + "/export"
+
+    # Write out the list of exported repos. This will be transferred to the disconnected system
+    # and used to perform the repo sync tasks during the import.
+    pickle.dump(exported_repos, open(export_dir + '/exported_repos.pkl', 'wb'))
 
     # Run GPG Checks on the exported RPMs
     do_gpg_check(export_dir)
