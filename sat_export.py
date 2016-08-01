@@ -348,8 +348,8 @@ def prep_export_tree(org_name):
     helpers.log_msg(msg, 'INFO')
     print msg
     devnull = open(os.devnull, 'wb')
+    os.makedirs(helpers.EXPORTDIR + "/export")
     # Haven't found a nice python way to do this - yet...
-    subprocess.call("mkdir " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
     subprocess.call("cp -rp " + helpers.EXPORTDIR + "/" + org_name + "*/" + org_name + \
         "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
     # Remove original directores
@@ -361,6 +361,7 @@ def prep_export_tree(org_name):
     print msg
     create_listing_file(helpers.EXPORTDIR)
 
+    # pylint: disable=unused-variable
     for root, directories, filenames in os.walk(helpers.EXPORTDIR):
         for subdir in directories:
             currentdir = os.path.join(root, subdir)
@@ -384,6 +385,9 @@ def create_listing_file(directory):
 
 
 def read_pickle(name):
+    """
+    Function to read the last export dates from an existing pickle
+    """
     if not os.path.exists('var/exports_' + name + '.pkl'):
         if not os.path.exists('var'):
             os.makedirs('var')
@@ -438,7 +442,7 @@ def main():
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
-
+    exported_repos = []
     # If a specific environment is requested, find and read that config file
     if args.env:
         if not os.path.exists('config/' + args.env + '.yml'):
@@ -477,8 +481,8 @@ def main():
             if args.last:
                 if export_times:
                     print "Last successful export for " + ename + ":"
-                    for x in export_times:
-                        print str(x) + '\t' + str(export_times[x])
+                    for time in export_times:
+                        print str(time) + '\t' + str(export_times[time])
                 else:
                     print "Export has never been performed for " + ename
                 sys.exit(-1)
@@ -563,7 +567,6 @@ def main():
 
     else:
         # Verify that defined repos exist in our DoV
-        exported_repos = []
         for repo_result in repolist['results']:
             if repo_result['content_type'] == 'yum':
                 # If we have a match, do the export
@@ -574,7 +577,8 @@ def main():
                         last_export = export_times[repo_result['label']]
                         if since:
                             last_export = since_export
-                        msg = "Exporting " + repo_result['label'] + " (INCR since " + last_export + ")"
+                        msg = "Exporting " + repo_result['label'] \
+                            + " (INCR since " + last_export + ")"
                     else:
                         export_type = 'full'
                         last_export = '2000-01-01 12:00:00' # This is a dummy value, never used.
@@ -645,4 +649,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
