@@ -262,7 +262,7 @@ def do_gpg_check(export_dir):
     """
     Find and GPG Check all RPM files
     """
-    msg = "Checking GPG integrity of RPMs in\n   " + export_dir
+    msg = "Checking GPG integrity of RPMs in " + export_dir
     helpers.log_msg(msg, 'INFO')
     print msg
 
@@ -293,7 +293,7 @@ def do_gpg_check(export_dir):
         print helpers.GREEN + "GPG Check - Pass" + helpers.ENDC
 
 
-def create_tar(export_dir, export_path):
+def create_tar(export_dir, name):
     """
     Create a TAR of the content we have exported
     Creates a single tar, then splits into DVD size chunks and calculates
@@ -305,15 +305,15 @@ def create_tar(export_dir, export_path):
     print msg
 
     os.chdir(export_dir)
-    full_tarfile = helpers.EXPORTDIR + '/sat6_export_' + today
-    short_tarfile = 'sat6_export_' + today
+    full_tarfile = helpers.EXPORTDIR + '/sat6_export_' + today + '_' + name
+    short_tarfile = 'sat6_export_' + today + '_' + name
     with tarfile.open(full_tarfile, 'w') as archive:
         archive.add(os.curdir, recursive=True)
 
     # Get a list of all the RPM content we are exporting
     result = [y for x in os.walk(export_dir) for y in glob(os.path.join(x[0], '*.rpm'))]
     if result:
-        f_handle = open(helpers.LOGDIR + '/export_' + today + '.log', 'a+')
+        f_handle = open(helpers.LOGDIR + '/export_' + today + '_' + name + '.log', 'a+')
         f_handle.write('-------------------\n')
         for rpm in result:
             m_rpm = os.path.join(*(rpm.split(os.path.sep)[6:]))
@@ -322,7 +322,7 @@ def create_tar(export_dir, export_path):
 
     # When we've tar'd up the content we can delete the export dir.
     os.chdir(helpers.EXPORTDIR)
-    shutil.rmtree(export_path)
+    shutil.rmtree(export_dir)
 
     # Split the resulting tar into DVD size chunks & remove the original.
     msg = "Splitting TAR file..."
@@ -349,8 +349,9 @@ def prep_export_tree(org_name):
     print msg
     devnull = open(os.devnull, 'wb')
     # Haven't found a nice python way to do this - yet...
+    subprocess.call("mkdir " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
     subprocess.call("cp -rp " + helpers.EXPORTDIR + "/" + org_name + "*/" + org_name + \
-        "/Library/* " + helpers.EXPORTDIR, shell=True, stdout=devnull, stderr=devnull)
+        "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
     # Remove original directores
     os.system("rm -rf " + helpers.EXPORTDIR + "/" + org_name + "*/")
 
@@ -469,8 +470,10 @@ def main():
     if args.all:
         print "Performing full content export for " + ename
         export_type = 'full'
+        since = False
     else:
         if not since:
+            since = False
             if args.last:
                 if export_times:
                     print "Last successful export for " + ename + ":"
@@ -484,7 +487,8 @@ def main():
                 export_type = 'full'
         else:
             # TODO: Re-populate export_times dictionary so each repo has 'since' date
-#            last_export = str(since)
+            since = True
+            since_export = str(since)
 
             # We have our timestamp so we can kick of an incremental export
             print "Incremental export of content for " + ename + " synchronised after " \
@@ -511,8 +515,18 @@ def main():
 
     # If we are running a full DoV export we run a different set of API calls...
     if ename == 'DoV':
-        # TODO: Last export will be the only entry in the export_times pickle
-        last_export = '2000-01-01 12:00:00'
+        if export_type != 'full' and 'DoV' in export_times:
+            export_type = 'incr'
+            last_export = export_times['DoV']
+            if since:
+                last_export = since_export
+            msg = "Exporting DoV (INCR since " + last_export + ")"
+        else:
+            export_type = 'full'
+            last_export = '2000-01-01 12:00:00' # This is a dummy value, never used.
+            msg = "Exporting DoV (FULL)"
+        helpers.log_msg(msg, 'INFO')
+        print msg
 
         # Check if there are any currently running tasks that will conflict with an export
         check_running_tasks(label, ename)
@@ -532,6 +546,9 @@ def main():
             msg = "Content View Export OK"
             helpers.log_msg(msg, 'INFO')
             print helpers.GREEN + msg + helpers.ENDC
+
+            # Update the export timestamp for this repo
+            export_times['DoV'] = start_time
         else:
             msg = "Content View Export FAILED"
             helpers.log_msg(msg, 'ERROR')
@@ -547,6 +564,8 @@ def main():
                     if repo_result['label'] in export_times:
                         export_type = 'incr'
                         last_export = export_times[repo_result['label']]
+                        if since:
+                            last_export = since_export
                         msg = "Exporting " + repo_result['label'] + " (INCR since " + last_export + ")"
                     else:
                         export_type = 'full'
@@ -583,38 +602,23 @@ def main():
                     msg = "Skipping  " + repo_result['label']
                     helpers.log_msg(msg, 'DEBUG')
 
+
     # Combine resulting directory structures into a single repo format (top level = /content)
     prep_export_tree(org_name)
 
-
-    # TEMPORARY - Move to correct location post-debugging
-    pickle.dump(export_times, open('var/exports_' + ename + '.pkl', "wb"))
- 
-    print "D-E-B-U-G"
-    sys.exit(-1)
-    ####
-
     # Now we need to process the on-disk export data
-    # Find the name of our export dir. This ASSUMES that the export dir is the ONLY dir.
-    sat_export_dir = os.walk(helpers.EXPORTDIR).next()[1]
-    export_path = sat_export_dir[0]
-
-    # This portion finds the full directory tree of the Library content view
-    # pylint: disable=unused-variable
-    for dirpath, subdirs, files in os.walk(helpers.EXPORTDIR):
-        for tdir in subdirs:
-            if tdir == "Library":
-                export_dir = os.path.join(dirpath, tdir)
+    # Find the name of our export dir.
+    export_dir = helpers.EXPORTDIR + "/export"
 
     # Run GPG Checks on the exported RPMs
     do_gpg_check(export_dir)
 
     # Add our exported data to a tarfile
-    create_tar(export_dir, export_path)
+    create_tar(export_dir, ename)
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
-    write_timestamp(start_time, ename)
+    pickle.dump(export_times, open('var/exports_' + ename + '.pkl', "wb"))
 
     # And we're done!
     print helpers.GREEN + "Export complete.\n" + helpers.ENDC
@@ -626,3 +630,4 @@ def main():
 
 if __name__ == "__main__":
     main()
+
