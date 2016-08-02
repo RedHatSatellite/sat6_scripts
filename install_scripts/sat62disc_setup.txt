@@ -1,0 +1,424 @@
+export ORG=MyOrg
+export LOC=MyLoc
+
+mount -o loop /root/rhel-server-7.2-x86_64-dvd.iso /media/rhel
+
+cat << EOF >> /etc/yum.repos.d/rhel.repo
+[rhel72]
+name = Local 7.2 repo
+baseurl = file:///media/rhel
+enabled = 1
+gpgcheck = 1
+EOF
+
+rpm --import /media/rhel/RPM-GPG-KEY-redhat-release
+
+
+# Install tools we need
+yum install -y vim bash-completion bind-utils policycoreutils-python chrony tree PyYAML
+yum -y update
+
+# Setup chrony
+systemctl enable chronyd
+systemctl start chronyd
+
+
+# Install open-vm-tools (on a VMware guest)
+yum -y install open-vm-tools
+systemctl enable vmtoolsd
+
+
+cat << EOF >> /root/.bashrc
+
+# Set root prompt
+export PS1="\[\033[0;31m\]\u@\h\[\033[0;32m\][\w] #\[\033[0m\] "
+EOF
+
+
+* Copy the following RPM's to /root from another system:
+selinux-policy-3.13.1-60.el7_2.3.noarch.rpm
+selinux-policy-targeted-3.13.1-60.el7_2.3.noarch.rpm
+
+cd /root
+rpm -Uvh selinux*.rpm
+
+
+* Copy Satellite 6.2 ISO to /root *
+mkdir /media/sat6
+mount -o loop /root/satellite-6.2.1-rhel-7-x86_64-dvd.iso /media/sat6
+cd /media/sat6/
+./install_packages
+cd && umount /media/sat6
+
+
+firewall-cmd --permanent --add-service=RH-Satellite-6
+firewall-cmd --permanent --add-port 69/udp
+
+# If using IPA auth, enrol satellite server to IPA as a standard client here.
+ipa-client-install ......
+
+reboot 
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+
+# Verify custom ssl certs (only if using):
+katello-certs-check -c /root/sat62disc.example.org.crt \
+  -k /root/sat62disc.example.org.key \
+  -r /root/sat62disc.example.org.csr \
+  -b /root/tls-ca-chain.pem
+
+
+# Install Satellite
+satellite-installer --scenario satellite \
+  --foreman-initial-organization "$ORG" \
+  --foreman-initial-location "$LOC" \
+  --foreman-admin-username admin \
+  --foreman-admin-password ChangeMe \
+  --foreman-proxy-tftp true \        # If not using custom certs don't include below:
+  --certs-server-cert "/root/sat62disc.example.org.crt" \
+  --certs-server-cert-req "/root/sat62disc.example.org.csr" \
+  --certs-server-key "/root/sat62disc.example.org.key" \
+  --certs-server-ca-cert "/root/tls-ca-chain.pem"
+
+
+# OPTIONAL: Configure OSTree support (Prep for atomic - not supported export/import ISS yet)
+yum install -y ostree pulp-ostree-plugins tfm-rubygem-katello_ostree 
+satellite-installer --katello-enable-ostree=true
+
+
+# Setup hammer
+mkdir ~/.hammer
+chmod 0700 ~/.hammer
+cat << EOF > ~/.hammer/cli_config.yml
+:foreman:
+    :host: 'https://localhost'
+    :username: 'admin'
+    :password: 'ChangeMe'
+EOF
+chmod 0600 ~/.hammer/cli_config.yml
+
+
+# Set default hammer org
+hammer defaults add --param-name organization_id --param-value 1
+
+# Copy manifest from connected system, then install it
+hammer subscription upload --organization-id 1 --file /root/manifest_sat62test.zip
+
+# Set Org/Loc of Satellite server (Default is Unassigned)
+hammer host update --organization-id 1 --name sat62disc.example.org
+hammer host update --location="$LOC" --name sat62disc.example.org
+
+
+######################
+# If using IPA for Auth:
+## ON IPA SERVER:
+ipa service-add HTTP/sat62disc.example.org
+
+# Configure HBAC on IPA server:
+ipa group-add sat-admins
+ipa group-add-member sat-admins --users=fred
+ipa hbacsvc-add satellite-prod
+ipa hbacrule-add allow_satellite_prod 
+ipa hbacrule-add-service allow_satellite_prod --hbacsvcs=satellite-prod
+ipa hbacrule-add-user allow_satellite_prod --groups=sat-admins
+ipa hbacrule-add-host allow_satellite_prod --hosts=sat62disc.example.org
+
+# Test
+ipa hbacrule-find satellite-prod
+ipa hbactest --user=fred --host=sat62disc.example.org --service=satellite-prod
+
+## ON SAT:
+subscription-manager repos --enable rhel-7-server-optional-rpms    # <-- Need to detail howto offline ???
+satellite-installer --foreman-ipa-authentication=true      # Enables IPA for Auth
+satellite-installer --foreman-pam-service=satellite-prod   # Enables HBAC 
+
+
+
+######################
+# Configure Content Import Mount
+#
+mkdir /var/sat-content
+ln -s /var/sat-content /var/www/html/pub/.cdn
+hammer organization update --name "$ORG" --redhat-repository-url http://localhost/pub/.cdn
+
+#---- If /var/sat-content is on NFS:
+setsebool -P httpd_use_nfs 1
+cat << EOF >> /etc/fstab
+
+# CDN Content Mount
+nfs.in.example.org:/redhat_cdn  /var/sat-content     nfs    relatime,vers=3    0 0
+EOF
+
+
+#---- If /var/sat-content is LOCAL:
+semanage fcontext -a -t httpd_sys_content_t "/var/sat-content(/.*)?"
+restorecon -Rv /var/sat-content
+
+
+#######################
+# 3rd Party GPG keys
+# Download & transfer any requred GPG keys from connected system, then...
+
+hammer gpg create --name='RPM-GPG-KEY-EPEL-6' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-EPEL-6'
+hammer gpg create --name='RPM-GPG-KEY-EPEL-7' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-EPEL-7'
+hammer gpg create --name='jenkins.io.key' --organization="$ORG" --key='/tmp/jenkins.io.key'
+
+
+rpm --import /tmp/RPM-GPG-KEY-EPEL-6
+rpm --import /tmp/RPM-GPG-KEY-EPEL-7
+rpm --import /tmp/jenkins.io.key
+
+
+########################
+# Create API User
+hammer user create --login svc-api --firstname API --lastname User --password='AP1Us3r' \
+  --mail no-reply@example.org --auth-source-id 1 --organization-ids 1 --default-organization-id 1 \
+  --admin true
+
+
+########################
+# We can't enable Red Hat repos until we have some content imported...
+#
+# >>>>>>>>>>> Export content on connected sat using sat_export.py, then <<<<<<<<<<<<<<<<<<<<<
+# >>>>>>>>>>> Import content using sat_import.py, then <<<<<<<<<<<<<<<<
+#
+
+
+# List entitled products
+#hammer product list --organization-id=1
+
+# List repositories within products
+#hammer repository-set list --product 'Red Hat Enterprise Linux Server' --organization "$ORG"
+
+# List specific repos within repository
+#hammer repository-set available-repositories --id=3327 --product 'Red Hat Enterprise Linux Server' --organization 'Defence-AU'
+
+
+
+# Enable Kickstarts:
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7.2 --id 2455
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6.8 --id 1952
+
+
+# Enable RHEL 7 Server RPMs:
+for i in 2456 2463 2472 2476 ; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7Server --id $i
+done
+
+# Enable RHEL 6 Server RPMs:
+for i in 2396 166 168 1673; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6Server --id $i
+done
+
+
+# Enable Server Extras RPMs (No releasever)
+for i in 3026 3030; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --id $i
+done
+
+# Enable RHSCL
+hammer repository-set enable --organization-id 1 --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch x86_64 --releasever 7Server --id 2808
+hammer repository-set enable --organization-id 1 --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch x86_64 --releasever 6Server --id 1997
+
+
+
+# Enable ISOs:
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6.8 --id 164
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7.2 --id 2454
+
+
+#######################
+# Create 3rd Party Content
+hammer product create --name='EPEL-6' --description='EPEL-6' --organization-id=1
+hammer repository create --name='epel-6-x86_64' --organization-id=1 --product='EPEL-6' \
+  --content-type='yum' --publish-via-http=false --gpg-key='RPM-GPG-KEY-EPEL-6' \
+  --url='http://localhost/pub/.cdn/custom/EPEL-6/epel-6-x86_64' \
+  --mirror-on-sync false --download-policy immediate
+
+hammer product create --name='EPEL-7' --description='EPEL-7' --organization-id=1
+hammer repository create --name='epel-7-x86_64' --organization-id=1 --product='EPEL-7' \
+  --content-type='yum' --publish-via-http=false --gpg-key='RPM-GPG-KEY-EPEL-7' \
+  --url='http://localhost/pub/.cdn/custom/EPEL-7/epel-7-x86_64' \
+  --mirror-on-sync false --download-policy immediate
+
+hammer product create --name='Third Party Software for EL6' --description='Third Party Software for EL6' --organization-id=1
+
+hammer product create --name='Third Party Software for EL7' --description='Third Party Software for EL7' --organization-id=1
+
+hammer product create --name='Third Party Software for any EL' --description='Third Party Software for any EL' --organization-id=1
+hammer repository create --name='Jenkins' --organization-id=1 --product='Third Party Software for any EL' \
+  --content-type='yum' --publish-via-http=false --gpg-key='jenkins.io.key' \
+  --url='http://localhost/pub/.cdn/custom/Jenkins/jenkins'
+
+
+
+#######################
+# Sync Plan (** TIME IS UTC ** 12:00UTC = 22:00LOCAL)
+hammer sync-plan create --interval=weekly --name='Import Sync' --organization-id=1 --sync-date "2016-05-02 12:00:00" --enabled=true
+
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat Enterprise Linux Server' --sync-plan 'Import Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat Software Collections for RHEL Server' --sync-plan 'Import Sync'
+hammer product set-sync-plan --organization-id 1 --name 'EPEL-6' --sync-plan 'Import Sync'
+hammer product set-sync-plan --organization-id 1 --name 'EPEL-7' --sync-plan 'Import Sync'
+
+
+# Sync all repos
+for i in $(hammer --csv repository list --organization-id 1 | grep -vi '^ID' | awk -F, {'print $1'}); do
+  hammer repository synchronize --id ${i} --organization-id 1 --async
+done
+
+
+
+#####################################
+# Locations etc
+hammer location create --name=LOC1
+LOC1=$(hammer --csv location list | grep LOC1 | cut -f1 -d,)
+hammer location create --name=LOC2
+LOC2=$(hammer --csv location list | grep LOC2 | cut -f1 -d,)
+hammer location create --name=LOC3
+LOC3=$(hammer --csv location list | grep LOC3 | cut -f1 -d,)
+hammer location create --name=LOC4
+LOC4=$(hammer --csv location list | grep LOC4 | cut -f1 -d,)
+hammer location create --name=LOC5
+LOC5=$(hammer --csv location list | grep LOC5 | cut -f1 -d,)
+
+hammer location create --name=SUB1 --parent-id=${LOC1}
+hammer location create --name=SUB2 --parent-id=${LOC1}
+hammer location create --name=SUB3 --parent-id=${LOC1}
+hammer location create --name=SUB4 --parent-id=${LOC1}
+hammer location create --name=SUB1 --parent-id=${LOC2}
+hammer location create --name=SUB2 --parent-id=${LOC2}
+hammer location create --name=SUB3 --parent-id=${LOC2}
+hammer location create --name=SUB4 --parent-id=${LOC2}
+
+
+for loc in $(hammer --csv location list | awk -F, {'print $1'} | grep -vi '^ID'); do
+  hammer location add-organization --id=${loc} --organization="$ORG"
+done
+
+
+hammer domain create --organizations="$ORG" --name='example.org'
+
+hammer subnet create --organizations="$ORG" --domains='example.org' --ipam='None' \
+  --name='EXAMPLE 1' --network='192.168.122.0' --mask='255.255.255.0' --gateway='192.168.122.1' \
+  --dns-primary='192.168.122.1' --dns-secondary='192.168.122.2' --boot-mode='Static' --tftp-id=1
+
+hammer location add-domain --name "$LOC" --domain example.org
+hammer location add-subnet --name "$LOC" --subnet 'EXAMPLE 1'
+
+
+hammer lifecycle-environment create --name='Quality' --label='qa' --prior='Library' --organization="$ORG"
+hammer lifecycle-environment create --name='Production' --label='prod' --prior='Quality' --organization="$ORG"
+
+
+
+
+########################
+# Partition Table
+cat << EOF > /tmp/MyOrg_generic.part
+#Dynamic
+<% if @host.operatingsystem.major.to_i > 6 %>
+  <% fstype = "xfs" %>
+<% else %>
+  <% fstype = "ext4" %>
+<% end %>
+PRI_DISK=$(awk '/[v|s]da|c0d0/ {print $4; exit}' /proc/partitions)
+grep -E -q '[v|s]db|c1d1' /proc/partitions && SEC_DISK=$(awk '/[v|s]db|c1d1/ {print $4; exit}' /proc/partitions)
+grep -E -q '[v|s]db1|c1d1p1' /proc/partitions && EXISTING=true
+echo zerombr >> /tmp/diskpart.cfg
+echo clearpart --drives ${PRI_DISK} --all --initlabel >> /tmp/diskpart.cfg
+echo part /boot --fstype <%= fstype %> --size=512 --ondisk ${PRI_DISK} --asprimary >> /tmp/diskpart.cfg
+echo part pv.01 --size=1 --grow --ondisk ${PRI_DISK} >> /tmp/diskpart.cfg
+echo volgroup vg_root --pesize=32768 pv.01 >> /tmp/diskpart.cfg
+<% if @host.params['ptable'] %>
+  <%= snippet "ptable-ups-#{@host.params['ptable']}" %>
+<% end %>
+echo logvol / --fstype <%= fstype %> --size=10240 --name=lv_root --vgname=vg_root --fsoptions="noatime" >> /tmp/diskpart.cfg
+echo logvol swap --fstype="swap" --size=4096 --name=lv_swap --vgname=vg_root >> /tmp/diskpart.cfg
+echo logvol /home --fstype <%= fstype %> --size=1024 --fsoptions="noatime,nodev,nosuid,defaults" --name=lv_home --vgname=vg_root >> /tmp/diskpart.cfg
+echo logvol /tmp --fstype <%= fstype %> --size=8192 --fsoptions="noatime,nodev,nosuid,defaults" --name=lv_tmp --vgname=vg_root >> /tmp/diskpart.cfg
+echo logvol /var --fstype <%= fstype %> --size=10240 --fsoptions="noatime,nodev,nosuid,defaults" --name=lv_var --vgname=vg_root >> /tmp/diskpart.cfg
+echo logvol /var/log --fstype <%= fstype %> --size=4096 --fsoptions="noatime,nodev,nosuid,defaults" --name=lv_log --vgname=vg_root >> /tmp/diskpart.cfg
+echo logvol /var/log/audit --fstype <%= fstype %> --size=2048 --fsoptions="noatime,nodev,nosuid,defaults" --name=lv_audit --vgname=vg_root >> /tmp/diskpart.cfg
+EOF
+
+hammer partition-table create --name "MyOrg RHEL Generic" --os-family Redhat --organizations $ORG --file /tmp/MyOrg_generic.part
+
+
+
+###########################
+# Rename Installation Media & OS's
+hammer medium update --name "$ORG/Library/Red_Hat_Server/Red_Hat_Enterprise_Linux_6_Server_Kickstart_x86_64_6_8" --new-name 'RHEL 6.8 KS'
+hammer medium update --name $ORG/Library/Red_Hat_Server/Red_Hat_Enterprise_Linux_7_Server_Kickstart_x86_64_7_2" --new-name 'RHEL 7.2 KS'
+
+hammer os update --title 'RedHat 6.8' --description 'RHEL Server 6.8' \
+  --password-hash SHA512 \
+  --partition-tables 'Kickstart default,MyOrg RHEL Generic'
+hammer os update --title 'RedHat 7.2' --description 'RHEL Server 7.2' \
+  --password-hash SHA512 \
+  --partition-tables 'Kickstart default,MyOrg RHEL Generic'
+
+
+
+###########################
+# Content Views
+hammer content-view create --label='cv-rhel-server' --name='RHEL Server' --organization-id=1
+
+for i in $(hammer --csv repository list --organization-id 1 | egrep "Linux 6|Linux 7|epel" | grep -v Kickstart | awk -F, '{print $1}'); do
+  hammer content-view add-repository --name='RHEL Server' --organization-id=1 --repository-id=${i}
+done
+
+# Publish to Library
+hammer content-view publish --organization-id=1 --name 'RHEL Server' --description "Initial publish by ${whoami}"
+
+
+
+###########################
+# Host Groups
+hammer hostgroup create --organizations $ORG --name HOSTGROUP1 --domain example.org --locations $LOC
+hammer hostgroup create --organizations $ORG --name HOSTGROUP1-LIB-RHEL7 --parent HOSTGROUP1 --subnet 'EXAMPLE 1' --content-source-id 1 \
+  --puppet-proxy sat62disc.example.org --puppet-ca-proxy sat62disc.example.org \
+  --lifecycle-environment Library --content-view "RHEL Server" --architecture x86_64 \
+  --operatingsystem "RHEL Server 7.2" --medium "RHEL 7.2 KS" \
+  --partition-table "MyOrg RHEL Generic"
+
+
+
+
+###########################
+# Activation Keys
+hammer activation-key create --content-view 'RHEL Server' --lifecycle-environment Library --name rhel7-lib-server --organization $ORG
+hammer activation-key create --content-view 'RHEL Server' --lifecycle-environment Library --name rhel6-lib-server --organization $ORG
+
+
+
+
+
+
+
+
+
+
+
+
+
+#########################
+# Puppet
+# (May need selinux module for nfs_t)
+hammer product create --name='Puppet Forge' --description='Puppet Forge' --organization="$ORG"
+hammer repository create --name='puppet-forge' --organization="$ORG" --product='Puppet Forge' --content-type='puppet' \
+  --url='file:///var/sat-content/puppet-forge/'
+  
+
+
+
+

@@ -1,0 +1,321 @@
+export ORG=MyOrg
+export LOC=MyLoc
+
+
+# If web proxy needed to get to internet:
+subscription-manager config --server.proxy_hostname=proxy.example.org --server.proxy_port=8080
+subscription-manager register
+subscription-manager attach --pool=<pool_id string>
+
+
+# Install tools we need
+yum install -y vim bash-completion bind-utils policycoreutils-python chrony tree PyYAML
+yum -y update
+
+# Setup chrony
+systemctl enable chronyd
+systemctl start chronyd
+
+
+# Install open-vm-tools (on a VMware guest)
+yum -y install open-vm-tools
+systemctl enable vmtoolsd
+
+
+cat << EOF >> /root/.bashrc
+
+# Set root prompt
+export PS1="\[\033[0;31m\]\u@\h\[\033[0;32m\][\w] #\[\033[0m\] "
+EOF
+
+
+subscription-manager repos --disable "*"
+subscription-manager repos --enable rhel-7-server-rpms --enable rhel-server-rhscl-7-rpms --enable rhel-7-server-satellite-6.2-rpms
+
+yum -y install satellite
+
+firewall-cmd --permanent --add-service=RH-Satellite-6
+firewall-cmd --permanent --add-port 69/udp
+
+# If using IPA auth, enrol satellite server to IPA as a standard client here.
+ipa-client-install ......
+
+reboot 
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~~~~~`
+
+# Verify custom ssl certs (only if using):
+katello-certs-check -c /root/sat62.example.org.crt \
+  -k /root/sat62.example.org.key \
+  -r /root/sat62.example.org.csr \
+  -b /root/tls-ca-chain.pem
+
+
+# Install Satellite
+satellite-installer --scenario satellite \
+  --foreman-initial-organization "$ORG" \
+  --foreman-initial-location "$LOC" \
+  --foreman-admin-username admin \
+  --foreman-admin-password ChangeMe \
+  --foreman-proxy-tftp true \        # If not using custom certs don't include below:
+  --certs-server-cert "/root/sat62.example.org.crt" \
+  --certs-server-cert-req "/root/sat62.example.org.csr" \
+  --certs-server-key "/root/sat62.example.org.key" \
+  --certs-server-ca-cert "/root/tls-ca-chain.pem"
+
+
+# Configure Satellite to use web proxy (if required)
+export http_proxy=""
+export https_proxy=$http_proxy
+export no_proxy=$http_proxy
+satellite-installer --scenario satellite \
+  --katello-proxy-url=http://proxy.example.org \
+  --katello-proxy-port=8080
+
+
+# OPTIONAL: Configure OSTree support (Prep for atomic - not supported export/import ISS yet)
+yum install -y ostree pulp-ostree-plugins tfm-rubygem-katello_ostree
+satellite-installer --katello-enable-ostree=true
+
+
+# Setup hammer
+mkdir ~/.hammer
+chmod 0700 ~/.hammer
+cat << EOF > ~/.hammer/cli_config.yml
+:foreman:
+    :host: 'https://localhost'
+    :username: 'admin'
+    :password: 'ChangeMe'
+EOF
+chmod 0600 ~/.hammer/cli_config.yml
+
+
+# Set default hammer org
+hammer defaults add --param-name organization_id --param-value 1
+
+# Import Manifest  
+hammer subscription upload --organization-id 1 --file /root/manifest_sat62.zip
+
+# Set Org/Loc of Satellite server (Default is Unassigned)
+hammer host update --organization-id 1 --name sat62disc.example.org
+hammer host update --location="$LOC" --name sat62disc.example.org
+
+
+######################
+# If using IPA for Auth:
+## ON IPA SERVER:
+ipa service-add HTTP/sat62.example.org
+
+# Configure HBAC on IPA server:
+ipa group-add sat-admins
+ipa group-add-member sat-admins --users=fred
+ipa hbacsvc-add satellite-prod
+ipa hbacrule-add allow_satellite_prod
+ipa hbacrule-add-service allow_satellite_prod --hbacsvcs=satellite-prod
+ipa hbacrule-add-user allow_satellite_prod --groups=sat-admins
+ipa hbacrule-add-host allow_satellite_prod --hosts=sat62.example.org
+
+# Test
+ipa hbacrule-find satellite-prod
+ipa hbactest --user=fred --host=sat62.example.org --service=satellite-prod
+
+## ON SAT:
+subscription-manager repos --enable rhel-7-server-optional-rpms
+satellite-installer --foreman-ipa-authentication=true      # Enables IPA for Auth
+satellite-installer --foreman-pam-service=satellite-prod   # Enables HBAC
+
+
+#######################
+# Configure content export location
+hammer settings set --name pulp_export_destination --value /var/sat-export
+chown foreman:foreman /var/sat-export
+semanage fcontext -a -t foreman_var_run_t "/var/sat-export(/.*)?"
+restorecon -RvF /var/sat-export
+hammer settings set --name default_download_policy --value immediate
+
+
+#######################
+# 3rd Party GPG keys
+export http_proxy=http://proxy.example.org:8080
+export https_proxy=$http_proxy
+wget -O /tmp/RPM-GPG-KEY-EPEL-6 https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-6
+wget -O /tmp/RPM-GPG-KEY-EPEL-7 https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+wget -O /tmp/jenkins.io.key http://pkg.jenkins.io/redhat/jenkins.io.key
+unset http_proxy; unset https_proxy
+
+hammer gpg create --name='RPM-GPG-KEY-EPEL-6' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-EPEL-6'
+hammer gpg create --name='RPM-GPG-KEY-EPEL-7' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-EPEL-7'
+hammer gpg create --name='jenkins.io.key' --organization="$ORG" --key='/tmp/jenkins.io.key'
+
+rpm --import /tmp/RPM-GPG-KEY-EPEL-6
+rpm --import /tmp/RPM-GPG-KEY-EPEL-7
+rpm --import /tmp/jenkins.io.key
+
+
+########################
+# Create API User
+hammer user create --login svc-api --firstname API --lastname User --password='AP1Us3r' \
+  --mail no-reply@example.org --auth-source-id 1 --organization-ids 1 --default-organization-id 1 \
+  --admin true
+
+
+########################
+# Enable Red Hat repos
+
+# List entitled products
+hammer product list --organization-id=1
+
+# List repositories within products
+hammer repository-set list --product 'Red Hat Enterprise Linux Server' --organization "$ORG"
+hammer repository-set list --product 'Red Hat Satellite' --organization "$ORG"
+
+# List specific repos within repository
+hammer repository-set available-repositories --id=3327 --product 'Red Hat Enterprise Linux Server' --organization "$ORG"
+
+
+# Kickstarts:
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7.2 --id 2455
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6.8 --id 1952
+
+
+# RHEL 7 Server RPMs:
+for i in 2456 2463 2472 2476 ; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7Server --id $i
+done
+
+# RHEL 6 Server RPMs:
+for i in 2396 166 168 1673; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6Server --id $i
+done
+
+
+# Server Extras RPMs (No releasever)
+for i in 3026 3030; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --id $i
+done
+
+# RHSCL
+hammer repository-set enable --organization-id 1 --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch x86_64 --releasever 7Server --id 2808
+hammer repository-set enable --organization-id 1 --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch x86_64 --releasever 6Server --id 1997
+
+# Satellite
+hammer repository-set enable --organization-id 1 --product 'Red Hat Satellite' \
+  --basearch x86_64 --id 4743
+
+
+# ISOs:
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6.8 --id 164
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7.2 --id 2454
+
+
+
+~~~~~~~~~~~~~~~~~~~~~~~~~~
+
+
+#######################
+# Create 3rd Party Content
+hammer product create --name='EPEL-6' --description='EPEL-6' --organization-id=1
+hammer repository create --name='epel-6-x86_64' --organization-id=1 --product='EPEL-6' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-EPEL-6' --url='https://dl.fedoraproject.org/pub/epel/6/x86_64'
+
+hammer product create --name='EPEL-7' --description='EPEL-7' --organization-id=1
+hammer repository create --name='epel-7-x86_64' --organization-id=1 --product='EPEL-7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-EPEL-7' --url='https://dl.fedoraproject.org/pub/epel/7/x86_64'
+
+hammer product create --name='Third Party Software for EL6' --description='Third Party Software for EL6' --organization-id=1
+
+hammer product create --name='Third Party Software for EL7' --description='Third Party Software for EL7' --organization-id=1
+
+hammer product create --name='Third Party Software for any EL' --description='Third Party Software for any EL' --organization-id=1
+hammer repository create --name='Jenkins' --organization-id=1 --product='Third Party Software for any EL' --content-type='yum' \
+--publish-via-http=false --gpg-key='jenkins.io.key' --url='http://pkg.jenkins-ci.org/redhat/'
+
+
+
+#########################
+# OVAL (SCAP) content updates
+hammer product create --name='Red Hat File Content' --description='Red Hat file content' --organization-id=1
+hammer repository create --name='OVAL Definitions' --organization-id=1 --product='Red Hat File Content' \
+  --content-type='file' --url='https://www.redhat.com/security/data/oval/'
+
+
+#########################
+# Puppet Forge Mirror
+hammer product create --name='Puppet Forge' --description='Puppet Forge modules' --organization-id=1
+hammer repository create --name='puppet-forge' --organization-id=1 --product='Puppet Forge' \
+  --content-type='puppet' --url='https://forge.puppet.com/'
+
+
+#########################
+# Sync Plan (** TIME IS UTC ** 12:00UTC = 22:00LOCAL)
+hammer sync-plan create --interval=daily --name='Daily Sync' --organization-id=1 --sync-date "2016-05-02 12:00:00" --enabled=true
+
+
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat Enterprise Linux Server' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat Software Collections for RHEL Server' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'EPEL-6' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'EPEL-7' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat File Content' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Third Party Software for EL6' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Third Party Software for EL7' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Third Party Software for any EL' --sync-plan 'Daily Sync'
+
+
+# Sync all repos
+for i in $(hammer --csv repository list --organization-id 1 | grep -vi '^ID' | awk -F, {'print $1'}); do
+  hammer repository synchronize --id ${i} --organization-id 1 --async
+done
+
+
+
+
+#######################
+# Configure Red Hat Docker Mirroring
+#
+# Download project from https://github.com/rhtconsulting/sat6-disconnected.
+# On the disconnected host we need:
+# - docker_list_images.py
+# - docker_save.sh
+
+# Set download location 
+sed -i 's/IMAGES_PATH=.*/IMAGES_PATH=\/var\/sat-export\/docker-images/' docker_save.sh
+mkdir -p /var/sat-export/docker-images
+
+subscription-manager repos --enable rhel-7-server-extras-rpms
+yum -y install docker
+
+# Create thinpool storage for docker images
+cat << EOF > /etc/sysconfig/docker-storage-setup
+VG=docker
+SETUP_LVM_THIN_POOL=yes
+EOF
+docker-storage-setup
+
+
+# Mount LVM volume to /var/lib/docker ??
+
+
+cat <<EOF | sudo tee -a /etc/sysconfig/docker
+http_proxy="proxy.example.org:8080"
+https_proxy="proxy.example.org:8080"
+no_proxy=192.168.122.101
+EOF
+
+sed -i '/\[Service\]/a EnvironmentFile=/etc/sysconfig/docker' /usr/lib/systemd/system/docker.service
+sudo systemctl daemon-reload
+sudo service docker restart
+
+export https_proxy=http://proxy.example.org:8080
+./docker_save.sh
+
+
+
