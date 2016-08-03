@@ -125,6 +125,66 @@ satellite-installer --foreman-ipa-authentication=true      # Enables IPA for Aut
 satellite-installer --foreman-pam-service=satellite-prod   # Enables HBAC
 
 
+#####################
+# If using LDAP for Auth:
+#
+setsebool -P authlogin_nsswitch_use_ldap=1
+
+# We need the certs that make up the CA chain:
+cat << EOF > /etc/pki/tls/certs/CA.pem
+-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----
+EOF
+
+cat << EOF > /etc/pki/tls/certs/rootca.pem
+-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----
+EOF
+
+cd /etc/pki/tls/certs
+ln -s rootca.pem /etc/pki/tls/certs/$(openssl x509 -noout -hash -in /etc/pki/tls/certs/rootca.pem).0
+ln -s CA.pem /etc/pki/tls/certs/$(openssl x509 -noout -hash -in /etc/pki/tls/certs/CA.pem).0
+
+hammer auth-source ldap create --name 'LDAP Server' --host ldap.example.org -server-type posix \
+  --tls yes --port 636 --base-dn ou=People,ou=example,o=com,c=au --attr-login uid
+
+# Verify the auth source
+hammer auth-source ldap list
+
+
+######################
+# Configure Email delivery
+#
+# If we need to insert a classification header on the email:
+cat << EOF > /etc/postfix/classification
+/^Content-Transfer-Encoding/i PREPEND x-classification: UNCLASSIFIED
+/^Content-Transfer-Encoding/i PREPEND x-protective-marking: VER=2012.3, NS=example.org, SEC=UNCLASSIFIED, ORIGIN=satellite@example.org
+EOF
+sed -i 's/^#header_checks = /header_checks = regexp:\/etc\/postfix\/classification/' /etc/postfix/main.cf
+
+# Set Satellite to send mail to the local postfix instance:
+cat << EOF > /etc/foreman/email.yaml
+# Outgoing email settings
+production:
+  delivery_method: :smtp
+  smtp_settings:
+    address: localhost
+    port: 25
+    enable_starttls_auto: false
+EOF
+sed -i 's/^#relayhost = uucphost/relayhost = smtp.example.org/' /etc/postfix/main.cf
+systemctl restart postfix
+
+# Set the email addresses in Satellite itself
+hammer settings set --name email_reply_address --value "someone@example.org"
+hammer settings set --name email_subject_prefix --value "[Satellite 6]"
+
+# Restart Satellite
+katello-service restart
+
+
 #######################
 # Configure content export location
 hammer settings set --name pulp_export_destination --value /var/sat-export

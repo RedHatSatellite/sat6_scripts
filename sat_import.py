@@ -1,16 +1,16 @@
 #!/usr/bin/python
 #title           :sat_import.py
-#description     :Imports Satellite 6 Default Content View for disconnected environments
+#description     :Imports Satellite 6 Content for disconnected environments
 #URL             :https://github.com/ggatward/sat6_scripts
 #author          :Geoff Gatward <ggatward@redhat.com>
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
 """
-Imports Default Org Content View exported by sat_export.py
+Imports Satellite 6 yum content exported by sat_export.py
 """
 
-import sys, argparse, os
+import sys, argparse, os, pickle
 import simplejson as json
 import helpers
 
@@ -66,54 +66,58 @@ def extract_content(basename):
     # rm basename + '_*'
 
 
-def sync_content(org_id):
+def sync_content(org_id, imported_repos):
     """
     Synchronize the repositories
     Triggers a sync of all repositories belonging to the configured sync plan
     """
-    # Check that the configured sync plan exists
-    splans = helpers.get_json(
-        helpers.KATELLO_API + "organizations/" + str(org_id) + "/sync_plans/")
-    for sp_result in splans['results']:
-        if sp_result['name'] == helpers.SYNCPLAN:
-            sp_id = sp_result['id']
-            msg = "Sync plan '" + helpers.SYNCPLAN + "' ID: " + str(sp_id)
+    repos_to_sync = []
+    delete_override = False
+
+    # Get a listing of repositories in this Satellite
+    enabled_repos = helpers.get_p_json(
+        helpers.KATELLO_API + "/repositories/", \
+                json.dumps(
+                        {
+                           "organization_id": org_id,
+                        }
+                ))
+
+    # Loop through each repo to be imported/synced
+    for repo in imported_repos:
+        do_import = False
+        for repo_result in enabled_repos['results']:
+            if repo in repo_result['label']:
+                do_import = True
+                repos_to_sync.append(repo_result['id'])
+        if do_import:
+            msg = "Repo " + repo + " found in Satellite"
             helpers.log_msg(msg, 'DEBUG')
+        else:
+            msg = "Repo " + repo + " is not enabled in Satellite"
+            # If the repo is not enabled, don't delete the input files.
+            # This gives the admin a chance to manually enable the repo and re-import
+            delete_override = True
+            helpers.log_msg(msg, 'WARNING')
+            # TODO: We could go on here and try to enable the Red Hat repo .....
 
-    if not sp_id:
-        msg = "Sync plan '" + helpers.SYNCPLAN + "' not found"
-        helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
-    else:
-        # Check that no sync tasks are already running
-        helpers.check_running_sync()
+    msg = "Repo ids to sync: " + str(repos_to_sync)
+    helpers.log_msg(msg, 'DEBUG')
 
-        msg = "No existing running or paused sync tasks detected"
-        helpers.log_msg(msg, 'DEBUG')
+    msg = "Syncing repositories"
+    helpers.log_msg(msg, 'INFO')
+    print msg
+    task_id = helpers.post_json(
+        helpers.KATELLO_API + "repositories/bulk/sync", \
+            json.dumps(
+                {
+                    "ids": repos_to_sync,
+                }
+            ))["id"]
+    msg = "Repo sync task id = " + task_id
+    helpers.log_msg(msg, 'DEBUG')
 
-        # Run the sync plan
-        task_id = helpers.put_json(
-            helpers.KATELLO_API + "organizations/" + str(org_id) + "/sync_plans/" + str(sp_id) \
-                + "/sync", json.dumps(
-                    {
-                    }
-                ))["id"]
-
-# Possibly need to loop through repo ID's and use this one instead
-#        task_id = helpers.put_json(
-#            helpers.KATELLO_API + "repositories/" + str(repo_id) + "/sync", +\
-#                json.dumps(
-#                    {
-#                        source_url: 'http://localhost/pub/.cdn',
-#                        incremental: true
-#                    }
-#                ))["id"]
-
-
-        msg = "Sync plan started - task_id " + task_id
-        helpers.log_msg(msg, 'DEBUG')
-
-    return task_id
+    return task_id, delete_override
 
 
 def main():
@@ -142,6 +146,8 @@ def main():
         required=True)
     parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
         required=False, action="store_true")
+    parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
+        required=False, action="store_true")
     args = parser.parse_args()
 
     # Set our script variables from the input args
@@ -154,21 +160,42 @@ def main():
     # Figure out if we have the specified input fileset
     basename = get_inputfiles(expdate)
 
+    # Cleanup from any previous imports
+    os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
+
     # Extract the input files
     extract_content(basename)
 
     # Trigger a sync of the content into the Library
     if args.nosync:
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
+        msg = "Repository sync was requested to be skipped"
+        helpers.log_msg(msg, 'WARNING')
         print 'Please synchronise all repositories to make new content available for publishing.'
+        delete_override = False
     else:
-        sync_content(org_id)
+        # We need to figure out which repos to sync. This comes to us via a pickle containing
+        # a list of repositories that were exported
+        imported_repos = pickle.load(open('exported_repos.pkl', 'rb'))
+
+        # Run a repo sync on each imported repo
+        (task_id, delete_override) = sync_content(org_id, imported_repos)
+
+        # Now we need to wait for the sync to complete
+        helpers.wait_for_task(task_id, 'sync')
+
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
-        print 'Please wait for sync to complete, then publish content views to make new' \
-            'content available.'
+        print 'Please publish content views to make new content available.'
+
+    if args.remove and not delete_override:
+        msg = "Removing " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "* input files"
+        helpers.log_msg(msg, 'DEBUG')
+#        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate) + "*"
+
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
 
 
 if __name__ == "__main__":
     main()
+

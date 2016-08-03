@@ -177,12 +177,12 @@ def get_org_id(org_name):
     return org_id
 
 
-def wait_for_task(task_id):
+def wait_for_task(task_id, label):
     """
     Wait for the given task ID to complete
     This displays a message without CR/LF waiting for an OK/FAIL status to be shown
     """
-    msg = "Waiting for export to complete...                        "
+    msg = "Waiting for " + label + " to complete...                        "
     print msg,
     log_msg(msg, 'INFO')
     # Force the status message to be shown to the user
@@ -190,7 +190,7 @@ def wait_for_task(task_id):
     while True:
         info = get_json(FOREMAN_API + "tasks/" + str(task_id))
         if info['state'] == 'paused' and info['result'] == 'error':
-            msg = "Error with Content View Update " + str(task_id)
+            msg = "Error with " + label + " " + str(task_id)
             log_msg(msg, 'ERROR')
             break
         if info['pending'] != 1:

@@ -1,13 +1,13 @@
 #!/usr/bin/python
 #title           :sat_export.py
-#description     :Exports Satellite 6 Default Content View for disconnected environments
+#description     :Exports Satellite 6 Content for disconnected environments
 #URL             :https://github.com/ggatward/sat6_scripts
 #author          :Geoff Gatward <ggatward@redhat.com>
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
 """
-Exports Default Org Content View.
+Exports Satellite 6 yum content.
 """
 
 import sys, argparse, datetime, os, shutil, pickle
@@ -541,7 +541,7 @@ def main():
         export_id = export_cv(dov_ver, last_export, export_type)
 
         # Now we need to wait for the export to complete
-        helpers.wait_for_task(export_id)
+        helpers.wait_for_task(export_id, 'export')
 
         # Check if the export completed OK. If not we exit the script.
         tinfo = helpers.get_task_status(export_id)
@@ -592,7 +592,7 @@ def main():
                         export_id = export_repo(repo_result['id'], last_export, export_type)
 
                         # Now we need to wait for the export to complete
-                        helpers.wait_for_task(export_id)
+                        helpers.wait_for_task(export_id, 'export')
 
                         # Check if the export completed OK. If not we exit the script.
                         tinfo = helpers.get_task_status(export_id)
