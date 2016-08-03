@@ -61,10 +61,6 @@ def extract_content(basename):
     print msg
     os.system('cat ' + basename + '_* | tar xpf -')
 
-    #TODO: Optional delete input files
-    # If successful untar:
-    # rm basename + '_*'
-
 
 def sync_content(org_id, imported_repos):
     """
@@ -77,11 +73,11 @@ def sync_content(org_id, imported_repos):
     # Get a listing of repositories in this Satellite
     enabled_repos = helpers.get_p_json(
         helpers.KATELLO_API + "/repositories/", \
-                json.dumps(
-                        {
-                           "organization_id": org_id,
-                        }
-                ))
+            json.dumps(
+                {
+                    "organization_id": org_id,
+                }
+            ))
 
     # Loop through each repo to be imported/synced
     for repo in imported_repos:
@@ -142,8 +138,8 @@ def main():
     parser = argparse.ArgumentParser(description='Performs Import of Default Content View.')
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization', required=True)
-    parser.add_argument('-d', '--date', help='Date of Import fileset to process (YYYY-MM-DD)',
-        required=True)
+    parser.add_argument('-d', '--date', \
+        help='Date/name of Import fileset to process (YYYY-MM-DD_NAME)', required=True)
     parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
         required=False, action="store_true")
     parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
@@ -198,4 +194,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-

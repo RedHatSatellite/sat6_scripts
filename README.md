@@ -24,15 +24,15 @@ Other scripts may be run from the Satellite server or from a management host.
 ```
 hammer user create --login svc-api --firstname API --lastname User --password='AP1Us3r' \
   --mail no-reply@example.org --auth-source-id 1 --organization-ids 1 --default-organization-id 1 \
-  --timezone 'Canberra' --admin true
+  --admin true
 ```
 
 
 ## Assumptions
 For content import to a disconnected Satellite, it is assumed that the relevant
 subscription manifest has been uploaded on the disconnected satellite. For the
-_import with sync_ option, the repositories on the disconnected satellite must
-have already been enabled and added to the import sync plan.
+_import with sync_ option (default), the repositories on the disconnected satellite
+must have already been enabled and added to the import sync plan.
 
 
 ## Configuration
@@ -56,7 +56,6 @@ export:
 
 import:
   dir: /var/sat-content          (Directory to import content from - Disconnected Satellite)
-  syncplan: 'Import Sync'        (Name of sync plan triggered after content import)
 ```
 
 ## Log files
@@ -76,7 +75,7 @@ Running with the -l flag will loop the check until terminated with CTRL-C
 - **sat_export**
 Intended to perform content export from a Connected Satellite (Sync Host), for
 transfer into a disconnected environment. The Default Organization View (DOV)
-is exported by default, meaning that there is no specific requirement to create 
+is exported by default, meaning that there is no specific requirement to create
 lifecycle environments or Content Views on the sync host. If there is a requirement
 to export only certain repositories, this can also be specified using additional
 configuration files. The following export types can be performed:
@@ -96,18 +95,18 @@ when (or if) a specific package has been imported into the disconnected host.
 To export a selected repository set, a config file must exist in the config directory.
 The name of the config file is the 'environment' that the configuration applies to.
 This is useful if you have a development and production disconnected Satellite and
-don't want to export the full DOV to the development environment. In this case 
+don't want to export the full DOV to the development environment. In this case
 we will name the config file DEVELOPMENT.yml and its contents will look like the
-example below. Repository names are the LABEL taken from the Satellite server and 
-must maintain the YAML array formatting. 
+example below. Repository names are the LABEL taken from the Satellite server and
+must maintain the YAML array formatting.
 
 ```
 env:
   name: DEVELOPMENT
   repos: [
-          Red_Hat_Enterprise_Linux_7_Server_RPMs_x86_64_7Server,
-          Red_Hat_Enterprise_Linux_7_Server_-_Extras_RPMs_x86_64,
-          Red_Hat_Enterprise_Linux_7_Server_-_RH_Common_RPMs_x86_64_7Server,
+           Red_Hat_Enterprise_Linux_7_Server_RPMs_x86_64_7Server,
+           Red_Hat_Enterprise_Linux_7_Server_-_Extras_RPMs_x86_64,
+           Red_Hat_Enterprise_Linux_7_Server_-_RH_Common_RPMs_x86_64_7Server,
          ]
 ```
 To export in this manner the '-e DEVELOPMENT' option must be used.
@@ -136,19 +135,26 @@ This companion script to sat_export, running on the Disconnected Satellite
 performs a sha256sum verification of each part of the specified archive prior
 to extracting the transferred content to disk.
 
-Once the content has been extracted, a sync can be triggered (-s) of all
-repositories belonging to a sync plan, defined in the config file.
+Once the content has been extracted, a sync is triggered of each repository
+in the import set. Note that repositories MUST be enabled on the disconnected
+satellite prior to the sync working - for this reason a `nosync` option (-n)
+exists so that the repos can be extracted to disk and then enabled before the
+sync occurs.
+
+Additionally, the input archive files can be automatically removed on successful
+import/sync with the (-r) flag.
 
 ```
-usage: sat_import.py [-h] -o ORG -d DATE [-s]
+usage: sat_import.py [-h] -o ORG -d DATE [-n] [-r]
 
 Performs Import of Default Content View.
 
 optional arguments:
   -h, --help            show this help message and exit
   -o ORG, --org ORG     Organization
-  -d DATE, --date DATE  Date of Import fileset to process (YYYY-MM-DD)
-  -s, --sync            Trigger a sync after extracting content
+  -d DATE, --date DATE  Date/name of Import fileset to process (YYYY-MM-DD_NAME)
+  -n, --nosync          Do not trigger a sync after extracting content
+  -r, --remove          Remove input files after import has completed
 ```
 
 - **clean_content_views**
@@ -220,7 +226,7 @@ The following can be promoted:
   - All content views defined in an input file (-i)
   - All content views EXCEPT those defined in an input file (-x)
 
-The dry run (-d) option can be used to see what would be promoted for a 
+The dry run (-d) option can be used to see what would be promoted for a
 given command input.
 
 If using an input file, the format is one content view name per line.
