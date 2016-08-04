@@ -35,11 +35,8 @@ CONFIG = yaml.safe_load(open('config/config.yml', 'r'))
 URL = CONFIG["satellite"]["url"]
 USERNAME = CONFIG["satellite"]["username"]
 PASSWORD = CONFIG["satellite"]["password"]
-DISCONNECTED = CONFIG["satellite"]["disconnected"]
 LOGDIR = CONFIG["logging"]["dir"]
 DEBUG = CONFIG["logging"]["debug"]
-EXPORTDIR = CONFIG["export"]["dir"]
-IMPORTDIR = CONFIG["import"]["dir"]
 
 
 # 'Global' Satellite 6 parameters
@@ -133,27 +130,6 @@ def valid_date(indate):
     except ValueError:
         msg = "Not a valid date: '{0}'.".format(indate)
         raise argparse.ArgumentTypeError(msg)
-
-
-def sha256sum(filename):
-    """
-    Perform sha256sum of given file
-    """
-    f_name = open(filename, 'rb')
-    shasum = (sha256(f_name.read()).hexdigest(), filename)
-    return shasum
-
-
-def disk_usage(path):
-    """Return disk usage associated with path, in percent."""
-    stat = os.statvfs(path)
-    total = (stat.f_blocks * stat.f_frsize)
-    used = (stat.f_blocks - stat.f_bfree) * stat.f_frsize
-    try:
-        percent = (float(used) / total) * 100
-    except ZeroDivisionError:
-        percent = 0
-    return round(percent, 1)
 
 
 def get_org_id(org_name):
