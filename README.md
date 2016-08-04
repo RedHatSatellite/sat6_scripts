@@ -12,22 +12,21 @@ These scripts have been written and tested using Satellite 6.2 on RHEL7
 * PyYAML
 
 The Export and Import scripts are intended to be run on the Satellite servers directly.
-- sat_export is intended to run on the Connected Satellite,
-- sat_import is intended to run on the Disconnected Satellite.
-
+* sat_export is intended to run on the Connected Satellite,
+* sat_import is intended to run on the Disconnected Satellite.
 * The scripts make use of the Satellite REST API, and require an admin account on the Satellite server.
 ```
-hammer user create --login svc-api --firstname API --lastname User --password='AP1Us3r' \
-  --mail no-reply@example.org --auth-source-id 1 --organization-ids 1 --default-organization-id 1 \
-  --admin true
+hammer user create --login svc-api --firstname API --lastname User \
+  --password='AP1Us3r' --mail no-reply@example.org --auth-source-id 1 \
+  --organization-ids 1 --default-organization-id 1 --admin true
 ```
 
 
 ## Definitions
 Throughout these scripts the following references are used:
-- Connected Satellite: Internet connection is available
-- Disconnected Satellite: No internet connection is available
-- Sync Host: Connected Satellite that downloads and exports content for a Disconnected Satellite
+* Connected Satellite: Internet connection is available
+* Disconnected Satellite: No internet connection is available
+* Sync Host: Connected Satellite that downloads and exports content for a Disconnected Satellite
 
 
 ## Assumptions
