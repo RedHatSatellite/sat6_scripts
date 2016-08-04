@@ -1,23 +1,19 @@
-# sat6_disconnected_tools
-Scripts to assist with content management in a disconnected Satellite 6 environment.
+# Overview
+
+Importing content in a disconnected environment can be a challenge. 
+These scripts make use of the Inter-Satellite Sync capability in Satellite 6.2 to
+allow for full and incremental export/import of content between environments. 
 
 These scripts have been written and tested using Satellite 6.2 on RHEL7
 
+# Requirements
+* Satellite >= 6.2.x
+* Python >= 2.7
+* PyYAML
 
-## Definitions
-Throughout these scripts the following references are used:
-- Connected Satellite: Internet connection is available
-- Disconnected Satellite: No internet connection is available
-- Sync Host: Connected Satellite that downloads and exports content for a Disconnected Satellite
-
-
-## Requirements
 The Export and Import scripts are intended to be run on the Satellite servers directly.
 - sat_export is intended to run on the Connected Satellite,
 - sat_import is intended to run on the Disconnected Satellite.
-
-* You will need to install PyYAML to use these scripts.
-`yum -y install PyYAML`
 
 * The scripts make use of the Satellite REST API, and require an admin account on the Satellite server.
 ```
@@ -25,6 +21,13 @@ hammer user create --login svc-api --firstname API --lastname User --password='A
   --mail no-reply@example.org --auth-source-id 1 --organization-ids 1 --default-organization-id 1 \
   --admin true
 ```
+
+
+## Definitions
+Throughout these scripts the following references are used:
+- Connected Satellite: Internet connection is available
+- Disconnected Satellite: No internet connection is available
+- Sync Host: Connected Satellite that downloads and exports content for a Disconnected Satellite
 
 
 ## Assumptions
