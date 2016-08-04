@@ -1,0 +1,15 @@
+satellite:
+  url: https://sat62.example.org
+  username: svc-api
+  password: AP1p@ssW0rD
+  disconnected: False
+
+logging:
+  dir: /var/log/satellite
+  debug: True
+
+export:
+  dir: /var/sat-export
+
+import:
+  dir: /var/sat-content
