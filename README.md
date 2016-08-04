@@ -68,14 +68,14 @@ specified in the config file.
 
 ## Scripts in this project
 
-- **check_sync**
+# check_sync
 A quick method to check the status of sync tasks from the command line.
 Will show any sync tasks that have stuck in a 'paused' state, as well as any
 tasks that have stopped but been marked as Incomplete.
 Running with the -l flag will loop the check until terminated with CTRL-C
 
 
-- **sat_export**
+# sat_export
 Intended to perform content export from a Connected Satellite (Sync Host), for
 transfer into a disconnected environment. The Default Organization View (DOV)
 is exported by default, meaning that there is no specific requirement to create
@@ -89,7 +89,18 @@ configuration files. The following export types can be performed:
 
 For all exports, the exported RPMs are verified for GPG integrity before being
 added to a chunked tar archive, with each part of the archive being sha256sum'd
-for cross domain transfer integrity checking.
+for cross domain transfer integrity checking. 
+
+The GPG check requires that GPG keys are imported into the local RPM GPG store.
+This was a requirement at the time of writing that ALL packages brought into the
+disconnected enviroment be signed by a trusted source - unfortunately this means
+unsigned RPMs will not be able to be imported using this script at this stage.
+
+The RPM GPG keys must be insalled on the connected satellite.
+```
+rpm --import <gpg-key>
+```
+
 
 For each export performed, a log of all RPM packages that are exported is kept
 in the configured log directory. This has been found to be a useful tool to see
@@ -116,6 +127,7 @@ To export in this manner the '-e DEVELOPMENT' option must be used.
 Exports to the 'environment' will be timestamped in the same way that DOV exports
 are done, so ongoing incremental exports are possible.
 
+### Help Output
 ```
 usage: sat_export.py [-h] -o ORG [-e ENV] [-a | -i | -s SINCE] [-l]
 
@@ -133,7 +145,19 @@ optional arguments:
 
 ```
 
-- **sat_import**
+### Examples
+```
+./sat_export.py -o MyOrg -e DEV     # Incr export of repos defined in DEV.yml
+./sat_export.py -o MyOrg            # Incr export of DoV
+./sat_export.py -o MyOrg -e DEV -a  # Full export of repos defined in DEV.yml
+
+Output file format will be:
+sat_export_2016-07-29_DEV_00
+sat_export_2016-07-29_DEV_01
+sat_export_2016-07-20_DEV.sha256
+```
+
+# sat_import
 This companion script to sat_export, running on the Disconnected Satellite
 performs a sha256sum verification of each part of the specified archive prior
 to extracting the transferred content to disk.
@@ -144,9 +168,14 @@ satellite prior to the sync working - for this reason a `nosync` option (-n)
 exists so that the repos can be extracted to disk and then enabled before the
 sync occurs.
 
-Additionally, the input archive files can be automatically removed on successful
-import/sync with the (-r) flag.
+All imports are treated as Incremental, and the source tree will be removed on 
+successful import/sync.
 
+The input archive files can also be automatically removed on successful import/sync
+with the (-r) flag.
+
+
+### Help Output
 ```
 usage: sat_import.py [-h] -o ORG -d DATE [-n] [-r]
 
@@ -160,3 +189,8 @@ optional arguments:
   -r, --remove          Remove input files after import has completed
 ```
 
+### Examples
+```
+./sat_import.py -o MyOrg -d 2016-07-29_DEV  # Import content defined in DEV.yml
+./sat_import.py -o MyOrg -d 2016-07-29_DoV  # Import a DoV export
+```
