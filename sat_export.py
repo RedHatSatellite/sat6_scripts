@@ -217,7 +217,11 @@ def check_incomplete_sync():
                 helpers.KATELLO_API + "/repositories/" + str(repo_id['id']))
 
             if repo_status['content_type'] == 'yum':
-                if repo_status['last_sync']['state'] == 'stopped':
+                if repo_status['last_sync'] is None:
+                    if repo_status['url'] is None:
+                        msg = "Repo ID " + str(repo_id['id']) + " No Sync Configured"
+                        #helpers.log_msg(msg, 'DEBUG')
+                elif repo_status['last_sync']['state'] == 'stopped':
                     if repo_status['last_sync']['result'] == 'warning':
                         incomplete_sync = True
                         msg = "Repo ID " + str(repo_id['id']) + " Sync Incomplete"
@@ -514,6 +518,7 @@ def main():
                 json.dumps(
                         {
                            "organization_id": org_id,
+                           "per_page": '1000',
                         }
                 ))
 
