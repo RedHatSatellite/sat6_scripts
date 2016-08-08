@@ -82,10 +82,10 @@ is exported by default, meaning that there is no specific requirement to create
 lifecycle environments or Content Views on the sync host. If there is a requirement
 to export only certain repositories, this can also be specified using additional
 configuration files. The following export types can be performed:
-    - A full export (-a)
-    - An incremental export of content since the last successful export (-i)
-    - An incremental export of content from a given date (-s)
-    - Export of a limited repository set (-e) defined by config file (see below)
+    * A full export (-a)
+    * An incremental export of content since the last successful export (-i)
+    * An incremental export of content from a given date (-s)
+    * Export of a limited repository set (-e) defined by config file (see below)
 
 For all exports, the exported RPMs are verified for GPG integrity before being
 added to a chunked tar archive, with each part of the archive being sha256sum'd
