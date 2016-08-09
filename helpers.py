@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #title           :helpers.py
 #description     :Various helper routines for Satellite 6 scripts
-#URL             :https://github.com/ggatward/sat6_scripts
+#URL             :https://github.com/RedHatSatellite/sat6_disconnected_tools
 #author          :Geoff Gatward <ggatward@redhat.com>
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3

@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #title           :check_sync.py
 #description     :Checks Satellite 6 repository sync status
-#URL             :https://github.com/ggatward/sat6_scripts
+#URL             :https://github.com/RedHatSatellite/sat6_disconnected_tools
 #author          :Geoff Gatward <ggatward@redhat.com>
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
