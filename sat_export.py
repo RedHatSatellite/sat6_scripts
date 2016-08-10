@@ -576,6 +576,7 @@ def main():
                 # If we have a match, do the export
                 if repo_result['label'] in erepos:
                     # Extract the last export time for this repo
+                    orig_export_type = export_type
                     if export_type == 'incr' and repo_result['label'] in export_times:
                         last_export = export_times[repo_result['label']]
                         if since:
@@ -615,6 +616,8 @@ def main():
                             msg = "Export FAILED"
                             helpers.log_msg(msg, 'ERROR')
 
+                        # Reset the export type to the user specified, in case we overrode it.
+                        export_type = orig_export_type
 
                 else:
                     msg = "Skipping  " + repo_result['label']
