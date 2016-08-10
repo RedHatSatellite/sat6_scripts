@@ -435,6 +435,8 @@ def main():
         required=False, type=helpers.valid_date)
     parser.add_argument('-l', '--last', help='Display time of last export', required=False,
         action="store_true")
+    parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
+        action="store_true")
     args = parser.parse_args()
 
     # Set our script variables from the input args
@@ -636,7 +638,8 @@ def main():
     pickle.dump(exported_repos, open(export_dir + '/exported_repos.pkl', 'wb'))
 
     # Run GPG Checks on the exported RPMs
-    do_gpg_check(export_dir)
+    if not args.nogpg:
+        do_gpg_check(export_dir)
 
     # Add our exported data to a tarfile
     create_tar(export_dir, ename)

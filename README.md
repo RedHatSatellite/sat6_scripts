@@ -87,19 +87,18 @@ configuration files. The following export types can be performed:
     * An incremental export of content from a given date (-s)
     * Export of a limited repository set (-e) defined by config file (see below)
 
-For all exports, the exported RPMs are verified for GPG integrity before being
+By default, the exported RPMs are verified for GPG integrity before being
 added to a chunked tar archive, with each part of the archive being sha256sum'd
 for cross domain transfer integrity checking. 
 
 The GPG check requires that GPG keys are imported into the local RPM GPG store.
-This was a requirement at the time of writing that ALL packages brought into the
-disconnected enviroment be signed by a trusted source - unfortunately this means
-unsigned RPMs will not be able to be imported using this script at this stage.
-
 The RPM GPG keys must be insalled on the connected satellite.
 ```
 rpm --import <gpg-key>
 ```
+
+If there is a need to NOT perform the GPG check of the exported packages, the 
+GPG check can be skipped using the (-n) option.
 
 
 For each export performed, a log of all RPM packages that are exported is kept
@@ -129,7 +128,7 @@ are done, so ongoing incremental exports are possible.
 
 ### Help Output
 ```
-usage: sat_export.py [-h] -o ORG [-e ENV] [-a | -i | -s SINCE] [-l]
+usage: sat_export.py [-h] -o ORG [-e ENV] [-a | -i | -s SINCE] [-l] [-n]
 
 Performs Export of Default Content View.
 
@@ -142,6 +141,7 @@ optional arguments:
   -s SINCE, --since SINCE
                         Export content since YYYY-MM-DD HH:MM:SS
   -l, --last            Display time of last export
+  -n, --nogpg           Skip GPG checking
 
 ```
 
