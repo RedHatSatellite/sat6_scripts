@@ -87,6 +87,19 @@ def sync_content(org_id, imported_repos):
             if repo in repo_result['label']:
                 do_import = True
                 repos_to_sync.append(repo_result['id'])
+
+                # Ensure Mirror-on-sync flag is set to FALSE to make sure incremental
+                # import does not (cannot) delete existing packages.
+                msg = "Setting mirror-on-sync=false for repo id " + str(repo_result['id'])
+                helpers.log_msg(msg, 'DEBUG')
+                helpers.put_json(
+                    helpers.KATELLO_API + "/repositories/" + str(repo_result['id']), \
+                        json.dumps(
+                            {
+                                "mirror_on_sync": False
+                            }
+                        ))
+
         if do_import:
             msg = "Repo " + repo + " found in Satellite"
             helpers.log_msg(msg, 'DEBUG')
