@@ -76,6 +76,7 @@ def sync_content(org_id, imported_repos):
             json.dumps(
                 {
                     "organization_id": org_id,
+                    "per_page": '1000',
                 }
             ))
 
