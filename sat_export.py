@@ -266,9 +266,10 @@ def do_gpg_check(export_dir):
     """
     Find and GPG Check all RPM files
     """
-    msg = "Checking GPG integrity of RPMs in " + export_dir
+    msg = "Checking GPG integrity of exported RPMs..."
     helpers.log_msg(msg, 'INFO')
-    print msg
+    output = "{:<70}".format(msg)
+    print output[:70],
 
     badrpms = []
     os.chdir(export_dir)
@@ -283,13 +284,14 @@ def do_gpg_check(export_dir):
 
     # If we have any bad ones we need to fail the export.
     if len(badrpms) != 0:
+        print helpers.RED + "GPG Check FAILED" + helpers.ENDC
         msg = "The following RPM's failed the GPG check.."
         helpers.log_msg(msg, 'ERROR')
         for badone in badrpms:
             msg = badone
             helpers.log_msg(msg, 'ERROR')
         msg = "------ Export Aborted ------"
-        helpers.log_msg(msg, 'ERROR')
+        helpers.log_msg(msg, 'INFO')
         sys.exit(-1)
     else:
         msg = "GPG check completed successfully"
