@@ -488,7 +488,8 @@ def main():
                 if export_times:
                     print "Last successful export for " + ename + ":"
                     for time in export_times:
-                        print str(time) + '\t' + str(export_times[time])
+                        repo = "{:<80}".format(time)
+                        print repo[:80] + '\t' + str(export_times[time])
                 else:
                     print "Export has never been performed for " + ename
                 sys.exit(-1)
@@ -658,4 +659,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
