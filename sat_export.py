@@ -488,8 +488,8 @@ def main():
                 if export_times:
                     print "Last successful export for " + ename + ":"
                     for time in export_times:
-                        repo = "{:<80}".format(time)
-                        print repo[:80] + '\t' + str(export_times[time])
+                        repo = "{:<70}".format(time)
+                        print repo[:70] + '\t' + str(export_times[time])
                 else:
                     print "Export has never been performed for " + ename
                 sys.exit(-1)
@@ -527,17 +527,20 @@ def main():
 
     # If we are running a full DoV export we run a different set of API calls...
     if ename == 'DoV':
+        cola = "Exporting DoV"
         if export_type == 'incr' and 'DoV' in export_times:
             last_export = export_times['DoV']
             if since:
                 last_export = since_export
-            msg = "Exporting DoV (INCR since " + last_export + ")"
+            colb = "(INCR since " + last_export + ")"
         else:
             export_type = 'full'
             last_export = '2000-01-01 12:00:00' # This is a dummy value, never used.
-            msg = "Exporting DoV (FULL)"
+            colb = "(FULL)"
+        msg = cola + " " + colb
         helpers.log_msg(msg, 'INFO')
-        print msg
+        output = "{:<70}".format(cola)
+        print output[:70] + ' ' + colb
 
         # Check if there are any currently running tasks that will conflict with an export
         check_running_tasks(label, ename)
@@ -580,18 +583,20 @@ def main():
                 if repo_result['label'] in erepos:
                     # Extract the last export time for this repo
                     orig_export_type = export_type
+                    cola = "Export " + repo_result['label']
                     if export_type == 'incr' and repo_result['label'] in export_times:
                         last_export = export_times[repo_result['label']]
                         if since:
                             last_export = since_export
-                        msg = "Exporting " + repo_result['label'] \
-                            + " (INCR since " + last_export + ")"
+                        colb = "(INCR since " + last_export + ")"
                     else:
                         export_type = 'full'
                         last_export = '2000-01-01 12:00:00' # This is a dummy value, never used.
-                        msg = "Exporting " + repo_result['label'] + "(FULL)"
+                        colb = "(FULL)"
+                    msg = cola + " " + colb
                     helpers.log_msg(msg, 'INFO')
-                    print msg
+                    output = "{:<70}".format(cola)
+                    print output[:70] + ' ' + colb
 
                     # Check if there are any currently running tasks that will conflict
                     ok_to_export = check_running_tasks(repo_result['label'], ename)

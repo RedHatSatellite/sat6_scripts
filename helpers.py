@@ -181,8 +181,9 @@ def wait_for_task(task_id, label):
     Wait for the given task ID to complete
     This displays a message without CR/LF waiting for an OK/FAIL status to be shown
     """
-    msg = "Waiting for " + label + " to complete...                        "
-    print msg,
+    msg = "Waiting for " + label + " to complete..."
+    colx = "{:<70}".format(msg)
+    print colx[:70],
     log_msg(msg, 'INFO')
     # Force the status message to be shown to the user
     sys.stdout.flush()
