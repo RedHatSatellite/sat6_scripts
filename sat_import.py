@@ -114,7 +114,8 @@ def sync_content(org_id, imported_repos):
     # If we get to here and nothing was added to repos_to_sync we will abort the import.
     # This will probably occur on the initial import - nothing will be enabled in Satellite.
     if not repos_to_sync:
-        msg = "No enabled repos matching the imported content"
+        msg = "No enabled repos matching the imported content. Please enable the required repos" \
+            "and sync manually."
         helpers.log_msg(msg, 'WARNING')
         sys.exit(-1)
     else:
