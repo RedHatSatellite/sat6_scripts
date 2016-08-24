@@ -510,10 +510,11 @@ def main():
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)
 
-    # TODO: Remove any previous exported content
-#    os.chdir(helpers.EXPORTDIR)
-#    shutil.rmtree()
-
+    # Remove any previous exported content left behind by prior unclean exit
+    if os.path.exists(helpers.EXPORTDIR + '/export'):
+        msg = "Removing existing export directory"
+        helpers.log_msg(msg, 'DEBUG')
+        shutil.rmtree(helpers.EXPORTDIR + '/export')
 
     # Collect a list of enabled repositories. This is needed for:
     # 1. Matching specific repo exports, and
