@@ -73,8 +73,9 @@ def check_running_tasks(clear):
             if repo_status['content_type'] == 'yum':
                 if repo_status['last_sync'] is None:
                     if repo_status['library_instance_id'] is None:
-                        incomplete_sync = 1
-                        print helpers.ERROR + "Broken Repo: " + helpers.ENDC + repo_status['name']
+#                        incomplete_sync = 1
+#                        print helpers.ERROR + "Broken Repo: " + helpers.ENDC + repo_status['name']
+                        print helpers.WARNING + "Never Synchronized: " + helpers.ENDC + repo_status['name']
                 elif repo_status['last_sync']['state'] == 'stopped':
                     if repo_status['last_sync']['result'] == 'warning':
                         incomplete_sync = 1
@@ -83,7 +84,7 @@ def check_running_tasks(clear):
     # If we have detected incomplete sync tasks, ask the user if they want to export anyway.
     # This isn't fatal, but *MAY* lead to inconsistent repositories on the dieconnected sat.
     if not incomplete_sync:
-        print helpers.GREEN + "None detected\n" + helpers.ENDC
+        print helpers.GREEN + "No incomplete syncs detected\n" + helpers.ENDC
     else:
         print "\n"
 
