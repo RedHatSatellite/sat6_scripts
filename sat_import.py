@@ -111,23 +111,31 @@ def sync_content(org_id, imported_repos):
             helpers.log_msg(msg, 'WARNING')
             # TODO: We could go on here and try to enable the Red Hat repo .....
 
-    msg = "Repo ids to sync: " + str(repos_to_sync)
-    helpers.log_msg(msg, 'DEBUG')
+    # If we get to here and nothing was added to repos_to_sync we will abort the import.
+    # This will probably occur on the initial import - nothing will be enabled in Satellite.
+    if not repos_to_sync:
+        msg = "No enabled repos matching the imported content. Please enable the required repos" \
+            "and sync manually."
+        helpers.log_msg(msg, 'WARNING')
+        sys.exit(-1)
+    else:
+        msg = "Repo ids to sync: " + str(repos_to_sync)
+        helpers.log_msg(msg, 'DEBUG')
 
-    msg = "Syncing repositories"
-    helpers.log_msg(msg, 'INFO')
-    print msg
-    task_id = helpers.post_json(
-        helpers.KATELLO_API + "repositories/bulk/sync", \
-            json.dumps(
-                {
-                    "ids": repos_to_sync,
-                }
-            ))["id"]
-    msg = "Repo sync task id = " + task_id
-    helpers.log_msg(msg, 'DEBUG')
+        msg = "Syncing repositories"
+        helpers.log_msg(msg, 'INFO')
+        print msg
+        task_id = helpers.post_json(
+            helpers.KATELLO_API + "repositories/bulk/sync", \
+                json.dumps(
+                    {
+                        "ids": repos_to_sync,
+                    }
+                ))["id"]
+        msg = "Repo sync task id = " + task_id
+        helpers.log_msg(msg, 'DEBUG')
 
-    return task_id, delete_override
+        return task_id, delete_override
 
 
 def main():

@@ -10,7 +10,7 @@
 Exports Satellite 6 yum content.
 """
 
-import sys, argparse, datetime, os, shutil, pickle
+import sys, argparse, datetime, os, shutil, pickle, re
 import fnmatch, subprocess, tarfile
 import simplejson as json
 from glob import glob
@@ -510,10 +510,11 @@ def main():
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)
 
-    # TODO: Remove any previous exported content
-#    os.chdir(helpers.EXPORTDIR)
-#    shutil.rmtree()
-
+    # Remove any previous exported content left behind by prior unclean exit
+    if os.path.exists(helpers.EXPORTDIR + '/export'):
+        msg = "Removing existing export directory"
+        helpers.log_msg(msg, 'DEBUG')
+        shutil.rmtree(helpers.EXPORTDIR + '/export')
 
     # Collect a list of enabled repositories. This is needed for:
     # 1. Matching specific repo exports, and
@@ -578,7 +579,18 @@ def main():
             sys.exit(-1)
 
     else:
-        # Verify that defined repos exist in our DoV
+        # Verify that defined repos exist in Satellite
+        for repo in erepos:
+            repo_in_sat = False
+            for repo_x in repolist['results']:
+                if re.findall("\\b" + repo + "\\b$", repo_x['label']):
+                    repo_in_sat = True
+                    break
+            if repo_in_sat == False:
+                msg = "'" + repo + "' not found in Satellite"
+                helpers.log_msg(msg, 'WARNING')
+
+        # Process each repo
         for repo_result in repolist['results']:
             if repo_result['content_type'] == 'yum':
                 # If we have a match, do the export
