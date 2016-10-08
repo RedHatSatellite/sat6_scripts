@@ -40,7 +40,7 @@ LOGDIR = CONFIG["logging"]["dir"]
 DEBUG = CONFIG["logging"]["debug"]
 EXPORTDIR = CONFIG["export"]["dir"]
 IMPORTDIR = CONFIG["import"]["dir"]
-
+SYNCBATCH = CONFIG["import"]["syncbatch"]
 
 # 'Global' Satellite 6 parameters
 # Satellite API

@@ -59,6 +59,7 @@ export:
 
 import:
   dir: /var/sat-content          (Directory to import content from - Disconnected Satellite)
+  syncbatch: 10                  (Number of repositories to sync at once during import)
 ```
 
 ## Log files
@@ -166,7 +167,11 @@ Once the content has been extracted, a sync is triggered of each repository
 in the import set. Note that repositories MUST be enabled on the disconnected
 satellite prior to the sync working - for this reason a `nosync` option (-n)
 exists so that the repos can be extracted to disk and then enabled before the
-sync occurs.
+sync occurs. In order to not overload the Satellite during the sync, the 
+repositories will be synced in smaller batches, the number of repos in a batch
+being defined in the config.yml file. (It has been observed on systems with a 
+large number of repos that triggering a sync on all repos at once pretty much
+kills the Satellite until the sync is complete)
 
 All imports are treated as Incremental, and the source tree will be removed on 
 successful import/sync.

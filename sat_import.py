@@ -126,27 +126,35 @@ def sync_content(org_id, imported_repos):
         helpers.log_msg(msg, 'INFO')
         print msg
 
-        n = 3
         # Break repos_to_sync into groups of n 
-        repochunks = [ repos_to_sync[i:i+n] for i in range(0, len(repos_to_sync), n) ]
+        repochunks = [ repos_to_sync[i:i+helpers.SYNCBATCH] for i in range(0, len(repos_to_sync), helpers.SYNCBATCH) ]
 
+        # Loop through the smaller batches of repos and sync them
         for chunk in repochunks:
-            print str(chunk)
-            for repobatch in chunk:
-#                task_id = helpers.post_json(
-#                    helpers.KATELLO_API + "repositories/bulk/sync", \
-#                        json.dumps(
-#                            {
-#                                "ids": chunk,
-#                            }
-#                        ))["id"]
-#                msg = "Repo sync task id = " + task_id
-#                helpers.log_msg(msg, 'DEBUG')
+            msg = "Syncing repo batch " + str(chunk)
+            helpers.log_msg(msg, 'DEBUG')
+            task_id = helpers.post_json(
+                helpers.KATELLO_API + "repositories/bulk/sync", \
+                    json.dumps(
+                        {
+                            "ids": chunk,
+                        }
+                    ))["id"]
+            msg = "Repo sync task id = " + task_id
+            helpers.log_msg(msg, 'DEBUG')
 
-#                # Now we need to wait for the sync to complete
-#                helpers.wait_for_task(task_id, 'sync')
+            # Now we need to wait for the sync to complete
+            helpers.wait_for_task(task_id, 'sync')
 
-#        return task_id, delete_override
+            tinfo = helpers.get_task_status(task_id)
+            if tinfo['state'] != 'running' and tinfo['result'] == 'success':
+                msg = "Batch of " + str(helpers.SYNCBATCH) + " repos complete"
+                helpers.log_msg(msg, 'INFO')
+                print helpers.GREEN + msg + helpers.ENDC
+            else:
+                msg = "Batch sync has errors"
+                helpers.log_msg(msg, 'WARNING')
+
         return delete_override
 
 
@@ -209,11 +217,7 @@ def main():
         imported_repos = pickle.load(open('exported_repos.pkl', 'rb'))
 
         # Run a repo sync on each imported repo
-#        (task_id, delete_override) = sync_content(org_id, imported_repos)
         (delete_override) = sync_content(org_id, imported_repos)
-
-        # Now we need to wait for the sync to complete
-#        helpers.wait_for_task(task_id, 'sync')
 
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
@@ -221,7 +225,8 @@ def main():
     if args.remove and not delete_override:
         msg = "Removing " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "* input files"
         helpers.log_msg(msg, 'DEBUG')
-#        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate) + "*"
+        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate) + "*"
+        os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
 
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
