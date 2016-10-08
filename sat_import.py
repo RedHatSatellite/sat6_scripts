@@ -125,17 +125,29 @@ def sync_content(org_id, imported_repos):
         msg = "Syncing repositories"
         helpers.log_msg(msg, 'INFO')
         print msg
-        task_id = helpers.post_json(
-            helpers.KATELLO_API + "repositories/bulk/sync", \
-                json.dumps(
-                    {
-                        "ids": repos_to_sync,
-                    }
-                ))["id"]
-        msg = "Repo sync task id = " + task_id
-        helpers.log_msg(msg, 'DEBUG')
 
-        return task_id, delete_override
+        n = 3
+        # Break repos_to_sync into groups of n 
+        repochunks = [ repos_to_sync[i:i+n] for i in range(0, len(repos_to_sync), n) ]
+
+        for chunk in repochunks:
+            print str(chunk)
+            for repobatch in chunk:
+#                task_id = helpers.post_json(
+#                    helpers.KATELLO_API + "repositories/bulk/sync", \
+#                        json.dumps(
+#                            {
+#                                "ids": chunk,
+#                            }
+#                        ))["id"]
+#                msg = "Repo sync task id = " + task_id
+#                helpers.log_msg(msg, 'DEBUG')
+
+#                # Now we need to wait for the sync to complete
+#                helpers.wait_for_task(task_id, 'sync')
+
+#        return task_id, delete_override
+        return delete_override
 
 
 def main():
@@ -197,10 +209,11 @@ def main():
         imported_repos = pickle.load(open('exported_repos.pkl', 'rb'))
 
         # Run a repo sync on each imported repo
-        (task_id, delete_override) = sync_content(org_id, imported_repos)
+#        (task_id, delete_override) = sync_content(org_id, imported_repos)
+        (delete_override) = sync_content(org_id, imported_repos)
 
         # Now we need to wait for the sync to complete
-        helpers.wait_for_task(task_id, 'sync')
+#        helpers.wait_for_task(task_id, 'sync')
 
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
