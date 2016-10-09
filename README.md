@@ -59,6 +59,7 @@ export:
 
 import:
   dir: /var/sat-content          (Directory to import content from - Disconnected Satellite)
+  syncbatch: 10                  (Number of repositories to sync at once during import)
 ```
 
 ## Log files
@@ -166,7 +167,11 @@ Once the content has been extracted, a sync is triggered of each repository
 in the import set. Note that repositories MUST be enabled on the disconnected
 satellite prior to the sync working - for this reason a `nosync` option (-n)
 exists so that the repos can be extracted to disk and then enabled before the
-sync occurs.
+sync occurs. In order to not overload the Satellite during the sync, the 
+repositories will be synced in smaller batches, the number of repos in a batch
+being defined in the config.yml file. (It has been observed on systems with a 
+large number of repos that triggering a sync on all repos at once pretty much
+kills the Satellite until the sync is complete)
 
 All imports are treated as Incremental, and the source tree will be removed on 
 successful import/sync.
@@ -174,10 +179,11 @@ successful import/sync.
 The input archive files can also be automatically removed on successful import/sync
 with the (-r) flag.
 
+The last successfully completed import can be identified with the (-l) flag.
 
 ### Help Output
 ```
-usage: sat_import.py [-h] -o ORG -d DATE [-n] [-r]
+usage: sat_import.py [-h] -o ORG -d DATE [-n] [-r] [-l]
 
 Performs Import of Default Content View.
 
@@ -187,10 +193,12 @@ optional arguments:
   -d DATE, --date DATE  Date/name of Import fileset to process (YYYY-MM-DD_NAME)
   -n, --nosync          Do not trigger a sync after extracting content
   -r, --remove          Remove input files after import has completed
+  -l, --last            Show the last successfully completed import date
 ```
 
 ### Examples
 ```
 ./sat_import.py -o MyOrg -d 2016-07-29_DEV  # Import content defined in DEV.yml
 ./sat_import.py -o MyOrg -d 2016-07-29_DoV  # Import a DoV export
+./sat_import.py -o MyOrg -l                 # Lists the date of the last successful import
 ```

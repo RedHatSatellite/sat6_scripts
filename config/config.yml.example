@@ -13,3 +13,4 @@ export:
 
 import:
   dir: /var/sat-content
+  syncbatch: 10
