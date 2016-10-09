@@ -179,10 +179,11 @@ successful import/sync.
 The input archive files can also be automatically removed on successful import/sync
 with the (-r) flag.
 
+The last successfully completed import can be identified with the (-l) flag.
 
 ### Help Output
 ```
-usage: sat_import.py [-h] -o ORG -d DATE [-n] [-r]
+usage: sat_import.py [-h] -o ORG -d DATE [-n] [-r] [-l]
 
 Performs Import of Default Content View.
 
@@ -192,10 +193,12 @@ optional arguments:
   -d DATE, --date DATE  Date/name of Import fileset to process (YYYY-MM-DD_NAME)
   -n, --nosync          Do not trigger a sync after extracting content
   -r, --remove          Remove input files after import has completed
+  -l, --last            Show the last successfully completed import date
 ```
 
 ### Examples
 ```
 ./sat_import.py -o MyOrg -d 2016-07-29_DEV  # Import content defined in DEV.yml
 ./sat_import.py -o MyOrg -d 2016-07-29_DoV  # Import a DoV export
+./sat_import.py -o MyOrg -l                 # Lists the date of the last successful import
 ```

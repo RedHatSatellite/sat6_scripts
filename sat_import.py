@@ -181,10 +181,12 @@ def main():
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization', required=True)
     parser.add_argument('-d', '--date', \
-        help='Date/name of Import fileset to process (YYYY-MM-DD_NAME)', required=True)
+        help='Date/name of Import fileset to process (YYYY-MM-DD_NAME)', required=False)
     parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
         required=False, action="store_true")
     parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
+        required=False, action="store_true")
+    parser.add_argument('-l', '--last', help='Display the last successful import performed', 
         required=False, action="store_true")
     args = parser.parse_args()
 
@@ -192,8 +194,29 @@ def main():
     org_name = args.org
     expdate = args.date
 
+    # Record where we are running from
+    script_dir = str(os.getcwd())
+
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
+
+    # Display the last successful import
+    if args.last:
+        if os.path.exists('var/imports.pkl'):
+            last_import = pickle.load(open('var/imports.pkl', 'rb'))
+            msg = "Last successful import was " + last_import
+            helpers.log_msg(msg, 'INFO')
+            print msg
+        else:
+            msg = "Import has never been performed"
+            helpers.log_msg(msg, 'INFO')
+            print msg
+        sys.exit(-1)
+             
+    # If we got this far without -d being specified, error out cleanly
+    if args.date is None:
+        parser.error("--date is required")
+
 
     # Figure out if we have the specified input fileset
     basename = get_inputfiles(expdate)
@@ -231,6 +254,11 @@ def main():
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
 
+    # Save the last completed import data
+    os.chdir(script_dir)
+    if not os.path.exists('var'):
+        os.makedirs('var')
+    pickle.dump(expdate, open('var/imports.pkl', "wb"))
 
 if __name__ == "__main__":
     main()
