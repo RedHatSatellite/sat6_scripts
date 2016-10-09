@@ -405,6 +405,25 @@ def read_pickle(name):
     return export_times
 
 
+def get_product(org_id, cp_id):
+    """
+    Find and return the label of the given product ID
+    """
+    prod_list = helpers.get_p_json(
+        helpers.KATELLO_API + "/products/", \
+                json.dumps(
+                        {
+                           "organization_id": org_id,
+                           "per_page": '1000',
+                        }
+                ))
+
+    for prod in prod_list['results']:
+        if prod['cp_id'] == cp_id:
+            prodlabel = prod['label']
+            return prodlabel
+
+
 def main():
     """
     Main Routine
@@ -500,7 +519,6 @@ def main():
                 export_type = 'full'
         else:
             # TODO: Re-populate export_times dictionary so each repo has 'since' date
-            since = True
             since_export = str(since)
 
             # We have our timestamp so we can kick of an incremental export
@@ -625,7 +643,21 @@ def main():
                         # Check if the export completed OK. If not we exit the script.
                         tinfo = helpers.get_task_status(export_id)
                         if tinfo['state'] != 'running' and tinfo['result'] == 'success':
-                            msg = "Repository Export OK"
+                            # Count the number of exported packages
+                            # First resolve the product label - this forms part of the export path
+                            product = get_product(org_id, repo_result['product']['cp_id'])
+                            # Now we can build the export path itself
+                            basepath = helpers.EXPORTDIR + "/" + org_name + "-" + product + "-" + repo_result['label']
+                            if export_type == 'incr':
+                                basepath = basepath + "-incremental"
+                            exportpath = basepath + "/" + repo_result['relative_path']
+                            msg = "Export path = " + exportpath
+                            helpers.log_msg(msg, 'DEBUG')
+
+                            os.chdir(exportpath)
+                            numrpms = len([f for f in os.walk(".").next()[2] if f[ -4: ] == ".rpm"])
+
+                            msg = "Repository Export OK (" + str(numrpms) + " new packages)"
                             helpers.log_msg(msg, 'INFO')
                             print helpers.GREEN + msg + helpers.ENDC
 
@@ -634,6 +666,7 @@ def main():
 
                             # Add the repo to the successfully exported list
                             exported_repos.append(repo_result['label'])
+
                         else:
                             msg = "Export FAILED"
                             helpers.log_msg(msg, 'ERROR')
@@ -671,7 +704,7 @@ def main():
     # And we're done!
     print helpers.GREEN + "Export complete.\n" + helpers.ENDC
     print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
-        'to your disconnected Satellite system content import location.\n' \
+        ' to your disconnected Satellite system content import location.\n' \
         'Once transferred, please run ' + helpers.BOLD + ' sat_import' \
         + helpers.ENDC + ' to extract it.'
 
