@@ -189,7 +189,7 @@ def main():
         description='Promotes content views for specified organization to the target environment.')
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
-    parser.add_argument('-e', '--env', help='Target Environment (Development, Quality, Production)',
+    parser.add_argument('-e', '--env', help='Target Environment (e.g. Development, Quality, Production)',
         required=True)
     parser.add_argument('-o', '--org', help='Organization', required=True)
     group.add_argument('-x', '--exfile',
