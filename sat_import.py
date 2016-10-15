@@ -131,6 +131,7 @@ def sync_content(org_id, imported_repos):
 
         # Loop through the smaller batches of repos and sync them
         for chunk in repochunks:
+            chunksize = len(chunk)
             msg = "Syncing repo batch " + str(chunk)
             helpers.log_msg(msg, 'DEBUG')
             task_id = helpers.post_json(
@@ -148,7 +149,7 @@ def sync_content(org_id, imported_repos):
 
             tinfo = helpers.get_task_status(task_id)
             if tinfo['state'] != 'running' and tinfo['result'] == 'success':
-                msg = "Batch of " + str(helpers.SYNCBATCH) + " repos complete"
+                msg = "Batch of " + str(chunksize) + " repos complete"
                 helpers.log_msg(msg, 'INFO')
                 print helpers.GREEN + msg + helpers.ENDC
             else:
