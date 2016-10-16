@@ -101,10 +101,17 @@ rpm --import <gpg-key>
 If there is a need to NOT perform the GPG check of the exported packages, the 
 GPG check can be skipped using the (-n) option.
 
-
 For each export performed, a log of all RPM packages that are exported is kept
 in the configured log directory. This has been found to be a useful tool to see
 when (or if) a specific package has been imported into the disconnected host.
+
+Satellite will export the repodata of all included repositories, even if the
+repo has no content to export. The way the sat_import script works is that it will
+perform a sync on these 'empty' repos, consuming time and resources, especially if
+multiple capsules are then synced as well. By default, 'empty' repos are not included
+for import sync, however this behaviour can be overridden with the (-r) flag. This 
+will be useful to periodically ensure that the disconnected satellite repos are 
+consistent - the repodata will indicate mismatches with synced content.
 
 To export a selected repository set, a config file must exist in the config directory.
 The name of the config file is the 'environment' that the configuration applies to.
@@ -143,6 +150,7 @@ optional arguments:
                         Export content since YYYY-MM-DD HH:MM:SS
   -l, --last            Display time of last export
   -n, --nogpg           Skip GPG checking
+  -r, --repodata        Include repodata for repos with no incremental content
 
 ```
 

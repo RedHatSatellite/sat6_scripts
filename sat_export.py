@@ -458,6 +458,8 @@ def main():
         action="store_true")
     parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
         action="store_true")
+    parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages', 
+        required=False, action="store_true")
     args = parser.parse_args()
 
     # Set our script variables from the input args
@@ -651,7 +653,7 @@ def main():
                             if export_type == 'incr':
                                 basepath = basepath + "-incremental"
                             exportpath = basepath + "/" + repo_result['relative_path']
-                            msg = "Export path = " + exportpath
+                            msg = "\nExport path = " + exportpath
                             helpers.log_msg(msg, 'DEBUG')
 
                             os.chdir(exportpath)
@@ -665,7 +667,13 @@ def main():
                             export_times[repo_result['label']] = start_time
 
                             # Add the repo to the successfully exported list
-                            exported_repos.append(repo_result['label'])
+                            if numrpms != 0 or args.repodata:
+                                msg = "Adding " + repo_result['label'] + " to export list"
+                                helpers.log_msg(msg, 'DEBUG')
+                                exported_repos.append(repo_result['label'])
+                            else:
+                                msg = "Not including repodata for empty repo " + repo_result['label']
+                                helpers.log_msg(msg, 'DEBUG')
 
                         else:
                             msg = "Export FAILED"
