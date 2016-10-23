@@ -121,6 +121,12 @@ we will name the config file DEVELOPMENT.yml and its contents will look like the
 example below. Repository names are the LABEL taken from the Satellite server and
 must maintain the YAML array formatting.
 
+Note also that the 'environment' export option also allows for the export of ISO
+(file) based repositories in addition to yum RPM content. Using the DOV export does
+NOT include ISO repos, as export of these type of repositories is not supported by
+the current pulp version in Satellite. The 'environment' export performs some 
+additional magic to export the file content.
+
 ```
 env:
   name: DEVELOPMENT
@@ -128,6 +134,7 @@ env:
            Red_Hat_Enterprise_Linux_7_Server_RPMs_x86_64_7Server,
            Red_Hat_Enterprise_Linux_7_Server_-_Extras_RPMs_x86_64,
            Red_Hat_Enterprise_Linux_7_Server_-_RH_Common_RPMs_x86_64_7Server,
+           Red_Hat_Enterprise_Linux_7_Server_ISOs_x86_64_7Server,
          ]
 ```
 To export in this manner the '-e DEVELOPMENT' option must be used.
