@@ -786,6 +786,9 @@ def main():
                         # Reset the export type to the user specified, in case we overrode it.
                         export_type = orig_export_type
 
+                        # Update the export timestamp for this repo
+                        export_times[repo_result['label']] = start_time
+                        
                         # Add the repo to the successfully exported list
                         if numfiles != 0 or args.repodata:
                             msg = "Adding " + repo_result['label'] + " to export list"
