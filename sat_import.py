@@ -241,7 +241,7 @@ def main():
 
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
-    if args.syncplan:
+    elif args.syncplan:
         # We can't delete the input content if we are scheduling a sync later
         delete_override = True
 
@@ -252,17 +252,26 @@ def main():
 
 
     else:
-        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
-        msg = "Repository sync was requested to be skipped"
+        print "Extract complete.\n"
+        msg = "Repository sync was not requested"
         helpers.log_msg(msg, 'WARNING')
         print 'Please synchronise all repositories to make new content available for publishing.'
         delete_override = True
 
     if args.remove and not delete_override:
-        msg = "Removing " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "* input files"
-        helpers.log_msg(msg, 'DEBUG')
-        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate) + "*"
+        msg = "Removing input files from " + helpers.IMPORTDIR
+        helpers.log_msg(msg, 'INFO')
+        print msg
+        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "*")
         os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
+    elif delete_override:
+        msg = "* Not removing input files due to incomplete sync *"
+        helpers.log_msg(msg, 'INFO')
+        print msg
+    else:
+        msg = " (Removal of input files was not requested)"
+        helpers.log_msg(msg, 'INFO')
+        print msg
 
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')

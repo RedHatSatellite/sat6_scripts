@@ -178,15 +178,15 @@ This companion script to sat_export, running on the Disconnected Satellite
 performs a sha256sum verification of each part of the specified archive prior
 to extracting the transferred content to disk.
 
-Once the content has been extracted, a sync is triggered of each repository
+Once the content has been extracted, a sync can be triggered of each repository
 in the import set. Note that repositories MUST be enabled on the disconnected
-satellite prior to the sync working - for this reason a `nosync` option (-n)
-exists so that the repos can be extracted to disk and then enabled before the
-sync occurs. In order to not overload the Satellite during the sync, the 
-repositories will be synced in smaller batches, the number of repos in a batch
-being defined in the config.yml file. (It has been observed on systems with a 
-large number of repos that triggering a sync on all repos at once pretty much
-kills the Satellite until the sync is complete)
+satellite prior to the sync working - for this reason the default action is to 
+NOT sync, so you will need to specify the `sync` option (-s) to trigger an 
+immediate sync once the repos have been extracted. In order to not overload the 
+Satellite during the sync, the repositories will be synced in smaller batches, 
+the number of repos in a batch being defined in the config.yml file. (It has 
+been observed on systems with a large number of repos that triggering a sync on 
+all repos at once pretty much kills the Satellite until the sync is complete)
 
 All imports are treated as Incremental, and the source tree will be removed on 
 successful import/sync.
@@ -206,14 +206,14 @@ optional arguments:
   -h, --help            show this help message and exit
   -o ORG, --org ORG     Organization
   -d DATE, --date DATE  Date/name of Import fileset to process (YYYY-MM-DD_NAME)
-  -n, --nosync          Do not trigger a sync after extracting content
+  -s, --sync            Trigger a sync after extracting content
   -r, --remove          Remove input files after import has completed
   -l, --last            Show the last successfully completed import date
 ```
 
 ### Examples
 ```
-./sat_import.py -o MyOrg -d 2016-07-29_DEV  # Import content defined in DEV.yml
-./sat_import.py -o MyOrg -d 2016-07-29_DoV  # Import a DoV export
-./sat_import.py -o MyOrg -l                 # Lists the date of the last successful import
+./sat_import.py -o MyOrg -d 2016-07-29_DEV -s  # Import content defined in DEV.yml and perform a sync
+./sat_import.py -o MyOrg -d 2016-07-29_DoV     # Extract a DoV export but do not sync it
+./sat_import.py -o MyOrg -l                    # Lists the date of the last successful import
 ```
