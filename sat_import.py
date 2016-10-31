@@ -183,7 +183,9 @@ def main():
     parser.add_argument('-o', '--org', help='Organization', required=True)
     parser.add_argument('-d', '--date', \
         help='Date/name of Import fileset to process (YYYY-MM-DD_NAME)', required=False)
-    parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
+    parser.add_argument('-s', '--sync', help='Trigger an immediate sync after extracting content',
+        required=False, action="store_true")
+    parser.add_argument('-p', '--syncplan', help='Trigger a delayed sync via sync plan',
         required=False, action="store_true")
     parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
         required=False, action="store_true")
@@ -228,14 +230,8 @@ def main():
     # Extract the input files
     extract_content(basename)
 
-    # Trigger a sync of the content into the Library
-    if args.nosync:
-        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
-        msg = "Repository sync was requested to be skipped"
-        helpers.log_msg(msg, 'WARNING')
-        print 'Please synchronise all repositories to make new content available for publishing.'
-        delete_override = False
-    else:
+    # Trigger a sync of the content into the Library (Default action is NOT to sync)
+    if args.sync:
         # We need to figure out which repos to sync. This comes to us via a pickle containing
         # a list of repositories that were exported
         imported_repos = pickle.load(open('exported_repos.pkl', 'rb'))
@@ -245,6 +241,22 @@ def main():
 
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
+    if args.syncplan:
+        # We can't delete the input content if we are scheduling a sync later
+        delete_override = True
+
+        msg = "Setting up sync plan"
+        helpers.log_msg(msg, 'DEBUG')
+
+        print "* * * * DO SYNC PLAN STUFF * * * *"
+
+
+    else:
+        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
+        msg = "Repository sync was requested to be skipped"
+        helpers.log_msg(msg, 'WARNING')
+        print 'Please synchronise all repositories to make new content available for publishing.'
+        delete_override = True
 
     if args.remove and not delete_override:
         msg = "Removing " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "* input files"
