@@ -49,6 +49,7 @@ satellite:
   username: svc-api-user
   password: 1t$a$3cr3t
   disconnected: [True|False]     (Is direct internet connection available?)
+  default_org: MyOrg             (Default org to use - can be overridden with -o)
 
 logging:
   dir: /var/log/sat6-scripts     (Directory to use for logging)
@@ -143,13 +144,13 @@ are done, so ongoing incremental exports are possible.
 
 ### Help Output
 ```
-usage: sat_export.py [-h] -o ORG [-e ENV] [-a | -i | -s SINCE] [-l] [-n]
+usage: sat_export.py [-h] [-o ORG] [-e ENV] [-a | -i | -s SINCE] [-l] [-n]
 
 Performs Export of Default Content View.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -o ORG, --org ORG     Organization
+  -o ORG, --org ORG     Organization (Uses default if not specified)
   -e ENV, --env ENV     Environment config file
   -a, --all             Export ALL content
   -i, --incr            Incremental Export of content since last run
@@ -163,9 +164,9 @@ optional arguments:
 
 ### Examples
 ```
-./sat_export.py -o MyOrg -e DEV     # Incr export of repos defined in DEV.yml
-./sat_export.py -o MyOrg            # Incr export of DoV
-./sat_export.py -o MyOrg -e DEV -a  # Full export of repos defined in DEV.yml
+./sat_export.py -e DEV              # Incr export of repos defined in DEV.yml
+./sat_export.py -o AnotherOrg       # Incr export of DoV for a different org
+./sat_export.py -e DEV -a           # Full export of repos defined in DEV.yml
 
 Output file format will be:
 sat_export_2016-07-29_DEV_00
@@ -198,13 +199,13 @@ The last successfully completed import can be identified with the (-l) flag.
 
 ### Help Output
 ```
-usage: sat_import.py [-h] -o ORG -d DATE [-n] [-r] [-l]
+usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l]
 
 Performs Import of Default Content View.
 
 optional arguments:
   -h, --help            show this help message and exit
-  -o ORG, --org ORG     Organization
+  -o ORG, --org ORG     Organization (Uses default if not specified)
   -d DATE, --date DATE  Date/name of Import fileset to process (YYYY-MM-DD_NAME)
   -n, --nosync          Do not trigger a sync after extracting content
   -r, --remove          Remove input files after import has completed
@@ -213,7 +214,8 @@ optional arguments:
 
 ### Examples
 ```
-./sat_import.py -o MyOrg -d 2016-07-29_DEV -n  # Import content defined in DEV.yml but do not sync
-./sat_import.py -o MyOrg -d 2016-07-29_DoV     # Extract a DoV export but do not sync it
-./sat_import.py -o MyOrg -l                    # Lists the date of the last successful import
+./sat_import.py -d 2016-07-29_DEV -n            # Import content defined in DEV.yml but do not sync
+./sat_import.py -d 2016-07-29_DoV               # Extract a DoV export but do not sync it
+./sat_import.py -o MyOrg -l                     # Lists the date of the last successful import
+./sat_import.py -o AnotherOrg -d 2016-07-29_DEV # Import content for a different org
 ```

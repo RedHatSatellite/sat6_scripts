@@ -180,7 +180,8 @@ def main():
     # Check for sane input
     parser = argparse.ArgumentParser(description='Performs Import of Default Content View.')
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization', required=True)
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+        required=False)
     parser.add_argument('-d', '--date', \
         help='Date/name of Import fileset to process (YYYY-MM-DD_NAME)', required=False)
     parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
@@ -192,7 +193,10 @@ def main():
     args = parser.parse_args()
 
     # Set our script variables from the input args
-    org_name = args.org
+    if args.org:
+        org_name = args.org
+    else:
+        org_name = helpers.ORG_NAME
     expdate = args.date
 
     # Record where we are running from
@@ -230,11 +234,11 @@ def main():
 
     # Trigger a sync of the content into the Library
     if args.nosync:
-        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
+        #print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         msg = "Repository sync was requested to be skipped"
         helpers.log_msg(msg, 'WARNING')
         print 'Please synchronise all repositories to make new content available for publishing.'
-        delete_override = False
+        delete_override = True
     else:
         # We need to figure out which repos to sync. This comes to us via a pickle containing
         # a list of repositories that were exported

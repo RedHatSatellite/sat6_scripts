@@ -3,6 +3,7 @@ satellite:
   username: svc-api-user
   password: 1t$a$3cr3t
   disconnected: False
+  default_org: MyOrg
 
 logging:
   dir: /var/log/satellite

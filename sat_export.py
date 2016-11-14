@@ -148,7 +148,6 @@ def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
     numfiles = 0
     ISOEXPORTDIR = helpers.EXPORTDIR + '/iso'
     if not os.path.exists(ISOEXPORTDIR):
-        print "Creating ISO export directory"
         os.makedirs(ISOEXPORTDIR)
 
     if export_type == 'full':
@@ -515,7 +514,8 @@ def main():
     parser = argparse.ArgumentParser(description='Performs Export of Default Content View.')
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization', required=True)
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
+        required=False)
     parser.add_argument('-e', '--env', help='Environment config file', required=False)
     group.add_argument('-a', '--all', help='Export ALL content', required=False,
         action="store_true")
@@ -532,7 +532,10 @@ def main():
     args = parser.parse_args()
 
     # Set our script variables from the input args
-    org_name = args.org
+    if args.org:
+        org_name = args.org
+    else:
+       org_name = helpers.ORG_NAME
     since = args.since
 
     # Record where we are running from
