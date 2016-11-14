@@ -335,6 +335,8 @@ def do_gpg_check(export_dir):
     helpers.log_msg(msg, 'INFO')
     output = "{:<70}".format(msg)
     print output[:70],
+    # Force the status message to be shown to the user
+    sys.stdout.flush()
 
     badrpms = []
     os.chdir(export_dir)
