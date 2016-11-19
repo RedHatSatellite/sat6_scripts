@@ -172,11 +172,15 @@ def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
     sys.stdout.flush()
 
     if export_type == 'full':
-        os.system("find -L /var/lib/pulp/published/http/isos/*" + repo_label + " -type f -exec cp --parents -Lrp {} " \
-            + ISOEXPORTDIR + " \;")
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+            + ' -type f -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + " \;")
     else:
-        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label + ' -type f -newerct $(date +%Y-%m-%d -d "' \
-            + last_export + '") -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + ' \;')
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+            + ' -type f -newerct $(date +%Y-%m-%d -d "' + last_export + '") -exec cp --parents -Lrp {} ' \
+            + ISOEXPORTDIR + ' \;')
+        # We need to copy the manifest anyway, otherwise we'll cause import issues if we have an empty repo
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+            + ' -name PULP_MANIFEST -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + ' \;')
 
 
     # At this point the iso/ export dir will contain individual repos - we need to 'normalise' them
