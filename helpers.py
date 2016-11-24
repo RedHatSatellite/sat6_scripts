@@ -141,6 +141,38 @@ def get_org_id(org_name):
     return org_id
 
 
+class ProgressBar:
+    def __init__(self, duration):
+        self.duration = duration
+        self.prog_bar = '[]'
+        self.fill_char = '#'
+        self.width = 40
+        self.__update_amount(0)
+
+    def animate(self):
+        for i in range(self.duration):
+            if sys.platform.lower().startswith('win'):
+                print self, '\r',
+            else:
+                print self, chr(27) + '[A'
+            self.update_time(i + 0.5)
+            time.sleep(0.5)
+        print self
+
+    def update_time(self, elapsed_pct):
+        self.__update_amount((elapsed_pct / float(self.duration)) * 100.0)
+        self.prog_bar += '  %d%%' % (elapsed_pct)
+
+    def __update_amount(self, new_amount):
+        percent_done = int(round((new_amount / 100.0) * 100.0))
+        all_full = self.width - 2
+        num_hashes = int(round((percent_done / 100.0) * all_full))
+        self.prog_bar = '[' + self.fill_char * num_hashes + ' ' * (all_full - num_hashes) + ']'
+
+    def __str__(self):
+        return str(self.prog_bar)
+
+
 def wait_for_task(task_id, label):
     """
     Wait for the given task ID to complete
@@ -190,7 +222,8 @@ def watch_tasks(task_list, ref_list, task_name):
     sleep_time = 10
     while do_loop == 1:
         if len(task_list) >= 1:
-            print "-----\n" + BOLD + task_name + ENDC
+#            print "-----\n" + BOLD + task_name + ENDC
+            os.system('clear')
 
             for task_id in task_list:
 
@@ -209,9 +242,14 @@ def watch_tasks(task_list, ref_list, task_name):
                     else:
                         colour = YELLOW
 
-                    print "TASK: " + task_id + "  STATE: " + str(status['state']) +\
-                        "  RESULT: " + colour + str(status['result']) + ENDC + "  PROGRESS: " +\
-                        str(pct_done1) + "% (" + str(ref_list[task_id]) + ")"
+#                    print str(ref_list[task_id]) + "  RESULT: " + colour + str(status['result']) +\
+#                        ENDC + "  PROGRESS: " + str(pct_done1) + "%"
+
+                    p = ProgressBar(100)
+                    p.update_time(pct_done1)
+                    print colour + str(ref_list[task_id]) + ':' + ENDC
+                    print p
+
 
                     if status['result'] != "pending":
                         # Update the pendingList dictionary to say this task is done
