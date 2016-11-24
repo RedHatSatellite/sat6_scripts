@@ -113,11 +113,11 @@ def sync_content(org_id, imported_repos):
 
     # If we get to here and nothing was added to repos_to_sync we will abort the import.
     # This will probably occur on the initial import - nothing will be enabled in Satellite.
+    # Also if there are no updates during incremental sync.
     if not repos_to_sync:
-        msg = "No enabled repos matching the imported content. Please enable the required repos" \
-            "and sync manually."
+        msg = "No updates in imported content - skipping sync"
         helpers.log_msg(msg, 'WARNING')
-        sys.exit(-1)
+        return
     else:
         msg = "Repo ids to sync: " + str(repos_to_sync)
         helpers.log_msg(msg, 'DEBUG')
@@ -180,7 +180,8 @@ def main():
     # Check for sane input
     parser = argparse.ArgumentParser(description='Performs Import of Default Content View.')
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization', required=True)
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+        required=False)
     parser.add_argument('-d', '--date', \
         help='Date/name of Import fileset to process (YYYY-MM-DD_NAME)', required=False)
     parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
@@ -192,7 +193,10 @@ def main():
     args = parser.parse_args()
 
     # Set our script variables from the input args
-    org_name = args.org
+    if args.org:
+        org_name = args.org
+    else:
+        org_name = helpers.ORG_NAME
     expdate = args.date
 
     # Record where we are running from
@@ -230,11 +234,11 @@ def main():
 
     # Trigger a sync of the content into the Library
     if args.nosync:
-        print helpers.GREEN + "Import complete.\n" + helpers.ENDC
+        #print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         msg = "Repository sync was requested to be skipped"
         helpers.log_msg(msg, 'WARNING')
         print 'Please synchronise all repositories to make new content available for publishing.'
-        delete_override = False
+        delete_override = True
     else:
         # We need to figure out which repos to sync. This comes to us via a pickle containing
         # a list of repositories that were exported
@@ -247,10 +251,19 @@ def main():
         print 'Please publish content views to make new content available.'
 
     if args.remove and not delete_override:
-        msg = "Removing " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "* input files"
-        helpers.log_msg(msg, 'DEBUG')
-        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate) + "*"
+        msg = "Removing input files from " + helpers.IMPORTDIR
+        helpers.log_msg(msg, 'INFO')
+        print msg
+        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "*")
         os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
+    elif delete_override:
+        msg = "* Not removing input files due to incomplete sync *"
+        helpers.log_msg(msg, 'INFO')
+        print msg
+    else:
+        msg = " (Removal of input files was not requested)"
+        helpers.log_msg(msg, 'INFO')
+        print msg
 
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
