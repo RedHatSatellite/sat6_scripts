@@ -146,7 +146,7 @@ class ProgressBar:
         self.duration = duration
         self.prog_bar = '[]'
         self.fill_char = '#'
-        self.width = 40
+        self.width = 60
         self.__update_amount(0)
 
     def animate(self):
@@ -222,8 +222,8 @@ def watch_tasks(task_list, ref_list, task_name):
     sleep_time = 10
     while do_loop == 1:
         if len(task_list) >= 1:
-#            print "-----\n" + BOLD + task_name + ENDC
             os.system('clear')
+            print BOLD + task_name + ENDC
 
             for task_id in task_list:
 
@@ -239,12 +239,13 @@ def watch_tasks(task_list, ref_list, task_name):
 
                     if status['result'] == 'success':
                         colour = GREEN
-                    else:
+                    elif status['result'] == 'pending':
                         colour = YELLOW
+                    else:
+                        colour = RED
+                        failure = True
 
-#                    print str(ref_list[task_id]) + "  RESULT: " + colour + str(status['result']) +\
-#                        ENDC + "  PROGRESS: " + str(pct_done1) + "%"
-
+                    # Call the progress bar class
                     p = ProgressBar(100)
                     p.update_time(pct_done1)
                     print colour + str(ref_list[task_id]) + ':' + ENDC
@@ -258,6 +259,7 @@ def watch_tasks(task_list, ref_list, task_name):
                     # All tasks are complete - end the loop
                     do_loop = 0
                     sleep_time = 0
+                    continue
 
             # Sleep for 10 seconds between checks
             time.sleep(sleep_time)
@@ -268,7 +270,10 @@ def watch_tasks(task_list, ref_list, task_name):
     # All tasks are complete if we get here.
     msg = task_name + " complete"
     log_msg(msg, 'INFO')
-    print GREEN + "\nAll tasks complete" + ENDC
+    if failure:
+        print RED + "\nNot all tasks completed successfully" + ENDC
+    else:
+        print GREEN + "\nAll tasks complete" + ENDC
 
 
 def check_running_publish(cvid, desc):
