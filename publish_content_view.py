@@ -133,7 +133,8 @@ def main():
         description='Publishes content views for specified organization.')
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization', required=True)
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+        required=False)
     group.add_argument('-x', '--exfile',
         help='Publish all content views EXCEPT those listed in file', required=False)
     group.add_argument('-i', '--infile', help='Publish only content views listed in file',
@@ -150,7 +151,10 @@ def main():
     helpers.log_msg(msg, 'INFO')
 
     # Set our script variables from the input args
-    org_name = args.org
+    if args.org:
+        org_name = args.org
+    else:
+       org_name = helpers.ORG_NAME
     dry_run = args.dryrun
     publish_file = args.infile
     exclude_file = args.exfile

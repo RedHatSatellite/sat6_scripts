@@ -73,7 +73,7 @@ def get_content_view_info(cvid):
     return cvinfo
 
 
-def cleanup(ver_list, ver_descr, dry_run, runuser):
+def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
     """Clean Content Views"""
 
     # Set the task name to be displayed in the task monitoring stage
@@ -158,7 +158,10 @@ def main():
         description='Cleans content views for specified organization.')
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization', required=True)
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+        required=False)
+    parser.add_argument('-k', '--keep', help='How many old versions to keep', 
+        required=False)
     group.add_argument('-x', '--exfile',
         help='Cleans all content views EXCEPT those listed in file', required=False)
     group.add_argument('-i', '--infile', help='Clean only content views listed in file',
@@ -175,10 +178,17 @@ def main():
     helpers.log_msg(msg, 'INFO')
 
     # Set our script variables from the input args
-    org_name = args.org
+    if args.org:
+        org_name = args.org
+    else:
+       org_name = helpers.ORG_NAME
     dry_run = args.dryrun
     cleanup_file = args.infile
     exclude_file = args.exfile
+    if args.keep:
+        keep = args.keep
+    else:
+        keep = "0"
 
     if not exclude_file and not cleanup_file and not args.all:
         msg = "Content view to clean not specified, and 'all' was not selected"
@@ -212,7 +222,7 @@ def main():
     (ver_list, ver_descr) = get_cv(org_id, cleanup_list, exclude_list)
 
     # Clean the content views. Returns a list of task IDs.
-    cleanup(ver_list, ver_descr, dry_run, runuser)
+    cleanup(ver_list, ver_descr, dry_run, runuser, keep)
 
 
 if __name__ == "__main__":

@@ -191,7 +191,8 @@ def main():
     # pylint: disable=bad-continuation
     parser.add_argument('-e', '--env', help='Target Environment (e.g. Development, Quality, Production)',
         required=True)
-    parser.add_argument('-o', '--org', help='Organization', required=True)
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+        required=False)
     group.add_argument('-x', '--exfile',
         help='Promote all content views EXCEPT those listed in file', required=False)
     group.add_argument('-i', '--infile', help='Promote only content views listed in file',
@@ -208,7 +209,10 @@ def main():
     helpers.log_msg(msg, 'INFO')
 
     # Set our script variables from the input args
-    org_name = args.org
+    if args.org:
+        org_name = args.org
+    else:
+       org_name = helpers.ORG_NAME
     target_env = args.env
     dry_run = args.dryrun
     promote_file = args.infile

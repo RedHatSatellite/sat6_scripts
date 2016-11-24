@@ -35,6 +35,7 @@ CONFIG = yaml.safe_load(open('config/config.yml', 'r'))
 URL = CONFIG["satellite"]["url"]
 USERNAME = CONFIG["satellite"]["username"]
 PASSWORD = CONFIG["satellite"]["password"]
+ORG_NAME = CONFIG["satellite"]["default_org"]
 LOGDIR = CONFIG["logging"]["dir"]
 DEBUG = CONFIG["logging"]["debug"]
 
