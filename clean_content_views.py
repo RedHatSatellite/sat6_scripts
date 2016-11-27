@@ -97,16 +97,48 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
         # For the given content view we need to find the orphaned versions
         cvinfo = get_content_view_info(cvid)
 
+        # Find the oldest published version
+        ver_list = []
+        for version in cvinfo['versions']:
+            if not version['environment_ids']:
+                continue
+            else:
+                msg = "Found version " + str(version['version'])
+                helpers.log_msg(msg, 'DEBUG')
+                # Add the version id to a list
+                ver_list.append(float(version['version']))
+        # Find the oldest 'in use' version id
+        lastver = min(ver_list)
+
+        msg = "Oldest in-use version is " + str(lastver)
+        helpers.log_msg(msg, 'DEBUG')
+
         for version in cvinfo['versions']:
             # Find versions that are not in any environment
             if not version['environment_ids']:
                 if not locked:
-                    msg = "Orphan view id " + str(version['id']) + " found in '" +\
+                    msg = "Orphan view version " + str(version['version']) + " found in '" +\
                         str(ver_descr[cvid]) + "'"
                     helpers.log_msg(msg, 'DEBUG')
-                    msg = "Removing '" + str(ver_descr[cvid]) + "' version " + str(version['version'])
-                    helpers.log_msg(msg, 'INFO')
-                    print helpers.HEADER + msg + helpers.ENDC
+                     
+                    if float(version['version']) > float(lastver):
+                        msg = "Skipping delete of " + str(version['version'])
+                        helpers.log_msg(msg, 'INFO')
+                        print msg
+                        continue
+                    else:
+                        if float(version['version']) < (lastver - float(keep)):
+                            msg = "Removing '" + str(ver_descr[cvid]) + "' version " +\
+                                str(version['version'])
+                            helpers.log_msg(msg, 'INFO')
+                            print helpers.HEADER + msg + helpers.ENDC
+                        else:
+                            msg = "Skipping delete of " + str(version['version']) + " due to --keep value"
+                            helpers.log_msg(msg, 'INFO')
+                            print msg
+                            continue
+
+
 
                 # Delete the view version from the content view
                 if not dry_run and not locked:
@@ -121,7 +153,8 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
                                 ))['id']
 
                         # Wait for the task to complete
-                        helpers.wait_for_task(task_id)
+                        helpers.wait_for_task(task_id,'clean')
+#                        helpers.watch_tasks(task_list, ref_list, 'clean')
 
                         # Check if the deletion completed successfully
                         tinfo = helpers.get_task_status(task_id)
