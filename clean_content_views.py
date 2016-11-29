@@ -98,7 +98,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
         cvinfo = get_content_view_info(cvid)
 
         # Find the oldest published version
-        ver_list = []
+        version_list = []
         for version in cvinfo['versions']:
             if not version['environment_ids']:
                 continue
@@ -106,9 +106,9 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
                 msg = "Found version " + str(version['version'])
                 helpers.log_msg(msg, 'DEBUG')
                 # Add the version id to a list
-                ver_list.append(float(version['version']))
+                version_list.append(float(version['version']))
         # Find the oldest 'in use' version id
-        lastver = min(ver_list)
+        lastver = min(version_list)
 
         msg = "Oldest in-use version is " + str(lastver)
         helpers.log_msg(msg, 'DEBUG')
