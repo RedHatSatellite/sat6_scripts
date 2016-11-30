@@ -8,3 +8,26 @@ logging:
   dir: /var/log/satellite
   debug: False
 
+publish:
+  content_views:
+    - RHEL Server
+    - RHEL Workstation
+
+promotion:
+  lifecycle1:
+    name: Quality
+    content_views:
+      - RHEL Server
+      - RHEL Workstation
+
+  lifecyclec2:
+    name: Desktop QA
+    content_views:
+      - RHEL Workstation
+
+cleanup:
+  content_views:
+    - view: RHEL Server
+      keep: 1
+    - view: RHEL Workstation
+      keep: 3
