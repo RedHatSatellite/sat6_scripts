@@ -221,7 +221,6 @@ def watch_tasks(task_list, ref_list, task_name):
     # Loop through each task and check current status
     do_loop = 1
     sleep_time = 10
-    failure = False
     while do_loop == 1:
         if len(task_list) >= 1:
             os.system('clear')
