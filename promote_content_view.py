@@ -16,6 +16,12 @@ import sys, argparse
 import simplejson as json
 import helpers
 
+try:
+    import yaml
+except ImportError:
+    print "Please install the PyYAML module."
+    sys.exit(-1)
+
 
 # Get the details about the environments
 def get_envs(org_id):
@@ -42,7 +48,7 @@ def get_envs(org_id):
 
 
 # Get details about Content Views and versions
-def get_cv(org_id, target_env, env_list, prior_list, promote_list, exclude_list):
+def get_cv(org_id, target_env, env_list, prior_list, promote_list):
     """Get the content views"""
     # Find the ID of the environment we are promoting to and from
     if not target_env in env_list:
@@ -52,17 +58,6 @@ def get_cv(org_id, target_env, env_list, prior_list, promote_list, exclude_list)
     else:
         target_env_id = env_list[target_env]
         source_env_id = prior_list[target_env_id]
-
-    if promote_list:
-        prostring = ', '.join(str(e) for e in promote_list)
-        msg = "Promoting only specified content view '" + prostring + "'"
-        helpers.log_msg(msg, 'DEBUG')
-
-    if exclude_list:
-        exstring = ', '.join(str(e) for e in exclude_list)
-        msg = "Promoting all views except '" + exstring + "'"
-        helpers.log_msg(msg, 'DEBUG')
-
 
     # Query API to get all content views for our org
     cvs = helpers.get_json(
@@ -77,11 +72,6 @@ def get_cv(org_id, target_env, env_list, prior_list, promote_list, exclude_list)
 
             # Handle specific includes and excludes
             if promote_list and cv_result['name'] not in promote_list:
-                msg = "Skipping content view '" + cv_result['name'] + "'"
-                helpers.log_msg(msg, 'DEBUG')
-                continue
-
-            if exclude_list and cv_result['name'] in exclude_list:
                 msg = "Skipping content view '" + cv_result['name'] + "'"
                 helpers.log_msg(msg, 'DEBUG')
                 continue
@@ -191,11 +181,7 @@ def main():
     # pylint: disable=bad-continuation
     parser.add_argument('-e', '--env', help='Target Environment (e.g. Development, Quality, Production)',
         required=True)
-    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
-        required=False)
-    group.add_argument('-x', '--exfile',
-        help='Promote all content views EXCEPT those listed in file', required=False)
-    group.add_argument('-i', '--infile', help='Promote only content views listed in file',
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
     group.add_argument('-a', '--all', help='Promote ALL content views', required=False,
         action="store_true")
@@ -215,33 +201,20 @@ def main():
        org_name = helpers.ORG_NAME
     target_env = args.env
     dry_run = args.dryrun
-    promote_file = args.infile
-    exclude_file = args.exfile
 
-    if not exclude_file and not promote_file and not args.all:
-        msg = "Content view to promote/exclude not specified, and 'all' was not selected"
-        helpers.log_msg(msg, 'WARNING')
-        answer = helpers.query_yes_no("Proceed to promote ALL content views?", "no")
-        if not answer:
-            msg = "Promotion aborted by user"
-            helpers.log_msg(msg, 'INFO')
-            sys.exit(-1)
-
-    # Read in the exclusion file to the exclude list
-    exclude_list = []
     promote_list = []
-    if exclude_file or promote_file:
-        try:
-            if exclude_file:
-                xfile = open(exclude_file, 'r')
-                exclude_list = [line.rstrip('\n') for line in xfile]
-            if promote_file:
-                xfile = open(promote_file, 'r')
-                promote_list = [line.rstrip('\n') for line in xfile]
-        except IOError:
-            msg = "Cannot find input file"
+    if not args.all:
+        for x in helpers.CONFIG['promotion']:
+            if helpers.CONFIG['promotion'][x]['name'] == target_env:
+                promote_list = helpers.CONFIG['promotion'][x]['content_views']
+
+        if not promote_list:
+            msg = "Cannot find promotion configuration for '" + target_env + "' in config.yml"
             helpers.log_msg(msg, 'ERROR')
             sys.exit(-1)
+
+        msg = "Config found for CV's " + str(promote_list)
+        helpers.log_msg(msg, 'DEBUG')
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
@@ -251,7 +224,7 @@ def main():
 
     # Get the list of Content Views along with the latest view version in each environment
     (ver_list, ver_descr, ver_version) = get_cv(org_id, target_env, env_list, prior_list,
-        promote_list, exclude_list)
+        promote_list)
 
     # Promote to the given environment. Returns a list of task IDs.
     (task_list, ref_list, task_name) = promote(target_env, ver_list, ver_descr, ver_version,
