@@ -16,51 +16,51 @@ import sys, argparse
 import simplejson as json
 import helpers
 
-
-def get_cv(org_id, cleanup_list, exclude_list):
+def get_cv(org_id, cleanup_list, keep):
     """Get the content views"""
-
-    if cleanup_list:
-        cleanstring = ', '.join(str(e) for e in cleanup_list)
-        msg = "Cleaning only specified content view '" + cleanstring + "'"
-        helpers.log_msg(msg, 'DEBUG')
-
-    if exclude_list:
-        exstring = ', '.join(str(e) for e in exclude_list)
-        msg = "Cleaning all content views except '" + exstring + "'"
-        helpers.log_msg(msg, 'DEBUG')
-
 
     # Query API to get all content views for our org
     cvs = helpers.get_json(
         helpers.KATELLO_API + "organizations/" + str(org_id) + "/content_views/")
     ver_list = {}
     ver_descr = {}
+    ver_keep = {}
 
     for cv_result in cvs['results']:
         # We will never clean the DOV
         if cv_result['name'] != "Default Organization View":
+            # Handle specific includes
+            if cleanup_list:
+                # The list contains dictionaries as elements. Process each dictionary
+                for cv in cleanup_list:
+                    # If the CV name does not appear in our config list, skip
+                    if cv['view'] != cv_result['name']:
+                        msg = "Skipping " + cv_result['name']
+                        helpers.log_msg(msg, 'DEBUG')
+                        continue
+                    else:
+                        msg = "Processing content view '" + cv_result['name'] + "' " \
+                            + str(cv_result['id'])
+                        helpers.log_msg(msg, 'DEBUG')
 
-            # Handle specific includes and excludes
-            if cleanup_list and cv_result['name'] not in cleanup_list:
-                msg = "Skipping content view '" + cv_result['name'] + "'"
+                        # Add the next version of the view, and how many versions to keep
+                        ver_list[cv_result['id']] = cv_result['id']
+                        ver_descr[cv_result['id']] = cv_result['name']
+                        ver_keep[cv_result['id']] = cv['keep']
+
+            # Handle the 'all' option
+            else:
+                msg = "Processing content view '" + cv_result['name'] + "' " \
+                    + str(cv_result['id'])
                 helpers.log_msg(msg, 'DEBUG')
-                continue
 
-            if exclude_list and cv_result['name'] in exclude_list:
-                msg = "Skipping content view '" + cv_result['name'] + "'"
-                helpers.log_msg(msg, 'DEBUG')
-                continue
+                # Add the next version of the view, and how many versions to keep
+                ver_list[cv_result['id']] = cv_result['id']
+                ver_descr[cv_result['id']] = cv_result['name']
+                ver_keep[cv_result['id']] = keep
 
-            # Get the ID of each Content View
-            msg = "Processing content view '" + cv_result['name'] + "' " + str(cv_result['id'])
-            helpers.log_msg(msg, 'DEBUG')
 
-            # Find the next version of the view
-            ver_list[cv_result['id']] = cv_result['id']
-            ver_descr[cv_result['id']] = cv_result['name']
-
-    return ver_list, ver_descr
+    return ver_list, ver_descr, ver_keep
 
 
 def get_content_view_info(cvid):
@@ -73,7 +73,7 @@ def get_content_view_info(cvid):
     return cvinfo
 
 
-def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
+def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep):
     """Clean Content Views"""
 
     # Set the task name to be displayed in the task monitoring stage
@@ -90,7 +90,6 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
         sys.exit(-1)
 
     for cvid in ver_list.keys():
-
         # Check if there is a publish/promote already running on this content view
         locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
 
@@ -120,14 +119,14 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
                     msg = "Orphan view version " + str(version['version']) + " found in '" +\
                         str(ver_descr[cvid]) + "'"
                     helpers.log_msg(msg, 'DEBUG')
-                     
+
                     if float(version['version']) > float(lastver):
                         msg = "Skipping delete of " + str(version['version'])
                         helpers.log_msg(msg, 'INFO')
                         print msg
                         continue
                     else:
-                        if float(version['version']) < (lastver - float(keep)):
+                        if float(version['version']) < (lastver - float(ver_keep[cvid])):
                             msg = "Removing '" + str(ver_descr[cvid]) + "' version " +\
                                 str(version['version'])
                             helpers.log_msg(msg, 'INFO')
@@ -137,8 +136,6 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
                             helpers.log_msg(msg, 'INFO')
                             print msg
                             continue
-
-
 
                 # Delete the view version from the content view
                 if not dry_run and not locked:
@@ -154,7 +151,6 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
 
                         # Wait for the task to complete
                         helpers.wait_for_task(task_id,'clean')
-#                        helpers.watch_tasks(task_list, ref_list, 'clean')
 
                         # Check if the deletion completed successfully
                         tinfo = helpers.get_task_status(task_id)
@@ -169,7 +165,6 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, keep):
                     except Warning:
                         msg = "Failed to initiate removal"
                         helpers.log_msg(msg, 'WARNING')
-
 
     # Exit in the case of a dry-run
     if dry_run:
@@ -191,13 +186,9 @@ def main():
         description='Cleans content views for specified organization.')
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
-    parser.add_argument('-k', '--keep', help='How many old versions to keep', 
-        required=False)
-    group.add_argument('-x', '--exfile',
-        help='Cleans all content views EXCEPT those listed in file', required=False)
-    group.add_argument('-i', '--infile', help='Clean only content views listed in file',
+    parser.add_argument('-k', '--keep', help='How many old versions to keep (only used with -a)',
         required=False)
     group.add_argument('-a', '--all', help='Clean ALL content views', required=False,
         action="store_true")
@@ -216,48 +207,32 @@ def main():
     else:
        org_name = helpers.ORG_NAME
     dry_run = args.dryrun
-    cleanup_file = args.infile
-    exclude_file = args.exfile
     if args.keep:
         keep = args.keep
     else:
         keep = "0"
 
-    if not exclude_file and not cleanup_file and not args.all:
-        msg = "Content view to clean not specified, and 'all' was not selected"
-        helpers.log_msg(msg, 'WARNING')
-        answer = helpers.query_yes_no("Proceed to clean ALL content views?", "no")
-        if not answer:
-            msg = "Cleanup aborted by user"
-            helpers.log_msg(msg, 'INFO')
-            sys.exit(-1)
-
-    # Read in the exclusion file to the exclude list
-    exclude_list = []
     cleanup_list = []
-    if exclude_file or cleanup_file:
-        try:
-            if exclude_file:
-                xfile = open(exclude_file, 'r')
-                exclude_list = [line.rstrip('\n') for line in xfile]
-            if cleanup_file:
-                xfile = open(cleanup_file, 'r')
-                cleanup_list = [line.rstrip('\n') for line in xfile]
-        except IOError:
-            msg = "Cannot find input file"
+    if not args.all:
+        cleanup_list = helpers.CONFIG['cleanup']['content_views']
+
+        if not cleanup_list:
+            msg = "Cannot find cleanup configuration in config.yml"
             helpers.log_msg(msg, 'ERROR')
             sys.exit(-1)
+
+        msg = "Config found for CV's " + str(cleanup_list)
+        helpers.log_msg(msg, 'DEBUG')
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
 
     # Get the list of Content Views along with the latest view version in each environment
-    (ver_list, ver_descr) = get_cv(org_id, cleanup_list, exclude_list)
+    (ver_list, ver_descr, ver_keep) = get_cv(org_id, cleanup_list, keep)
 
     # Clean the content views. Returns a list of task IDs.
-    cleanup(ver_list, ver_descr, dry_run, runuser, keep)
+    cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep)
 
 
 if __name__ == "__main__":
     main()
-
