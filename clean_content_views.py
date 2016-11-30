@@ -93,7 +93,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep):
         # Check if there is a publish/promote already running on this content view
         locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
 
-        msg = "Cleaning '" + str(ver_descr[cvid]) 
+        msg = "Cleaning content view '" + str(ver_descr[cvid]) + "'" 
         helpers.log_msg(msg, 'INFO')
         print helpers.HEADER + msg + helpers.ENDC
 
@@ -125,18 +125,17 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep):
                     helpers.log_msg(msg, 'DEBUG')
 
                     if float(version['version']) > float(lastver):
-                        msg = "Skipping delete of " + str(version['version'])
+                        msg = "Skipping delete of version " + str(version['version'])
                         helpers.log_msg(msg, 'INFO')
                         print msg
                         continue
                     else:
                         if float(version['version']) < (lastver - float(ver_keep[cvid])):
-                            msg = "Removing '" + str(ver_descr[cvid]) + "' version " +\
-                                str(version['version'])
+                            msg = "Removing version " + str(version['version'])
                             helpers.log_msg(msg, 'INFO')
                             print helpers.HEADER + msg + helpers.ENDC
                         else:
-                            msg = "Skipping delete of " + str(version['version']) + " due to --keep value"
+                            msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
                             helpers.log_msg(msg, 'INFO')
                             print msg
                             continue
