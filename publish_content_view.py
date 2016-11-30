@@ -17,19 +17,8 @@ import simplejson as json
 import helpers
 
 
-def get_cv(org_id, publish_list, exclude_list):
+def get_cv(org_id, publish_list):
     """Get the content views"""
-
-    if publish_list:
-        pubstring = ', '.join(str(e) for e in publish_list)
-        msg = "Publishing only specified content view '" + pubstring + "'"
-        helpers.log_msg(msg, 'DEBUG')
-
-    if exclude_list:
-        exstring = ', '.join(str(e) for e in exclude_list)
-        msg = "Publishing all content views except '" + exstring + "'"
-        helpers.log_msg(msg, 'DEBUG')
-
 
     # Query API to get all content views for our org
     cvs = helpers.get_json(
@@ -44,11 +33,6 @@ def get_cv(org_id, publish_list, exclude_list):
 
             # Handle specific includes and excludes
             if publish_list and cv_result['name'] not in publish_list:
-                msg = "Skipping content view '" + cv_result['name'] + "'"
-                helpers.log_msg(msg, 'DEBUG')
-                continue
-
-            if exclude_list and cv_result['name'] in exclude_list:
                 msg = "Skipping content view '" + cv_result['name'] + "'"
                 helpers.log_msg(msg, 'DEBUG')
                 continue
@@ -133,11 +117,7 @@ def main():
         description='Publishes content views for specified organization.')
     group = parser.add_mutually_exclusive_group()
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
-        required=False)
-    group.add_argument('-x', '--exfile',
-        help='Publish all content views EXCEPT those listed in file', required=False)
-    group.add_argument('-i', '--infile', help='Publish only content views listed in file',
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
     group.add_argument('-a', '--all', help='Publish ALL content views', required=False,
         action="store_true")
@@ -156,39 +136,24 @@ def main():
     else:
        org_name = helpers.ORG_NAME
     dry_run = args.dryrun
-    publish_file = args.infile
-    exclude_file = args.exfile
 
-    if not exclude_file and not publish_file and not args.all:
-        msg = "Content view to publish not specified, and 'all' was not selected"
-        helpers.log_msg(msg, 'WARNING')
-        answer = helpers.query_yes_no("Proceed to publish ALL content views?", "no")
-        if not answer:
-            msg = "Publish aborted by user"
-            helpers.log_msg(msg, 'INFO')
-            sys.exit(-1)
-
-    # Read in the exclusion file to the exclude list
-    exclude_list = []
     publish_list = []
-    if exclude_file or publish_file:
-        try:
-            if exclude_file:
-                xfile = open(exclude_file, 'r')
-                exclude_list = [line.rstrip('\n') for line in xfile]
-            if publish_file:
-                xfile = open(publish_file, 'r')
-                publish_list = [line.rstrip('\n') for line in xfile]
-        except IOError:
-            msg = "Cannot find input file"
+    if not args.all:
+        publish_list = helpers.CONFIG['publish']['content_views']
+
+        if not publish_list:
+            msg = "Cannot find publish configuration in config.yml"
             helpers.log_msg(msg, 'ERROR')
             sys.exit(-1)
+
+        msg = "Config found for CV's " + str(publish_list)
+        helpers.log_msg(msg, 'DEBUG')
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
 
     # Get the list of Content Views along with the latest view version in each environment
-    (ver_list, ver_descr, ver_version) = get_cv(org_id, publish_list, exclude_list)
+    (ver_list, ver_descr, ver_version) = get_cv(org_id, publish_list)
 
     # Publish the content views. Returns a list of task IDs.
     (task_list, ref_list, task_name) = publish(ver_list, ver_descr, ver_version, dry_run, runuser)
