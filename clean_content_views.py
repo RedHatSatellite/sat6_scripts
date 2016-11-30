@@ -93,6 +93,10 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep):
         # Check if there is a publish/promote already running on this content view
         locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
 
+        msg = "Cleaning '" + str(ver_descr[cvid]) 
+        helpers.log_msg(msg, 'INFO')
+        print helpers.HEADER + msg + helpers.ENDC
+
         # For the given content view we need to find the orphaned versions
         cvinfo = get_content_view_info(cvid)
 
