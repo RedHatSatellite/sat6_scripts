@@ -3,10 +3,18 @@ satellite:
   username: svc-api-user
   password: 1t$a$3cr3t
   default_org: MyOrg
+  disconnected: False
 
 logging:
   dir: /var/log/satellite
   debug: False
+
+export:
+  dir: /var/sat-export
+
+import:
+  dir: /var/sat-content
+  syncbatch: 50
 
 publish:
   content_views:

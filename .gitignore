@@ -1,5 +1,4 @@
 # Project specific files
-config/config.yml
 config/*.yml
 
 # Byte-compiled / optimized / DLL files

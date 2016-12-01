@@ -13,7 +13,6 @@ import sys, os, time, datetime, argparse
 import logging
 from time import sleep
 from hashlib import sha256
-#import simplejson as json
 
 try:
     import requests
@@ -35,10 +34,13 @@ CONFIG = yaml.safe_load(open('config/config.yml', 'r'))
 URL = CONFIG["satellite"]["url"]
 USERNAME = CONFIG["satellite"]["username"]
 PASSWORD = CONFIG["satellite"]["password"]
+DISCONNECTED = CONFIG["satellite"]["disconnected"]
 ORG_NAME = CONFIG["satellite"]["default_org"]
 LOGDIR = CONFIG["logging"]["dir"]
 DEBUG = CONFIG["logging"]["debug"]
-
+EXPORTDIR = CONFIG["export"]["dir"]
+IMPORTDIR = CONFIG["import"]["dir"]
+SYNCBATCH = CONFIG["import"]["syncbatch"]
 
 # 'Global' Satellite 6 parameters
 # Satellite API
@@ -122,6 +124,38 @@ def post_json(location, json_data):
     return result.json()
 
 
+def valid_date(indate):
+    """
+    Check date format is valid
+    """
+    try:
+        return datetime.datetime.strptime(indate, "%Y-%m-%d %H:%M:%S")
+    except ValueError:
+        msg = "Not a valid date: '{0}'.".format(indate)
+        raise argparse.ArgumentTypeError(msg)
+
+
+def sha256sum(filename):
+    """
+    Perform sha256sum of given file
+    """
+    f_name = open(filename, 'rb')
+    shasum = (sha256(f_name.read()).hexdigest(), filename)
+    return shasum
+
+
+def disk_usage(path):
+    """Return disk usage associated with path, in percent."""
+    stat = os.statvfs(path)
+    total = (stat.f_blocks * stat.f_frsize)
+    used = (stat.f_blocks - stat.f_bfree) * stat.f_frsize
+    try:
+        percent = (float(used) / total) * 100
+    except ZeroDivisionError:
+        percent = 0
+    return round(percent, 1)
+
+
 def get_org_id(org_name):
     """
     Return the Organisation ID for a given Org Name
@@ -179,8 +213,9 @@ def wait_for_task(task_id, label):
     Wait for the given task ID to complete
     This displays a message without CR/LF waiting for an OK/FAIL status to be shown
     """
-    msg = "Waiting for " + label + " to complete...                        "
-    print msg,
+    msg = "  Waiting for " + label + " to complete..."
+    colx = "{:<70}".format(msg)
+    print colx[:70],
     log_msg(msg, 'INFO')
     # Force the status message to be shown to the user
     sys.stdout.flush()
@@ -276,6 +311,29 @@ def watch_tasks(task_list, ref_list, task_name):
         print RED + "\nNot all tasks completed successfully" + ENDC
     else:
         print GREEN + "\nAll tasks complete" + ENDC
+
+
+def check_running_sync():
+    """
+    Check for any currently running Sync tasks
+    Exits script if any Synchronize or Export tasks are found in a running state.
+    """
+    tasks = get_json(
+        FOREMAN_API + "tasks/")
+
+    # From the list of tasks, look for any running sync jobs.
+    # If e have any we exit, as we can't trigger a new sync in this state.
+    for task_result in tasks['results']:
+        if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Synchronize':
+                msg = "Unable to start sync - a Sync task is currently running"
+                log_msg(msg, 'ERROR')
+                sys.exit(-1)
+        if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Synchronize':
+                msg = "Unable to start sync - a Sync task is paused. Resume any paused sync tasks."
+                log_msg(msg, 'ERROR')
+                sys.exit(-1)
 
 
 def check_running_publish(cvid, desc):
