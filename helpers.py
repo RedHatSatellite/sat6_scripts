@@ -1,7 +1,7 @@
 #!/usr/bin/python
 #title           :helpers.py
 #description     :Various helper routines for Satellite 6 scripts
-#URL             :https://github.com/RedHatSatellite/sat6_disconnected_tools
+#URL             :https://github.com/ggatward/sat6_scripts
 #author          :Geoff Gatward <ggatward@redhat.com>
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
@@ -13,7 +13,6 @@ import sys, os, time, datetime, argparse
 import logging
 from time import sleep
 from hashlib import sha256
-#import simplejson as json
 
 try:
     import requests
@@ -177,6 +176,38 @@ def get_org_id(org_name):
     return org_id
 
 
+class ProgressBar:
+    def __init__(self, duration):
+        self.duration = duration
+        self.prog_bar = '[]'
+        self.fill_char = '#'
+        self.width = 60
+        self.__update_amount(0)
+
+    def animate(self):
+        for i in range(self.duration):
+            if sys.platform.lower().startswith('win'):
+                print self, '\r',
+            else:
+                print self, chr(27) + '[A'
+            self.update_time(i + 0.5)
+            time.sleep(0.5)
+        print self
+
+    def update_time(self, elapsed_pct):
+        self.__update_amount((elapsed_pct / float(self.duration)) * 100.0)
+        self.prog_bar += '  %d%%' % (elapsed_pct)
+
+    def __update_amount(self, new_amount):
+        percent_done = int(round((new_amount / 100.0) * 100.0))
+        all_full = self.width - 2
+        num_hashes = int(round((percent_done / 100.0) * all_full))
+        self.prog_bar = '[' + self.fill_char * num_hashes + ' ' * (all_full - num_hashes) + ']'
+
+    def __str__(self):
+        return str(self.prog_bar)
+
+
 def wait_for_task(task_id, label):
     """
     Wait for the given task ID to complete
@@ -225,9 +256,11 @@ def watch_tasks(task_list, ref_list, task_name):
     # Loop through each task and check current status
     do_loop = 1
     sleep_time = 10
+    failure = False
     while do_loop == 1:
         if len(task_list) >= 1:
-            print "-----\n" + BOLD + task_name + ENDC
+            os.system('clear')
+            print BOLD + task_name + ENDC
 
             for task_id in task_list:
 
@@ -243,12 +276,18 @@ def watch_tasks(task_list, ref_list, task_name):
 
                     if status['result'] == 'success':
                         colour = GREEN
-                    else:
+                    elif status['result'] == 'pending':
                         colour = YELLOW
+                    else:
+                        colour = RED
+                        failure = True
 
-                    print "TASK: " + task_id + "  STATE: " + str(status['state']) +\
-                        "  RESULT: " + colour + str(status['result']) + ENDC + "  PROGRESS: " +\
-                        str(pct_done1) + "% (" + str(ref_list[task_id]) + ")"
+                    # Call the progress bar class
+                    p = ProgressBar(100)
+                    p.update_time(pct_done1)
+                    print colour + str(ref_list[task_id]) + ':' + ENDC
+                    print p
+
 
                     if status['result'] != "pending":
                         # Update the pendingList dictionary to say this task is done
@@ -257,6 +296,7 @@ def watch_tasks(task_list, ref_list, task_name):
                     # All tasks are complete - end the loop
                     do_loop = 0
                     sleep_time = 0
+                    continue
 
             # Sleep for 10 seconds between checks
             time.sleep(sleep_time)
@@ -267,7 +307,10 @@ def watch_tasks(task_list, ref_list, task_name):
     # All tasks are complete if we get here.
     msg = task_name + " complete"
     log_msg(msg, 'INFO')
-    print GREEN + "\nAll tasks complete" + ENDC
+    if failure:
+        print RED + "\nNot all tasks completed successfully" + ENDC
+    else:
+        print GREEN + "\nAll tasks complete" + ENDC
 
 
 def check_running_sync():
