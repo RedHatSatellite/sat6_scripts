@@ -60,7 +60,7 @@ export:
 
 import:
   dir: /var/sat-content          (Directory to import content from - Disconnected Satellite)
-  syncbatch: 10                  (Number of repositories to sync at once during import)
+  syncbatch: 50                  (Number of repositories to sync at once during import)
 ```
 
 ## Log files
@@ -218,4 +218,147 @@ optional arguments:
 ./sat_import.py -d 2016-07-29_DoV               # Extract a DoV export but do not sync it
 ./sat_import.py -o MyOrg -l                     # Lists the date of the last successful import
 ./sat_import.py -o AnotherOrg -d 2016-07-29_DEV # Import content for a different org
+```
+
+
+# clean_content_views
+This script removes orphaned versions of either all or nominated content views.
+This should be run periodically to clean out old/unused content view data from
+the mongo database and improve the responsiveness of the Satellite server.
+Any orphaned versions older than the last in-use version are purged (orphans
+between in-use versions will NOT be purged). There is a keep (-k) option that
+allows a specific number of versions older than the last in-use to be kept as
+well, allowing for possible rollback of versions.
+
+Content views to clean can be defined by either:
+  - Specific content views defined in the main config file 
+  - All content views (-a)
+
+The dry run (-d) option can be used to see what would be published for a
+given command input.
+
+The defaults are configured in the main config.yml file in a YAML block like this:
+```
+cleanup:
+  content_views:
+    - view: RHEL Server
+      keep: 1
+    - view: RHEL Workstation
+      keep: 3
+```
+This configuration will clean only the two listed content views, and keep the 
+specified number of versions beyond the oldest in-use.
+
+
+```
+usage: clean_content_views.py [-h] [-o ORG] [-a] [-d]
+
+Cleans content views for specified organization.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o ORG, --org ORG     Organization (Uses default if not specified)
+  -k KEEP, --keep KEEP  How many old versions to keep (only used with -a)
+  -a, --all             Clean ALL content views
+  -d, --dryrun          Dry Run - Only show what will be cleaned
+```
+
+### Examples
+```
+./clean_content_views.py		# Clean views using the default config
+./clean_content_views.py -a -k 2	# Clean all views but keep the 2 oldest
+./clean_content_views.py -a -d		# Show what would be done to clean all views 
+```
+
+
+
+# publish_content_views
+Publishes new content to the Library environment. The following can be published:
+  - Specific content views defined in the main config file
+  - All content views (-a)
+
+The dry run (-d) option can be used to see what would be published for a
+given command input.
+
+The defaults are configured in the main config.yml file in a YAML block like this:
+```
+publish:
+  content_views:
+    - RHEL Server
+    - RHEL Workstation
+```
+This configuration will publish only the two listed content views.
+
+
+```
+usage: publish_content_view.py [-h] [-o ORG] [-a] [-d]
+
+Publishes content views for specified organization.
+
+optional arguments:
+  -h, --help         show this help message and exit
+  -o ORG, --org ORG  Organization (Uses default if not specified)
+  -a, --all          Publish ALL content views
+  -d, --dryrun       Dry Run - Only show what will be published
+```
+
+### Examples
+```
+./publish_content_view.py		    # Publish the default content views
+./publish_content_view.py -a	 	    # Publish ALL content views
+./publish_content_view.py -a -o OtherOrg -d # Dry-run on all OtherOrg views
+```
+
+
+# promote_content_views
+Promotes content from the previous lifecycle environment stage.
+If a lifecycle is defined as Library -> Test -> Quality -> Production, defining
+the target environment (-e) as 'Quality' will promote matching content views
+from Test -> Quality.
+
+The following can be promoted:
+  - Specific content views defined in the main config file
+  - All content views (-a)
+
+The dry run (-d) option can be used to see what would be promoted for a
+given command input.
+
+The defaults are configured in the main config.yml file in a YAML block like this:
+```
+promotion:
+  lifecycle1:
+    name: Quality
+    content_views:
+      - RHEL Server
+      - RHEL Workstation
+
+  lifecyclec2:
+    name: Desktop QA
+    content_views:
+      - RHEL Workstation
+```
+If multiple lifecycle streams are used in your Satellite installation, the
+use of the config.yml definition is strongly recommended to avoid views being
+promoted into the wrong lifecycle stream. This is more likely to be an
+issue promoting views from the Library, as this is shared by all environments.
+
+```
+usage: promote_content_view.py [-h] -e ENV [-o ORG] [-a] [-d]
+
+Promotes content views for specified organization to the target environment.
+
+optional arguments:
+  -h, --help         show this help message and exit
+  -e ENV, --env ENV  Target Environment (e.g. Development, Quality,
+                     Production)
+  -o ORG, --org ORG  Organization (Uses default if not specified)
+  -a, --all          Promote ALL content views
+  -d, --dryrun       Dry Run - Only show what will be promoted
+```
+
+### Examples
+```
+./promote_content_view.py -e Quality		# Promote default views to Quality
+./promote_content_view.py -e Production -a      # Promote all views to Production
+./promote_content_view.py -e Quality -d         # See what would be done for Quality
 ```
