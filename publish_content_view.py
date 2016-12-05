@@ -104,7 +104,7 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser):
     return task_list, ref_list, task_name
 
 
-def main():
+def main(args):
     """
     Main routine
     """
@@ -142,7 +142,7 @@ def main():
         publish_list = helpers.CONFIG['publish']['content_views']
 
         if not publish_list:
-            msg = "Cannot find publish configuration in config.yml"
+            msg = "Cannot find publish configuration"
             helpers.log_msg(msg, 'ERROR')
             sys.exit(-1)
 
@@ -163,4 +163,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt, e:
+        print >> sys.stderr, ("\n\nExiting on user cancel.")
+        sys.exit(1)
+

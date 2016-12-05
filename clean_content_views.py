@@ -176,7 +176,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep):
         sys.exit(-1)
 
 
-def main():
+def main(args):
     """
     Main routine
     """
@@ -220,7 +220,7 @@ def main():
         cleanup_list = helpers.CONFIG['cleanup']['content_views']
 
         if not cleanup_list:
-            msg = "Cannot find cleanup configuration in config.yml"
+            msg = "Cannot find cleanup configuration"
             helpers.log_msg(msg, 'ERROR')
             sys.exit(-1)
 
@@ -238,4 +238,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt, e:
+        print >> sys.stderr, ("\n\nExiting on user cancel.")
+        sys.exit(1)
+

@@ -166,7 +166,7 @@ def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, 
     return task_list, ref_list, task_name
 
 
-def main():
+def main(args):
     """
     Main routine
     """
@@ -209,7 +209,7 @@ def main():
                 promote_list = helpers.CONFIG['promotion'][x]['content_views']
 
         if not promote_list:
-            msg = "Cannot find promotion configuration for '" + target_env + "' in config.yml"
+            msg = "Cannot find promotion configuration for '" + target_env 
             helpers.log_msg(msg, 'ERROR')
             sys.exit(-1)
 
@@ -235,4 +235,9 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt, e:
+        print >> sys.stderr, ("\n\nExiting on user cancel.")
+        sys.exit(1)
+

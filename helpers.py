@@ -28,7 +28,9 @@ except ImportError:
 
 
 # Import the site-specific configs
-CONFIG = yaml.safe_load(open('config/config.yml', 'r'))
+dir = os.path.dirname(__file__)
+filename = os.path.join(dir, 'config/config.yml')
+CONFIG = yaml.safe_load(open(filename, 'r'))
 
 # Read in the config parameters
 URL = CONFIG["satellite"]["url"]
