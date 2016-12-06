@@ -468,14 +468,14 @@ def read_pickle(name):
     """
     Function to read the last export dates from an existing pickle
     """
-    if not os.path.exists('var/exports_' + name + '.pkl'):
-        if not os.path.exists('var'):
-            os.makedirs('var')
+    if not os.path.exists(vardir + '/exports_' + name + '.pkl'):
+        if not os.path.exists(vardir):
+            os.makedirs(vardir)
         export_times = {}
         return export_times
 
     # Read in the export time pickle
-    export_times = pickle.load(open('var/exports_' + name + '.pkl', 'rb'))
+    export_times = pickle.load(open(vardir + '/exports_' + name + '.pkl', 'rb'))
     return export_times
 
 
@@ -498,7 +498,7 @@ def get_product(org_id, cp_id):
             return prodlabel
 
 
-def main():
+def main(args):
     """
     Main Routine
     """
@@ -511,6 +511,12 @@ def main():
 
     # Who is running this script?
     runuser = helpers.who_is_running()
+
+    # Set the base dir of the script and where the var data is
+    global dir 
+    global vardir 
+    dir = os.path.dirname(__file__)
+    vardir = os.path.join(dir, 'var')
 
     # Log the fact we are starting
     msg = "------------- Content export started by " + runuser + " ----------------"
@@ -551,11 +557,12 @@ def main():
     org_id = helpers.get_org_id(org_name)
     exported_repos = []
     # If a specific environment is requested, find and read that config file
+    repocfg = os.path.join(dir, 'config/' + args.env + '.yml')
     if args.env:
-        if not os.path.exists('config/' + args.env + '.yml'):
-            print "ERROR: Config file 'config/" + args.env + ".yml' not found."
+        if not os.path.exists(repocfg):
+            print "ERROR: Config file " + repocfg + " not found."
             sys.exit(-1)
-        cfg = yaml.safe_load(open("config/" + args.env + ".yml", 'r'))
+        cfg = yaml.safe_load(open(repocfg, 'r'))
         ename = args.env
         erepos = cfg["env"]["repos"]
         msg = "Specific environment export called for " + ename + ". Configured repos:"
@@ -598,7 +605,7 @@ def main():
                 print "No prior export recorded for " + ename + ", performing full content export"
                 export_type = 'full'
         else:
-            # TODO: Re-populate export_times dictionary so each repo has 'since' date
+            # Re-populate export_times dictionary so each repo has 'since' date
             since_export = str(since)
 
             # We have our timestamp so we can kick of an incremental export
@@ -833,7 +840,7 @@ def main():
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
-    pickle.dump(export_times, open('var/exports_' + ename + '.pkl', "wb"))
+    pickle.dump(export_times, open(vardir + '/exports_' + ename + '.pkl', "wb"))
 
     # And we're done!
     print helpers.GREEN + "Export complete.\n" + helpers.ENDC
@@ -844,4 +851,8 @@ def main():
 
 
 if __name__ == "__main__":
-    main()
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt, e:
+        print >> sys.stderr, ("\n\nExiting on user cancel.")
+        sys.exit(1)

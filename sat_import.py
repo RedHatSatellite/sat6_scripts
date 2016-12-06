@@ -159,7 +159,7 @@ def sync_content(org_id, imported_repos):
         return delete_override
 
 
-def main():
+def main(args):
     """
     Main Routine
     """
@@ -172,6 +172,12 @@ def main():
 
     # Who is running this script?
     runuser = helpers.who_is_running()
+
+    # Set the base dir of the script and where the var data is
+    global dir
+    global vardir
+    dir = os.path.dirname(__file__)
+    vardir = os.path.join(dir, 'var')
 
     # Log the fact we are starting
     msg = "------------- Content import started by " + runuser + " ----------------"
@@ -207,8 +213,8 @@ def main():
 
     # Display the last successful import
     if args.last:
-        if os.path.exists('var/imports.pkl'):
-            last_import = pickle.load(open('var/imports.pkl', 'rb'))
+        if os.path.exists(vardir + '/imports.pkl'):
+            last_import = pickle.load(open(vardir + '/imports.pkl', 'rb'))
             msg = "Last successful import was " + last_import
             helpers.log_msg(msg, 'INFO')
             print msg
@@ -270,9 +276,14 @@ def main():
 
     # Save the last completed import data
     os.chdir(script_dir)
-    if not os.path.exists('var'):
-        os.makedirs('var')
-    pickle.dump(expdate, open('var/imports.pkl', "wb"))
+    if not os.path.exists(vardir):
+        os.makedirs(vardir)
+    pickle.dump(expdate, open(vardir + '/imports.pkl', "wb"))
 
 if __name__ == "__main__":
-    main()
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt, e:
+        print >> sys.stderr, ("\n\nExiting on user cancel.")
+        sys.exit(1)
+

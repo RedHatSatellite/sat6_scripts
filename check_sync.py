@@ -93,7 +93,7 @@ def check_running_tasks(clear):
         sys.exit(-1)
 
 
-def main():
+def main(args):
     """
     Main Routine
     """
@@ -122,4 +122,9 @@ def main():
         check_running_tasks(clear)
 
 if __name__ == "__main__":
-    main()
+    try:
+        main(sys.argv[1:])
+    except KeyboardInterrupt, e:
+        print >> sys.stderr, ("\n\nExiting on user cancel.")
+        sys.exit(1)
+
