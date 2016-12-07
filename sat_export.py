@@ -517,10 +517,7 @@ def main(args):
     global vardir 
     dir = os.path.dirname(__file__)
     vardir = os.path.join(dir, 'var')
-
-    # Log the fact we are starting
-    msg = "------------- Content export started by " + runuser + " ----------------"
-    helpers.log_msg(msg, 'INFO')
+    confdir = os.path.join(dir, 'config')
 
     # Check for sane input
     parser = argparse.ArgumentParser(description='Performs Export of Default Content View.')
@@ -528,7 +525,7 @@ def main(args):
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
-    parser.add_argument('-e', '--env', help='Environment config file', required=False)
+    parser.add_argument('-e', '--env', help='Environment config', required=False)
     group.add_argument('-a', '--all', help='Export ALL content', required=False,
         action="store_true")
     group.add_argument('-i', '--incr', help='Incremental Export of content since last run',
@@ -557,14 +554,27 @@ def main(args):
     org_id = helpers.get_org_id(org_name)
     exported_repos = []
     # If a specific environment is requested, find and read that config file
-    repocfg = os.path.join(dir, 'config/' + args.env + '.yml')
+    repocfg = os.path.join(dir, confdir + '/exports.yml')
     if args.env:
         if not os.path.exists(repocfg):
-            print "ERROR: Config file " + repocfg + " not found."
+            msg = 'Config file ' + confdir + '/exports.yml not found.'
+            helpers.log_msg(msg, 'ERROR')
             sys.exit(-1)
+
         cfg = yaml.safe_load(open(repocfg, 'r'))
         ename = args.env
-        erepos = cfg["env"]["repos"]
+        erepos = []
+        validrepo = False
+        for x in cfg['exports']:
+            if cfg['exports'][x]['name'] == ename:
+                validrepo = True
+                erepos = cfg['exports'][x]['repos']
+
+        if not validrepo:
+            msg = 'Unable to find export config for ' + ename
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(-1)
+
         msg = "Specific environment export called for " + ename + ". Configured repos:"
         helpers.log_msg(msg, 'DEBUG')
         for repo in erepos:
@@ -576,6 +586,11 @@ def main(args):
         label = 'DoV'
         msg = "DoV export called"
         helpers.log_msg(msg, 'DEBUG')
+
+    # Log the fact we are starting
+    msg = "------------- Content export started by " + runuser + " ----------------"
+    if not args.last:
+        helpers.log_msg(msg, 'INFO')
 
     # Get the current time - this will be the 'last export' time if the export is OK
     start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')

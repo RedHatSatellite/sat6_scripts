@@ -114,13 +114,10 @@ for import sync, however this behaviour can be overridden with the (-r) flag. Th
 will be useful to periodically ensure that the disconnected satellite repos are 
 consistent - the repodata will indicate mismatches with synced content.
 
-To export a selected repository set, a config file must exist in the config directory.
-The name of the config file is the 'environment' that the configuration applies to.
-This is useful if you have a development and production disconnected Satellite and
-don't want to export the full DOV to the development environment. In this case
-we will name the config file DEVELOPMENT.yml and its contents will look like the
-example below. Repository names are the LABEL taken from the Satellite server and
-must maintain the YAML array formatting.
+To export a selected repository set, the exports.yml config file must exist in the 
+config directory. The format of this file is shown below, and contains one or more
+'env' stanzas, containing a list of repositories to export. The repository name is
+the LABEL taken from the Satellite server.
 
 Note also that the 'environment' export option also allows for the export of ISO
 (file) based repositories in addition to yum RPM content. Using the DOV export does
@@ -129,15 +126,28 @@ the current pulp version in Satellite. The 'environment' export performs some
 additional magic to export the file content.
 
 ```
-env:
-  name: DEVELOPMENT
-  repos: [
-           Red_Hat_Enterprise_Linux_7_Server_RPMs_x86_64_7Server,
-           Red_Hat_Enterprise_Linux_7_Server_-_Extras_RPMs_x86_64,
-           Red_Hat_Enterprise_Linux_7_Server_-_RH_Common_RPMs_x86_64_7Server,
-           Red_Hat_Enterprise_Linux_7_Server_ISOs_x86_64_7Server,
-         ]
+exports:
+  env1:
+    name: DEVELOPMENT
+    repos:
+      - Red_Hat_Satellite_6_2_for_RHEL_7_Server_RPMs_x86_64
+      - Red_Hat_Satellite_Tools_6_2_for_RHEL_7_Server_RPMs_x86_64
+      - Red_Hat_Enterprise_Linux_7_Server_Kickstart_x86_64_7_3
+      - Red_Hat_Enterprise_Linux_7_Server_RPMs_x86_64_7Server
+      - Red_Hat_Enterprise_Linux_7_Server_-_Extras_RPMs_x86_64
+      - Red_Hat_Enterprise_Linux_7_Server_-_Optional_RPMs_x86_64_7Server
+      - Red_Hat_Enterprise_Linux_7_Server_-_RH_Common_RPMs_x86_64_7Server
+      - Red_Hat_Software_Collections_RPMs_for_Red_Hat_Enterprise_Linux_7_Server_x86_64_7Server
+      - Red_Hat_Enterprise_Linux_7_Server_ISOs_x86_64_7Server
+      - epel-7-x86_64
+
+  env2:
+    name: TEST
+    repos:
+      - Red_Hat_Satellite_Tools_6_2_for_RHEL_6_Server_RPMs_x86_64
+      - Red_Hat_Satellite_6_2_for_RHEL_7_Server_RPMs_x86_64
 ```
+
 To export in this manner the '-e DEVELOPMENT' option must be used.
 Exports to the 'environment' will be timestamped in the same way that DOV exports
 are done, so ongoing incremental exports are possible.
@@ -151,7 +161,7 @@ Performs Export of Default Content View.
 optional arguments:
   -h, --help            show this help message and exit
   -o ORG, --org ORG     Organization (Uses default if not specified)
-  -e ENV, --env ENV     Environment config file
+  -e ENV, --env ENV     Environment config
   -a, --all             Export ALL content
   -i, --incr            Incremental Export of content since last run
   -s SINCE, --since SINCE
@@ -164,9 +174,9 @@ optional arguments:
 
 ### Examples
 ```
-./sat_export.py -e DEV              # Incr export of repos defined in DEV.yml
+./sat_export.py -e DEV              # Incr export of repos defined in the DEV config
 ./sat_export.py -o AnotherOrg       # Incr export of DoV for a different org
-./sat_export.py -e DEV -a           # Full export of repos defined in DEV.yml
+./sat_export.py -e DEV -a           # Full export of repos defined in the DEV config
 
 Output file format will be:
 sat_export_2016-07-29_DEV_00
