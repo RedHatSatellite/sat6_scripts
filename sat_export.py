@@ -208,6 +208,83 @@ def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
     return numfiles
 
 
+def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, pforge):
+    """
+    Export Puppet modules
+    Takes the type (full/incr) and the date of the last run
+    """
+    numfiles = 0
+    PUPEXPORTDIR = helpers.EXPORTDIR + '/puppet'
+    if not os.path.exists(PUPEXPORTDIR):
+        os.makedirs(PUPEXPORTDIR)
+
+    if export_type == 'full':
+        msg = "Exporting Puppet repository id " + str(repo_id)
+    else:
+        msg = "Exporting Puppet repository id " + str(repo_id) + " from start date " + last_export
+    helpers.log_msg(msg, 'INFO')
+
+    # This will currently export ALL ISO, not just the selected repo
+    if export_type == 'full':
+        msg = "Exporting all Puppet content"
+    else:
+        msg = "Exporting Puppet content from start date " + last_export
+    helpers.log_msg(msg, 'INFO')
+
+    msg = "  Copying updated files for export..."
+    colx = "{:<70}".format(msg)
+    print colx[:70],
+    helpers.log_msg(msg, 'INFO')
+    # Force the status message to be shown to the user
+    sys.stdout.flush()
+
+    if export_type == 'full':
+        os.system('find -L /var/lib/pulp/published/puppet/http/repos/*' + repo_label \
+            + ' -type f -exec cp --parents -Lrp {} ' + PUPEXPORTDIR + ' \;')
+    else:
+        os.system('find -L /var/lib/pulp/published/puppet/http/repos/*' + repo_label \
+            + ' -type f -newerct $(date +%Y-%m-%d -d "' + last_export + '") -exec cp --parents -Lrp {} '\
+            + PUPEXPORTDIR + ' \;')
+        # We need to copy the manifest anyway, otherwise we'll cause import issues if we have an empty repo
+        os.system('find -L /var/lib/pulp/published/puppet/http/repos/*' + repo_label \
+            + ' -name modules.json -exec cp --parents -Lrp {} ' + PUPEXPORTDIR + ' \;')
+
+    # At this point the puppet/ export dir will contain individual repos - we need to 'normalise' them
+    for dirpath, subdirs, files in os.walk(PUPEXPORTDIR):
+        for tdir in subdirs:
+            if repo_label in tdir:
+                # This is where the exported ISOs for our repo are located
+                INDIR = os.path.join(dirpath, tdir)
+                # And this is where we want them to be moved to so we can export them in Satellite format
+                # We need to knock off '<org_name>/Library/' from beginning of repo_relative and replace with export/
+                exportpath = "/".join(repo_relative.strip("/").split('/')[2:])
+                OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath
+
+                # Move the files into the final export tree
+                if not os.path.exists(OUTDIR):
+                    shutil.move(INDIR, OUTDIR)
+
+                    os.chdir(OUTDIR)
+                    numfiles = sum([len(files) for r, d, files in os.walk(OUTDIR)])
+                    # Subtract the manifest from the number of files:
+                    numfiles = numfiles - 1
+
+                    msg = "Puppet Export OK (" + str(numfiles) + " new files)"
+                    helpers.log_msg(msg, 'INFO')
+                    print helpers.GREEN + msg + helpers.ENDC
+
+    # If we are dealing with Puppet_Forge, create a second bundle for import to puppet-forge-server
+    if pforge:
+        # Only relevant if this is the Puppet_Forge repo...
+        if 'Puppet_Forge' in OUTDIR:
+            PFEXPORTDIR = helpers.EXPORTDIR + '/export/puppetforge'
+            if not os.path.exists(PFEXPORTDIR):
+                os.makedirs(PFEXPORTDIR)
+            os.system('find ' + OUTDIR + ' -name "*.gz" -exec cp {} ' + PFEXPORTDIR + ' \;')
+
+    return numfiles
+
+
 
 def check_running_tasks(label, name):
     """
@@ -402,6 +479,8 @@ def create_tar(export_dir, name):
     shutil.rmtree(export_dir)
     if os.path.exists(helpers.EXPORTDIR + "/iso"):
         shutil.rmtree(helpers.EXPORTDIR + "/iso")
+    if os.path.exists(helpers.EXPORTDIR + "/puppet"):
+        shutil.rmtree(helpers.EXPORTDIR + "/puppet")
 
     # Split the resulting tar into DVD size chunks & remove the original.
     msg = "Splitting TAR file..."
@@ -538,6 +617,8 @@ def main(args):
         action="store_true")
     parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages', 
         required=False, action="store_true")
+    parser.add_argument('-p', '--puppetforge', help='Include puppet-forge-server format Puppet Forge repo', 
+        required=False, action="store_true")
     args = parser.parse_args()
 
     # Set our script variables from the input args
@@ -546,6 +627,11 @@ def main(args):
     else:
        org_name = helpers.ORG_NAME
     since = args.since
+
+    if args.puppetforge:
+        pforge = True
+    else:
+        pforge = False
 
     # Record where we are running from
     script_dir = str(os.getcwd())
@@ -833,6 +919,51 @@ def main(args):
                     msg = "Skipping  " + repo_result['label']
                     helpers.log_msg(msg, 'DEBUG')
 
+            elif repo_result['content_type'] == 'puppet':
+                # If we have a match, do the export
+                if repo_result['label'] in erepos:
+                    # Extract the last export time for this repo
+                    orig_export_type = export_type
+                    cola = "Export " + repo_result['label']
+                    if export_type == 'incr' and repo_result['label'] in export_times:
+                        last_export = export_times[repo_result['label']]
+                        if since:
+                            last_export = since_export
+                        colb = "(INCR since " + last_export + ")"
+                    else:
+                        export_type = 'full'
+                        last_export = '2000-01-01 12:00:00' # This is a dummy value, never used.
+                        colb = "(FULL)"
+                    msg = cola + " " + colb
+                    helpers.log_msg(msg, 'INFO')
+                    output = "{:<70}".format(cola)
+                    print output[:70] + ' ' + colb
+
+                    # Check if there are any currently running tasks that will conflict
+                    ok_to_export = check_running_tasks(repo_result['label'], ename)
+
+                    if ok_to_export:
+                        # Trigger export on the repo
+                        numfiles = export_puppet(repo_result['id'], repo_result['label'], repo_result['relative_path'], last_export, export_type, pforge)
+
+                        # Reset the export type to the user specified, in case we overrode it.
+                        export_type = orig_export_type
+
+                        # Update the export timestamp for this repo
+                        export_times[repo_result['label']] = start_time
+
+                        # Add the repo to the successfully exported list
+                        if numfiles != 0 or args.repodata:
+                            msg = "Adding " + repo_result['label'] + " to export list"
+                            helpers.log_msg(msg, 'DEBUG')
+                            exported_repos.append(repo_result['label'])
+                        else:
+                            msg = "Not including repodata for empty repo " + repo_result['label']
+                            helpers.log_msg(msg, 'DEBUG')
+
+                else:
+                    msg = "Skipping  " + repo_result['label']
+                    helpers.log_msg(msg, 'DEBUG')
 
 
     # Combine resulting directory structures into a single repo format (top level = /content)
