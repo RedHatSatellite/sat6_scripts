@@ -256,6 +256,11 @@ def main(args):
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
 
+    if os.path.exists(helpers.IMPORTDIR + '/puppetforge'):
+        print 'Offline puppet-forge-server bundle is available to import seperately in '\
+            + helpers.IMPORTDIR + '/puppetforge\n'
+
+
     if args.remove and not delete_override:
         msg = "Removing input files from " + helpers.IMPORTDIR
         helpers.log_msg(msg, 'INFO')
