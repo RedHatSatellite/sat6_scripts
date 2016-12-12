@@ -121,9 +121,9 @@ the LABEL taken from the Satellite server.
 
 Note also that the 'environment' export option also allows for the export of ISO
 (file) based repositories in addition to yum RPM content. Using the DOV export does
-NOT include ISO repos, as export of these type of repositories is not supported by
-the current pulp version in Satellite. The 'environment' export performs some 
-additional magic to export the file content.
+NOT include ISO or Puppet repos, as export of these type of repositories is not 
+supported by the current pulp version in Satellite. The 'environment' export performs 
+some additional magic to export the file and puppet content.
 
 ```
 exports:
@@ -140,6 +140,7 @@ exports:
       - Red_Hat_Software_Collections_RPMs_for_Red_Hat_Enterprise_Linux_7_Server_x86_64_7Server
       - Red_Hat_Enterprise_Linux_7_Server_ISOs_x86_64_7Server
       - epel-7-x86_64
+      - Puppet_Forge
 
   env2:
     name: TEST
@@ -151,6 +152,14 @@ exports:
 To export in this manner the '-e DEVELOPMENT' option must be used.
 Exports to the 'environment' will be timestamped in the same way that DOV exports
 are done, so ongoing incremental exports are possible.
+
+In the event that a Puppet repository is exported, it will be done such that the
+connected satellite can import that repository. In some situations, an offline
+Puppet Forge mirror (puppet-forge-server ruby gem) is used to facilitate r10k use
+of Puppet Forge modules. This is not part of the Satellite infrastructure, however the
+puppet module export can be performed so that it is consumable by puppet-forge-server 
+as well as Satellite - this is done using the -p flag, and results in a /puppetforge
+directory being written to the import directory during the sat_import process.
 
 ### Help Output
 ```
@@ -169,6 +178,7 @@ optional arguments:
   -l, --last            Display time of last export
   -n, --nogpg           Skip GPG checking
   -r, --repodata        Include repodata for repos with no incremental content
+  -p, --puppetforge     Include puppet-forge-server format Puppet Forge repo
 
 ```
 
