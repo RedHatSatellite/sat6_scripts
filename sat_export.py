@@ -285,6 +285,19 @@ def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, 
     return numfiles
 
 
+def count_packages(repo_id):
+    """
+    Return the number of packages/erratum in a respository
+    """
+    result = helpers.get_json(
+        helpers.KATELLO_API + "repositories/" + str(repo_id) 
+            )
+
+    numpkg = result['content_counts']['rpm']
+    numerrata = result['content_counts']['erratum']
+
+    return str(numpkg) + ':' + str(numerrata)
+
 
 def check_running_tasks(label, name):
     """
@@ -639,6 +652,7 @@ def main(args):
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
     exported_repos = []
+    package_count = {}
     # If a specific environment is requested, find and read that config file
     repocfg = os.path.join(dir, confdir + '/exports.yml')
     if args.env:
@@ -822,6 +836,10 @@ def main(args):
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
 
                     if ok_to_export:
+                        # Count the number of packages
+                        numpkg = count_packages(repo_result['id'])
+                        package_count[repo_result['label']] = numpkg
+
                         # Trigger export on the repo
                         export_id = export_repo(repo_result['id'], last_export, export_type)
 
@@ -973,9 +991,10 @@ def main(args):
     # Define the location of our exported data.
     export_dir = helpers.EXPORTDIR + "/export"
 
-    # Write out the list of exported repos. This will be transferred to the disconnected system
-    # and used to perform the repo sync tasks during the import.
+    # Write out the list of exported repos and the package counts. These will be transferred to the 
+    # disconnected system and used to perform the repo sync tasks during the import.
     pickle.dump(exported_repos, open(export_dir + '/exported_repos.pkl', 'wb'))
+    pickle.dump(package_count, open(export_dir + '/package_count.pkl', 'wb'))
 
     # Run GPG Checks on the exported RPMs
     if not args.nogpg:

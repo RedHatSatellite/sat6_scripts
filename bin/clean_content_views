@@ -1,7 +1,7 @@
 #!/usr/bin/python
 import sys
 
-sys.path.insert(0, '/usr/local/bin/sat6_scripts')
+sys.path.insert(0, '/usr/share/sat6_scripts')
 try:
     import clean_content_views
     clean_content_views.main(sys.argv[1:])

@@ -159,6 +159,53 @@ def sync_content(org_id, imported_repos):
         return delete_override
 
 
+def count_packages(repo_id):
+    """
+    Return the number of packages/erratum in a respository
+    """
+    result = helpers.get_json(
+        helpers.KATELLO_API + "repositories/" + str(repo_id)
+            )
+
+    numpkg = result['content_counts']['rpm']
+    numerrata = result['content_counts']['erratum']
+
+    return numpkg, numerrata
+
+
+def check_counts(package_count)
+    """
+    Verify the number of pkgs/errutum in each repo match the sync host.
+    Input is a dictionary loaded from a pickle that was created on the sync
+    host in format  {Repo_Label, pkgs:erratum}
+    """
+
+    # Get a listing of repositories in this Satellite
+    enabled_repos = helpers.get_p_json(
+        helpers.KATELLO_API + "/repositories/", \
+            json.dumps(
+                {
+                    "organization_id": org_id,
+                    "per_page": '1000',
+                }
+            ))
+
+    # First loop through the repos in the import dict and find the local ID
+    for repo, counts in package_count.iteritems():
+        print repo, counts
+        # Split the count data into packages and erratum
+        sync_pkgs = counts.split(':')[0] 
+        sync_erratum = counts.split(':')[1]
+
+        for repo_result in enabled_repos['results']:
+            if repo in repo_result['label']:
+                print repo_result['label'], repo_result['id'] 
+                local_pkgs, local_erratum = count_packages(repo_result['id'])
+
+                print "Packages: " + str(sync_pkgs), str(local_pkgs)
+                print "Erratum:  " + str(sync_erratum), str(local_erratum)
+
+
 def main(args):
     """
     Main Routine
@@ -249,9 +296,13 @@ def main(args):
         # We need to figure out which repos to sync. This comes to us via a pickle containing
         # a list of repositories that were exported
         imported_repos = pickle.load(open('exported_repos.pkl', 'rb'))
+        package_count = pickle.load(open('package_count.pkl', 'rb'))
 
         # Run a repo sync on each imported repo
         (delete_override) = sync_content(org_id, imported_repos)
+
+        # Verify the repository package/erratum counts match the sync host
+        check_counts(package_count)
 
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
