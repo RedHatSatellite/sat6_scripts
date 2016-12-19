@@ -33,17 +33,21 @@ filename = os.path.join(dir, 'config/config.yml')
 CONFIG = yaml.safe_load(open(filename, 'r'))
 
 # Read in the config parameters
-URL = CONFIG["satellite"]["url"]
-USERNAME = CONFIG["satellite"]["username"]
-PASSWORD = CONFIG["satellite"]["password"]
-DISCONNECTED = CONFIG["satellite"]["disconnected"]
-MANIFEST = CONFIG["satellite"]["manifest"]
-ORG_NAME = CONFIG["satellite"]["default_org"]
-LOGDIR = CONFIG["logging"]["dir"]
-DEBUG = CONFIG["logging"]["debug"]
-EXPORTDIR = CONFIG["export"]["dir"]
-IMPORTDIR = CONFIG["import"]["dir"]
-SYNCBATCH = CONFIG["import"]["syncbatch"]
+URL = CONFIG['satellite']['url']
+USERNAME = CONFIG['satellite']['username']
+PASSWORD = CONFIG['satellite']['password']
+DISCONNECTED = CONFIG['satellite']['disconnected']
+if 'manifest' in CONFIG['satellite']:
+    MANIFEST = CONFIG['satellite']['manifest']
+ORG_NAME = CONFIG['satellite']['default_org']
+LOGDIR = CONFIG['logging']['dir']
+DEBUG = CONFIG['logging']['debug']
+EXPORTDIR = CONFIG['export']['dir']
+IMPORTDIR = CONFIG['import']['dir']
+if 'syncbatch' in CONFIG['import']:
+    SYNCBATCH = CONFIG['import']['syncbatch']
+else
+    SYNCBATCH = 255
 
 # 'Global' Satellite 6 parameters
 # Satellite API
