@@ -41,6 +41,7 @@ install -m 0644 sat_import.py %{buildroot}/usr/share/sat6_scripts/sat_import.py
 install -m 0644 publish_content_views.py %{buildroot}/usr/share/sat6_scripts/publish_content_views.py
 install -m 0644 promote_content_views.py %{buildroot}/usr/share/sat6_scripts/promote_content_views.py
 install -m 0644 clean_content_views.py %{buildroot}/usr/share/sat6_scripts/clean_content_views.py
+install -m 0644 download_manifest.py %{buildroot}/usr/share/sat6_scripts/download_manifest.py
 
 
 
@@ -57,6 +58,7 @@ install -m 0644 clean_content_views.py %{buildroot}/usr/share/sat6_scripts/clean
 /usr/share/sat6_scripts/publish_content_views.py
 /usr/share/sat6_scripts/promote_content_views.py
 /usr/share/sat6_scripts/clean_content_views.py
+/usr/share/sat6_scripts/download_manifest.py
 
 /usr/local/bin/check_sync
 /usr/local/bin/sat_export

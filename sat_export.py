@@ -285,6 +285,19 @@ def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, 
     return numfiles
 
 
+def export_manifest():
+    """
+    Copies manifest downloaded by 'download_manifest.py' into the export bundle
+    """
+    if os.path.exists(helpers.EXPORTDIR + '/manifest'):
+        msg = 'Found manifest to export'
+        helpers.log_msg(msg, 'DEBUG')
+        MFSTEXPORTDIR = helpers.EXPORTDIR + '/export/manifest'
+        if not os.path.exists(MFSTEXPORTDIR):
+            os.makedirs(MFSTEXPORTDIR)
+        os.system('cp ' + helpers.EXPORTDIR + '/manifest/* ' + MFSTEXPORTDIR)
+
+
 def count_packages(repo_id):
     """
     Return the number of packages/erratum in a respository
@@ -999,6 +1012,9 @@ def main(args):
     # Run GPG Checks on the exported RPMs
     if not args.nogpg:
         do_gpg_check(export_dir)
+
+    # Copy in the manifest, if it has been downloaded
+    export_manifest()
 
     # Add our exported data to a tarfile
     create_tar(export_dir, ename)

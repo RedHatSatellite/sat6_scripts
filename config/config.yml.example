@@ -3,6 +3,7 @@ satellite:
   username: svc-api-user
   password: 1t$a$3cr3t
   default_org: MyOrg
+  manifest: my-satellite
   disconnected: False
 
 logging:
