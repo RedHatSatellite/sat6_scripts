@@ -1,0 +1,155 @@
+
+
+
+
+# Set root profile options
+cat << EOF >> /root/.bashrc
+
+# If not interactive, do nothing
+[ -z "$PS1" ] && return
+
+HISTSIZE=100000
+shopt -s histappend
+export HISTTIMEFORMAT="{%F %a %T}  "
+
+# Set root prompt
+export PS1="\[\033[0;31m\]\u@\h\[\033[0;32m\][\w] #\[\033[0m\] "
+EOF
+
+# Login Banner
+cat << EOF > /etc/issue
+#####################################
+#   Insert Security Banner Here     #
+#####################################
+EOF
+
+# Harden system parameters
+sysctlfile=/etc/sysctl.d/01hardening.conf
+echo "# Hardening parameters" >> $sysctlfile
+echo "net.ipv4.conf.all.accept_redirects = 0" >> $sysctlfile
+echo "net.ipv4.conf.all.secure_redirects = 0" >> $sysctlfile
+echo "net.ipv4.conf.default.accept_redirects = 0" >> $sysctlfile
+echo "net.ipv4.conf.default.secure_redirects = 0" >> $sysctlfile
+echo "net.ipv4.conf.all.send_redirects = 0" >> $sysctlfile
+echo "net.ipv4.conf.default.send_redirects = 0" >> $sysctlfile
+echo "net.ipv4.conf.all.rp_filter = 1" >> $sysctlfile
+echo "net.ipv4.conf.default.rp_filter = 1" >> $sysctlfile
+echo "net.ipv4.tcp_max_syn_backlog = 4096" >> $sysctlfile
+echo "net.ipv4.conf.all.accept_source_route = 0" >> $sysctlfile
+echo "net.ipv4.conf.default.accept_source_route = 0" >> $sysctlfile
+echo "net.ipv4.conf.all.log_martians = 1" >> $sysctlfile
+echo "net.ipv4.conf.default.log_martians = 1" >> $sysctlfile
+echo "net.ipv4.icmp_ignore_bogus_error_responses = 1" >> $sysctlfile
+echo "net.ipv4.conf.all.forwarding = 0" >> $sysctlfile
+echo "net.ipv4.ip_forward = 0" >> $sysctlfile
+echo "net.ipv4.tcp_syncookies = 1" >> $sysctlfile
+echo "kernel.exec-shield = 1" >> $sysctlfile
+echo "kernel.randomize_va_space = 2" >> $sysctlfile
+echo "fs.suid_dumptable = 0" >> $sysctlfile
+
+
+# Delete non-required accounts
+USER_DEL="ftp operator games"
+for user in $USER_DEL; do
+  if grep ^${user}: /etc/passwd > /dev/null; then
+    userdel $user
+  fi
+done
+
+# SSH Server hardening
+sed -i 's/#IgnoreRhosts yes/IgnoreRhosts yes/g' /etc/ssh/sshd_config
+sed -i 's/#AllowAgentForwarding yes/AllowAgentForwarding no/g' /etc/ssh/sshd_config
+sed -i 's/#PermitRootLogin yes/PermitRootLogin no/g' /etc/ssh/sshd_config
+sed -i 's/#PermitEmptyPasswords no/PermitEmptyPasswords no/g' /etc/ssh/sshd_config
+sed -i 's/#LogLevel INFO/LogLevel INFO/g' /etc/ssh/sshd_config
+sed -i 's/#HostbasedAuthentication no/HostbasedAuthentication no/g' /etc/ssh/sshd_config
+sed -i 's/#GatewayPorts no/GatewayPorts no/g' /etc/ssh/sshd_config
+sed -i 's/#PrintLastLog yes/PrintLastLog yes/g' /etc/ssh/sshd_config
+sed -i 's/X11Forwarding yes/X11Forwarding no/g' /etc/ssh/sshd_config
+sed -i 's/#Banner .*/Banner \/etc\/issue/g' /etc/ssh/sshd_config
+sed -i 's/#MaxAuthTries 6/MaxAuthTries 3/g' /etc/ssh/sshd_config
+sed -i 's/#UsePrivilegeSeparation yes/UsePrivilegeSeparation yes/g' /etc/ssh/sshd_config
+sed -i 's/#PermitUserEnvironment no/PermitUserEnvironment no/g' /etc/ssh/sshd_config
+sed -i 's/#RhostsRSAAuthentication no/RhostsRSAAuthentication no/g' /etc/ssh/sshd_config
+sed -i 's/#LoginGraceTime 2m/LoginGraceTime 60/g' /etc/ssh/sshd_config
+sed -i 's/#PubkeyAuthentication yes/PubkeyAuthentication yes/g' /etc/ssh/sshd_config
+sed -i 's/#AuthorizedKeysCommand none/AuthorizedKeysCommand none/g' /etc/ssh/sshd_config
+sed -i 's/#ClientAliveInterval 0/ClientAliveInterval 172800/g' /etc/ssh/sshd_config
+sed -i 's/#ClientAliveCountMax 3/ClientAliveCountMax 0/g' /etc/ssh/sshd_config
+sed -i 's/PrintLastLog yes/PrintLastLog no/g' /etc/ssh/sshd_config
+sed -i 's/HostKey \/etc\/ssh\/ssh_host_ed25519_key/#HostKey \/etc\/ssh\/ssh_host_ed25519_key/g' /etc/ssh/sshd_config
+echo "KexAlgorithms ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group14-sha1" >> /etc/ssh/sshd_config
+echo "Ciphers aes256-ctr" >> /etc/ssh/sshd_config
+echo "MACs hmac-sha2-512,hmac-sha2-256" >> /etc/ssh/sshd_config
+
+# Re-generate (more) secure SSH keys
+ECDSA_KEY="/etc/ssh/ssh_host_ecdsa_key"
+rm -f ${ECDSA_KEY} ${ECDSA_KEY}.pub
+ssh-keygen -q -t ecdsa -b 384 -f ${ECDSA_KEY} -C '' -N ''
+RSA_KEY="/etc/ssh/ssh_host_rsa_key"
+rm -f ${RSA_KEY} ${RSA_KEY}.pub
+ssh-keygen -q -t rsa -b 3072 -f ${RSA_KEY} -C '' -N ''
+
+# Harden SSH Client
+echo "        Protocol 2" >> /etc/ssh/ssh_config
+echo "        Ciphers aes256-ctr" >> /etc/ssh/ssh_config
+echo "        KexAlgorithms ecdh-sha2-nistp384,ecdh-sha2-nistp521,diffie-hellman-group14-sha1" >> /etc/ssh/ssh_config
+echo "        HostKeyAlgorithms ecdsa-sha2-nistp384,ecdsa-sha2-nistp521,ssh-rsa" >> /etc/ssh/ssh_config
+echo "        MACs hmac-sha2-512,hmac-sha2-256" >> /etc/ssh/ssh_config
+
+# Set user account defaults
+sed -i 's/PASS_MAX_DAYS\t99999/PASS_MAX_DAYS\t90/g' /etc/login.defs
+sed -i 's/PASS_MIN_DAYS\t0/PASS_MIN_DAYS\t1/g' /etc/login.defs
+sed -i 's/PASS_MIN_LEN\t5/PASS_MIN_LEN\t11/g' /etc/login.defs
+sed -i 's/PASS_WARN_AGE\t7/PASS_WARN_AGE\t14/g' /etc/login.defs
+sed -i 's/INACTIVE.*/INACTIVE=35/g' /etc/default/useradd
+
+# Disable removable storage devices
+echo "install usb-storage /bin/true" > /etc/modprobe.d/disable_storage.conf
+echo "install floppy /bin/true" >> /etc/modprobe.d/disable_storage.conf
+echo "install sr_mod /bin/true" >> /etc/modprobe.d/disable_storage.conf
+echo "install cdrom /bin/true" >> /etc/modprobe.d/disable_storage.conf
+
+# Disable protocols
+echo "install dccp /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+echo "install dccp_ipv4 /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+echo "install dccp_ipv6 /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+echo "install sctp /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+echo "install rds /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+echo "install tipc /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+echo "install ieee1394 /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+echo "install net-pf-31 /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+echo "install bluetooth /bin/true" >> /etc/modprobe.d/hardening_protocols.conf
+
+# Disable Filesystems
+echo "install cramfs /bin/true" >> /etc/modprobe.d/hardening_fs.conf
+echo "install freevxfs /bin/true" >> /etc/modprobe.d/hardening_fs.conf
+echo "install jffs2 /bin/true" >> /etc/modprobe.d/hardening_fs.conf
+echo "install hfs /bin/true" >> /etc/modprobe.d/hardening_fs.conf
+echo "install hfsplus /bin/true" >> /etc/modprobe.d/hardening_fs.conf
+echo "install squashfs /bin/true" >> /etc/modprobe.d/hardening_fs.conf
+echo "install udf /bin/true" >> /etc/modprobe.d/hardening_fs.conf
+
+# Disable other devices
+echo "install firewire-core /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+echo "install firewire-net /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+echo "install firewire-sbp2 /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+echo "install firewire-ohci /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+echo "install ohci1394 /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+echo "install sbp2 /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+echo "install dv1394 /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+echo "install raw1394 /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+echo "install video1394 /bin/true" >> /etc/modprobe.d/hardening_devices.conf
+
+# Set system limits
+sed -i '/^vc\//d' /etc/securetty
+echo "* hard core 0" >> /etc/security/limits.conf
+echo "* soft core 0" >> /etc/security/limits.conf
+echo "* hard maxlogins 30" >> /etc/security/limits.conf
+
+# Disable wheel group (allows sudo by default in RHEL7)
+sed -i 's/^%wheel\s.*ALL=(ALL).*/# %wheel\tALL=(ALL)\t\tALL/g' /etc/sudoers
+
+
+
+

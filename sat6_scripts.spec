@@ -23,9 +23,11 @@ Requires:       python >= 2.7, PyYAML
 %install
 rm -rf %{buildroot}
 mkdir -p %{buildroot}/usr/local/{bin,etc}
-mkdir -p %{buildroot}/usr/share/{doc,sat6_scripts/config}
+mkdir -p %{buildroot}/usr/share/{doc/sat6_scripts,sat6_scripts/config}
 install -m 0644 README.md %{buildroot}/usr/share/doc/sat6_scripts/README.md
 install -m 0644 LICENSE %{buildroot}/usr/share/doc/sat6_scripts/LICENSE
+install -m 0644 docs/sat62_install.txt %{buildroot}/usr/share/doc/sat6_scripts/sat62_install.txt
+install -m 0644 docs/sat62disc_install.txt %{buildroot}/usr/share/doc/sat6_scripts/sat62disc_install.txt
 install -m 0644 config/config.yml.example %{buildroot}/usr/share/sat6_scripts/config/config.yml
 install -m 0644 config/exports.yml.example %{buildroot}/usr/share/sat6_scripts/config/exports.yml
 install -m 0755 bin/check_sync %{buildroot}/usr/local/bin/check_sync
@@ -47,6 +49,8 @@ install -m 0644 download_manifest.py %{buildroot}/usr/share/sat6_scripts/downloa
 
 %files
 %doc /usr/share/doc/sat6_scripts/README.md
+%doc /usr/share/doc/sat6_scripts/sat62_install.txt
+%doc /usr/share/doc/sat6_scripts/sat62disc_install.txt
 %license /usr/share/doc/sat6_scripts/LICENSE
 %config(noreplace) /usr/share/sat6_scripts/config/config.yml
 %config(noreplace) /usr/share/sat6_scripts/config/exports.yml

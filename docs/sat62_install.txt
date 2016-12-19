@@ -1,0 +1,482 @@
+
+
+export ORG=MyOrg
+export LOC=MyLoc
+
+subscription-manager config --server.proxy_hostname=proxy.example.org --server.proxy_port=8080
+subscription-manager register
+subscription-manager attach --pool=8a85f98746ad93e00146ae7a89476683
+subscription-manager repos --disable "*"
+subscription-manager repos --enable rhel-7-server-rpms \
+                           --enable rhel-server-rhscl-7-rpms \
+                           --enable rhel-7-server-satellite-6.2-rpms
+
+
+###  OR - it connection to CDN not yet available  ###
+
+# Setup a local RHEL repo (assumes RHEL ISO mounted at /media/rhel73)
+rpm --import /media/rhel73/RPM-GPG-KEY-redhat-release
+cat << EOF >> /etc/yum.repos.d/rhel.repo
+[rhel73]
+name = Local 7.3 repo
+baseurl = file:///media/rhel73
+enabled = 1
+gpgcheck = 1
+EOF
+
+
+
+# Install tools we need
+yum install -y vim bash-completion bind-utils policycoreutils-python chrony tree
+
+# Setup chrony
+sed -i 's/^server 0.rhel.pool.ntp.org iburst/server 192.168.1.1 iburst/' /etc/chrony.conf 
+sed -i 's/^server 1.rhel.pool.ntp.org iburst/server 192.168.1.2 iburst/' /etc/chrony.conf 
+sed -i '/^server 2.rhel.pool.ntp.org iburst/d' /etc/chrony.conf
+sed -i '/^server 3.rhel.pool.ntp.org iburst/d' /etc/chrony.conf
+systemctl enable chronyd
+systemctl start chronyd
+
+# Install open-vm-tools (Only if Satellite is a VMware VM)
+yum -y install open-vm-tools
+systemctl enable vmtoolsd
+
+
+#########################
+#  Apply system hardening
+#########################
+
+
+# On RHEL72 systems the selinux-policy packages need to be updated for Satellite to install.
+# Copy the following RPM's to /root from another system:
+# - selinux-policy-3.13.1-60.el7_2.3.noarch.rpm
+# - selinux-policy-targeted-3.13.1-60.el7_2.3.noarch.rpm
+# 
+# cd /root
+# rpm -Uvh selinux*.rpm
+
+
+yum -y install satellite
+
+## OR - if CDN not available ###
+
+# Copy Satellite 6.2 ISO to /root 
+mkdir /media/sat6
+mount -o loop /root/satellite-6.2.1-rhel-7-x86_64-dvd.iso /media/sat6
+cd /media/sat6/
+./install_packages
+cd && umount /media/sat6
+
+firewall-cmd --permanent --add-service=RH-Satellite-6
+firewall-cmd --permanent --add-port 69/udp
+
+
+############
+# If using IPA auth, enrol satellite server to IPA as a standard client here.
+ipa-client-install ......
+
+############
+# If using AD auth, enrol satellite server to AD as a standard client here.
+yum -y install gssproxy sssd adcli realmd ipa-python nfs-utils
+realm join -U <user> -v AD.EXAMPLE.ORG
+
+sed -i '/services = nss, pam/a default_domain_suffix = ad.example.org' /etc/sssd/sssd.conf
+sed -i 's/fallback_homedir.*/fallback_homedir = \/home\/%d\/%u/' /etc/sssd/sssd.conf
+sed -i '/default_domain_suffix = ad.example.org/a full_name_format = %1$s' /etc/sssd/sssd.conf
+
+
+# Verify custom ssl certs (only if using):
+katello-certs-check -c /root/sat62.example.org.crt \
+  -k /root/sat62.example.org.key \
+  -r /root/sat62.example.org.csr \
+  -b /root/tls-ca-chain.pem
+
+
+# Install Satellite
+satellite-installer --scenario satellite \
+  --foreman-initial-organization "$ORG" \
+  --foreman-initial-location "$LOC" \
+  --foreman-admin-username admin \
+  --foreman-admin-password ChangeMe \
+  --foreman-proxy-tftp true \        # If not using custom certs don't include below:
+  --certs-server-cert "/root/sat62.example.org.crt" \
+  --certs-server-cert-req "/root/sat62.example.org.csr" \
+  --certs-server-key "/root/sat62.example.org.key" \
+  --certs-server-ca-cert "/root/tls-ca-chain.pem"
+
+
+# Configure proxy
+export http_proxy=""
+export https_proxy=$http_proxy
+export no_proxy=$http_proxy
+
+satellite-installer --scenario satellite \
+  --katello-proxy-url=http://proxy.example.org \
+  --katello-proxy-port=8080
+
+
+# Configure OSTree support
+yum install ostree pulp-ostree-plugins tfm-rubygem-katello_ostree -y
+satellite-installer --katello-enable-ostree=true
+
+
+# Install/Enable OpenSCAP
+yum -y install puppet-foreman_scap_client
+satellite-installer --enable-foreman-proxy-plugin-openscap
+# Upload default SCAP content
+foreman-rake foreman_openscap:bulk_upload:default
+
+
+mkdir ~/.hammer
+chmod 0600 ~/.hammer
+cat << EOF > ~/.hammer/cli_config.yml
+:foreman:
+    :host: 'https://localhost'
+    :username: 'admin'
+    :password: 'ChangeMe'
+EOF
+chmod 0600 ~/.hammer/cli_config.yml
+
+# Set default hammer org
+hammer defaults add --param-name organization_id --param-value 1
+
+# Install manifest
+hammer subscription upload --organization-id 1 --file /root/manifest_sat62_20160801.zip
+
+# Set Org/Loc of Satellite server (Default is Unassigned)
+hammer host update --organization-id 1 --name sat62.example.org
+hammer host update --location="$LOC" --name sat62.example.org
+
+
+######################
+# If using IPA for Auth:
+#
+## ON IPA SERVER:
+ipa service-add HTTP/sat62.example.org
+
+# Configure HBAC on IPA server:
+ipa group-add sat-admins
+ipa group-add-member sat-admins --users=fred
+ipa hbacsvc-add satellite-prod
+ipa hbacrule-add allow_satellite_prod
+ipa hbacrule-add-service allow_satellite_prod --hbacsvcs=satellite-prod
+ipa hbacrule-add-user allow_satellite_prod --groups=sat-admins
+ipa hbacrule-add-host allow_satellite_prod --hosts=sat62.example.org
+
+# Test
+ipa hbacrule-find satellite-prod
+ipa hbactest --user=fred --host=sat62.example.org --service=satellite-prod
+
+## ON SAT:
+subscription-manager repos --enable rhel-7-server-optional-rpms    # <-- Need to detail howto offline ???
+satellite-installer --foreman-ipa-authentication=true      # Enables IPA for Auth
+satellite-installer --foreman-pam-service=satellite-prod   # Enables HBAC
+
+
+######################
+# If using LDAP for Auth:
+#
+setsebool -P authlogin_nsswitch_use_ldap=1
+
+# We need the certs that make up the CA chain:
+cat << EOF > /etc/pki/tls/certs/CA.pem
+-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----
+EOF
+
+cat << EOF > /etc/pki/tls/certs/rootca.pem
+-----BEGIN CERTIFICATE-----
+...
+-----END CERTIFICATE-----
+EOF
+
+cd /etc/pki/tls/certs
+ln -s rootca.pem /etc/pki/tls/certs/$(openssl x509 -noout -hash -in /etc/pki/tls/certs/rootca.pem).0
+ln -s CA.pem /etc/pki/tls/certs/$(openssl x509 -noout -hash -in /etc/pki/tls/certs/CA.pem).0
+
+hammer auth-source ldap create --name 'LDAP Server' --host ldap.example.org -server-type posix \
+  --tls yes --port 636 --base-dn ou=People,ou=example,o=com,c=au --attr-login uid
+
+# Verify the auth source
+hammer auth-source ldap list
+
+
+######################
+# If using AD for Auth:
+#
+cat << EOF > /etc/ipa/default.conf
+[global]
+server = unused
+realm = AD.EXAMPLE.ORG
+EOF
+
+cat << EOF > /etc/net-keytab.conf
+[global]
+workgroup = AD
+realm = AD.EXAMPLE.ORG
+kerberos method = system keytab
+security = ads
+EOF
+
+KRB5_KTNAME=FILE:/etc/gssproxy/http.keytab net ads keytab add HTTP -U <admin> -d3 -s /etc/net-keytab.conf
+chown root:root /etc/gssproxy/http.keytab
+
+sed -i '1i includedir /var/lib/sss/pubconf/krb5.include.d/' /etc/krb5.conf
+
+touch /etc/httpd/conf/http.keytab
+satellite-installer --foreman-ipa-authentication=true
+
+systemctl restart gssproxy.service
+systemctl enable gssproxy.service
+
+cat << EOF > /etc/systemd/system/httpd.service
+.include /lib/systemd/system/httpd.service
+[Service]
+Environment=GSS_USE_PROXY=1
+EOF
+
+systemctl daemon-reload
+systemctl restart httpd.service
+
+
+######################
+# Configure Email delivery
+#
+# If we need to insert a classification header on the email:
+cat << EOF > /etc/postfix/classification
+/^Content-Transfer-Encoding/i PREPEND x-classification: UNCLASSIFIED
+/^Content-Transfer-Encoding/i PREPEND x-protective-marking: VER=2012.3, NS=example.org, SEC=UNCLASSIFIED, ORIGIN=satellite@example.org
+EOF
+sed -i 's/^#header_checks = /header_checks = regexp:\/etc\/postfix\/classification/' /etc/postfix/main.cf
+
+# Set Satellite to send mail to the local postfix instance:
+cat << EOF > /etc/foreman/email.yaml
+# Outgoing email settings
+production:
+  delivery_method: :smtp
+  smtp_settings:
+    address: localhost
+    port: 25
+    enable_starttls_auto: false
+EOF
+sed -i 's/^#relayhost = uucphost/relayhost = smtp.example.org/' /etc/postfix/main.cf
+systemctl restart postfix
+
+# Set the email addresses in Satellite itself
+hammer settings set --name email_reply_address --value "someone@example.org"
+hammer settings set --name email_subject_prefix --value "[Satellite 6]"
+
+# Restart Satellite
+katello-service restart
+
+
+# Enable repos
+
+# List entitled products
+hammer product list --organization-id=1
+
+# List repositories within products
+hammer repository-set list --product 'Red Hat Enterprise Linux Server' --organization "$ORG"
+hammer repository-set list --product 'Red Hat Satellite' --organization "$ORG"
+
+# List specific repos within repository
+hammer repository-set available-repositories --id=3327 --product 'Red Hat Enterprise Linux Server' --organization "$ORG"
+
+
+
+# Kickstarts:
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7.2 --id 2455
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6.8 --id 1952
+
+
+# RHEL 7 Server RPMs:
+for i in 2456 2463 2472 2476 ; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7Server --id $i
+done
+
+# RHEL 6 Server RPMs:
+for i in 2396 166 168 1673; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6Server --id $i
+done
+
+
+# Server Extras RPMs (No releasever)
+for i in 3026 3030; do
+  hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --id $i
+done
+
+# RHSCL
+hammer repository-set enable --organization-id 1 --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch x86_64 --releasever 7Server --id 2808
+hammer repository-set enable --organization-id 1 --product 'Red Hat Software Collections for RHEL Server' \
+  --basearch x86_64 --releasever 6Server --id 1997
+
+# Satellite
+hammer repository-set enable --organization-id 1 --product 'Red Hat Satellite' \
+  --basearch x86_64 --id 4743
+
+
+# ISOs:
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 6.8 --id 164
+hammer repository-set enable --organization-id 1 --product 'Red Hat Enterprise Linux Server' \
+  --basearch x86_64 --releasever 7.2 --id 2454
+
+
+#######################
+# Configure content export
+hammer settings set --name pulp_export_destination --value /var/sat-export
+chown foreman:foreman /var/sat-export
+semanage fcontext -a -t foreman_var_run_t "/var/sat-export(/.*)?"
+restorecon -RvF /var/sat-export
+hammer settings set --name default_download_policy --value immediate
+
+
+#######################
+# 3rd Party GPG keys
+export http_proxy=http://proxy.example.org:8080
+export https_proxy=$http_proxy
+wget -O /tmp/RPM-GPG-KEY-EPEL-6 https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-6
+wget -O /tmp/RPM-GPG-KEY-EPEL-7 https://dl.fedoraproject.org/pub/epel/RPM-GPG-KEY-EPEL-7
+wget -O /tmp/hpPublicKey1024.pub http://downloads.linux.hpe.com/SDR/hpPublicKey1024.pub
+wget -O /tmp/hpPublicKey2048.pub http://downloads.linux.hpe.com/SDR/hpPublicKey2048.pub
+wget -O /tmp/hpPublicKey2048_key1.pub http://downloads.linux.hpe.com/SDR/hpPublicKey2048_key1.pub
+wget -O /tmp/jenkins.io.key http://pkg.jenkins.io/redhat/jenkins.io.key
+wget -O /tmp/RPM-GPG-KEY-foreman-1.10 http://yum.theforeman.org/releases/1.10/RPM-GPG-KEY-foreman
+wget -O /tmp/RPM-GPG-KEY-foreman-1.11 http://yum.theforeman.org/releases/1.11/RPM-GPG-KEY-foreman
+wget -O /tmp/RPM-GPG-KEY-foreman-1.12 http://yum.theforeman.org/releases/1.12/RPM-GPG-KEY-foreman
+wget -O /tmp/RPM-GPG-KEY-foreman-1.13 http://yum.theforeman.org/releases/1.13/RPM-GPG-KEY-foreman
+wget -O /tmp/GPG-KEY-elasticsearch https://packages.elastic.co/GPG-KEY-elasticsearch
+unset http_proxy; unset https_proxy
+
+hammer gpg create --name='RPM-GPG-KEY-EPEL-6' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-EPEL-6'
+hammer gpg create --name='RPM-GPG-KEY-EPEL-7' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-EPEL-7'
+hammer gpg create --name='hpPublicKey1024.pub' --organization="$ORG" --key='/tmp/hpPublicKey1024.pub'
+hammer gpg create --name='hpPublicKey2048.pub' --organization="$ORG" --key='/tmp/hpPublicKey2048.pub'
+hammer gpg create --name='hpPublicKey2048_key1.pub' --organization="$ORG" --key='/tmp/hpPublicKey2048_key1.pub'
+hammer gpg create --name='jenkins.io.key' --organization="$ORG" --key='/tmp/jenkins.io.key'
+hammer gpg create --name='RPM-GPG-KEY-foreman-1.10' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-foreman-1.10'
+hammer gpg create --name='RPM-GPG-KEY-foreman-1.11' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-foreman-1.11'
+hammer gpg create --name='RPM-GPG-KEY-foreman-1.12' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-foreman-1.12'
+hammer gpg create --name='RPM-GPG-KEY-foreman-1.13' --organization="$ORG" --key='/tmp/RPM-GPG-KEY-foreman-1.13'
+hammer gpg create --name='GPG-KEY-elasticsearch' --organization="$ORG" --key='/tmp/GPG-KEY-elasticsearch'
+
+rpm --import /tmp/RPM-GPG-KEY-EPEL-6
+rpm --import /tmp/RPM-GPG-KEY-EPEL-7
+rpm --import /tmp/hpPublicKey1024.pub
+rpm --import /tmp/hpPublicKey2048.pub
+rpm --import /tmp/hpPublicKey2048_key1.pub
+rpm --import /tmp/jenkins.io.key
+rpm --import /tmp/RPM-GPG-KEY-foreman-1.10
+rpm --import /tmp/RPM-GPG-KEY-foreman-1.11
+rpm --import /tmp/RPM-GPG-KEY-foreman-1.12
+rpm --import /tmp/RPM-GPG-KEY-foreman-1.13
+rpm --import /tmp/GPG-KEY-elasticsearch
+
+
+########################
+# Create API User
+hammer user create --login svc-api --firstname API --lastname User --password='AP1Us3r' \
+  --mail no-reply@example.org --auth-source-id 1 --organization-ids 1 --default-organization-id 1 \
+  --admin true
+
+
+#######################
+# 3rd Party Content
+hammer product create --name='EPEL-6' --description='EPEL-6' --organization-id=1
+hammer repository create --name='epel-6-x86_64' --organization-id=1 --product='EPEL-6' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-EPEL-6' --url='https://dl.fedoraproject.org/pub/epel/6/x86_64'
+
+hammer product create --name='EPEL-7' --description='EPEL-7' --organization-id=1
+hammer repository create --name='epel-7-x86_64' --organization-id=1 --product='EPEL-7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-EPEL-7' --url='https://dl.fedoraproject.org/pub/epel/7/x86_64'
+
+hammer product create --name='Foreman EL6' --description='The Foreman software for EL6' --organization-id=1
+hammer repository create --name='Foreman-Releases-6-1.10' --organization-id=1 --product='Foreman EL6' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.10' --url='http://yum.theforeman.org/releases/1.10/el6/x86_64'
+hammer repository create --name='Foreman-Plugins-6-1.10' --organization-id=1 --product='Foreman EL6' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.10' --url='http://yum.theforeman.org/plugins/1.10/el6/x86_64'
+hammer repository create --name='Foreman-Releases-6-1.11' --organization-id=1 --product='Foreman EL6' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.11' --url='http://yum.theforeman.org/releases/1.11/el6/x86_64'
+hammer repository create --name='Foreman-Plugins-6-1.11' --organization-id=1 --product='Foreman EL6' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.11' --url='http://yum.theforeman.org/plugins/1.11/el6/x86_64'
+hammer repository create --name='Foreman-Releases-6-1.12' --organization-id=1 --product='Foreman EL6' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.12' --url='http://yum.theforeman.org/releases/1.12/el6/x86_64'
+hammer repository create --name='Foreman-Plugins-6-1.12' --organization-id=1 --product='Foreman EL6' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.12' --url='http://yum.theforeman.org/plugins/1.12/el6/x86_64'
+
+hammer product create --name='Foreman EL7' --description='The Foreman software for EL7' --organization-id=1
+hammer repository create --name='Foreman-Releases-7-1.10' --organization-id=1 --product='Foreman EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.10' --url='http://yum.theforeman.org/releases/1.10/el7/x86_64'
+hammer repository create --name='Foreman-Plugins-7-1.10' --organization-id=1 --product='Foreman EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.10' --url='http://yum.theforeman.org/plugins/1.10/el7/x86_64'
+hammer repository create --name='Foreman-Releases-7-1.11' --organization-id=1 --product='Foreman EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.11' --url='http://yum.theforeman.org/releases/1.11/el7/x86_64'
+hammer repository create --name='Foreman-Plugins-7-1.11' --organization-id=1 --product='Foreman EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.11' --url='http://yum.theforeman.org/plugins/1.11/el7/x86_64'
+hammer repository create --name='Foreman-Releases-7-1.12' --organization-id=1 --product='Foreman EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.12' --url='http://yum.theforeman.org/releases/1.12/el7/x86_64'
+hammer repository create --name='Foreman-Plugins-7-1.12' --organization-id=1 --product='Foreman EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.12' --url='http://yum.theforeman.org/plugins/1.12/el7/x86_64'
+hammer repository create --name='Foreman-Releases-7-1.13' --organization-id=1 --product='Foreman EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.13' --url='http://yum.theforeman.org/releases/1.13/el7/x86_64'
+hammer repository create --name='Foreman-Plugins-7-1.13' --organization-id=1 --product='Foreman EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='RPM-GPG-KEY-foreman-1.13' --url='http://yum.theforeman.org/plugins/1.13/el7/x86_64'
+
+hammer product create --name='Jenkins' --description='Jenkins CI Software' --organization-id=1
+hammer repository create --name='Jenkins' --organization-id=1 --product='Third Party Software for any EL' --content-type='yum' \
+--publish-via-http=false --gpg-key='jenkins.io.key' --url='http://pkg.jenkins-ci.org/redhat/'
+
+hammer product create --name='Hardware agents for EL6' --description='Hardware specific packages' --organization-id=1
+hammer repository create --name='HP-SPP-6' --organization-id=1 --product='Hardware agents for EL6' --content-type='yum' --publish-via-http=false \
+--gpg-key='hpPublicKey2048_key1.pub' --url='http://downloads.linux.hpe.com/SDR/repo/spp/RedHat/6/x86_64/current'
+
+hammer product create --name='Hardware agents for EL7' --description='Hardware specific packages' --organization-id=1
+hammer repository create --name='HP-SPP-7' --organization-id=1 --product='Hardware agents for EL7' --content-type='yum' --publish-via-http=false \
+--gpg-key='hpPublicKey2048_key1.pub' --url='http://downloads.linux.hpe.com/SDR/repo/spp/RedHat/7/x86_64/current'
+
+hammer product create --name='Elastic' --description='Elasticsearch products' --organization-id=1
+hammer repository create --name='Elasticsearch' --organization-id=1 --product='Elastic' --content-type='yum' --publish-via-http=false \
+--gpg-key='GPG-KEY-elasticsearch' 
+hammer repository create --name='Kibana' --organization-id=1 --product='Elastic' --content-type='yum' --publish-via-http=false \
+--gpg-key='GPG-KEY-elasticsearch' 
+hammer repository create --name='Logstash' --organization-id=1 --product='Elastic' --content-type='yum' --publish-via-http=false \
+--gpg-key='GPG-KEY-elasticsearch' 
+
+
+#########################
+# Puppet Forge Mirror
+hammer product create --name='Puppet Forge' --description='Puppet Forge modules' --organization-id=1
+hammer repository create --name='puppet-forge' --organization-id=1 --product='Puppet Forge' \
+  --content-type='puppet' --url='https://forge.puppet.com/'
+
+
+# Sync Plan (** TIME IS UTC ** 12:00UTC = 22:00LOCAL)
+hammer sync-plan create --interval=daily --name='Daily Sync' --organization-id=1 --sync-date "2016-05-02 12:00:00" --enabled=true
+
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat Enterprise Linux Server' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat Software Collections for RHEL Server' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Red Hat File Content' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Puppet Forge' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'EPEL-6' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'EPEL-7' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Foreman EL6' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Foreman EL7' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Jenkins' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Hardware agents for EL6' --sync-plan 'Daily Sync'
+hammer product set-sync-plan --organization-id 1 --name 'Hardware agents for EL7' --sync-plan 'Daily Sync'
+
+
+# Sync all repos
+for i in $(hammer --csv repository list --organization-id 1 | grep -vi '^ID' | awk -F, {'print $1'}); do
+  hammer repository synchronize --id ${i} --organization-id 1 --async
+done
+
+
+

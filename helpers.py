@@ -46,7 +46,7 @@ EXPORTDIR = CONFIG['export']['dir']
 IMPORTDIR = CONFIG['import']['dir']
 if 'syncbatch' in CONFIG['import']:
     SYNCBATCH = CONFIG['import']['syncbatch']
-else
+else:
     SYNCBATCH = 255
 
 # 'Global' Satellite 6 parameters
