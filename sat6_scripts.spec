@@ -7,7 +7,7 @@ License:        GPL
 URL:            https://github.com/ggatward/sat6_scripts
 Source0:        sat6_scripts.tar.gz
 
-Requires:       python >= 2.7, satellite >= 6.2, PyYAML
+Requires:       python >= 2.7, PyYAML
 
 %description
 

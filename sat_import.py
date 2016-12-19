@@ -173,7 +173,7 @@ def count_packages(repo_id):
     return numpkg, numerrata
 
 
-def check_counts(package_count)
+def check_counts(org_id, package_count):
     """
     Verify the number of pkgs/errutum in each repo match the sync host.
     Input is a dictionary loaded from a pickle that was created on the sync
@@ -191,19 +191,49 @@ def check_counts(package_count)
             ))
 
     # First loop through the repos in the import dict and find the local ID
+    table_data = []
     for repo, counts in package_count.iteritems():
-        print repo, counts
         # Split the count data into packages and erratum
         sync_pkgs = counts.split(':')[0] 
         sync_erratum = counts.split(':')[1]
 
+        # Loop through each repo and count the local pkgs in each repo
         for repo_result in enabled_repos['results']:
             if repo in repo_result['label']:
-                print repo_result['label'], repo_result['id'] 
                 local_pkgs, local_erratum = count_packages(repo_result['id'])
 
-                print "Packages: " + str(sync_pkgs), str(local_pkgs)
-                print "Erratum:  " + str(sync_erratum), str(local_erratum)
+                # Set the output colour of the table entry based on the pkg counts
+                if int(local_pkgs) == int(sync_pkgs):
+                    colour = helpers.GREEN
+                elif int(local_pkgs) == 0 and int(sync_pkgs) != 0:
+                    colour = helpers.RED
+                elif int(local_pkgs) < int(sync_pkgs):
+                    colour = helpers.YELLOW
+                else:
+                    # If local_pkg > sync_pkg - can happen due to 'mirror on sync' option
+                    # - sync host deletes old pkgs. If this is the case we cannot verify
+                    # an exact package status so we'll set BLUE
+                    colour = helpers.BLUE
+
+                # Tuncate the repo label to 70 chars and build the table row
+                reponame = "{:<70}".format(repo)
+                table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+
+    msg = '\nRepository package count verification...'
+    helpers.log_msg(msg, 'INFO')
+    print msg
+
+    # Print Table header
+    header = ["", "Repository", "SyncHost", "ThisHost", ""]
+    header1 = ["", "------------------------------------------------------------", "--------", "--------", ""]
+    row_format = "{:<1} {:<70} {:>9} {:>9} {:<1}"
+    print row_format.format(*header)
+    print row_format.format(*header1)
+
+    # Print the table rows
+    for row in table_data:
+        print row_format.format(*row)
+    print '\n'
 
 
 def main(args):
@@ -301,11 +331,11 @@ def main(args):
         # Run a repo sync on each imported repo
         (delete_override) = sync_content(org_id, imported_repos)
 
-        # Verify the repository package/erratum counts match the sync host
-        check_counts(package_count)
-
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
+
+        # Verify the repository package/erratum counts match the sync host
+        check_counts(org_id, package_count)
 
     if os.path.exists(helpers.IMPORTDIR + '/puppetforge'):
         print 'Offline puppet-forge-server bundle is available to import seperately in '\
