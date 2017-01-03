@@ -116,7 +116,7 @@ def main(args):
     confdir = os.path.join(dir, 'config')
 
     # Check for sane input
-    parser = argparse.ArgumentParser(description='Performs Export of Default Content View.')
+    parser = argparse.ArgumentParser(description='Exports puppet modules in puppet-forge-server format.')
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)

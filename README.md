@@ -268,7 +268,7 @@ puppet-forge-server:
 ```
 usage: push_puppetforge.py [-h] [-o ORG] [-r REPO] [-s SERVER] [-m MODULEPATH] [-u USER]
 
-Cleans content views for specified organization.
+Exports puppet modules in puppet-forge-server format.
 
 optional arguments:
   -h, --help            show this help message and exit
