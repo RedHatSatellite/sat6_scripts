@@ -256,8 +256,9 @@ perform a special export of puppetforge modules from the Satellite puppet-forge
 repository (-r) in the directory structure required by the puppet-forge-server 
 application. After exporting, the modules are copied via rsync to the puppet-forge-server. 
 The puppet-forge-server hostname can be defined in the config.yml, or overridden with 
-(-s), as can the module path (-m) on the remote server. The user performing the rsync 
-will be the user that is running the script, unless overridden with (-u).
+(-s), as can the module path (-m) on the remote server (default is /opt/puppet-forge/modules). 
+The user performing the rsync will be the user that is running the script, unless 
+overridden with (-u).
 
 The config.yml block that defines the puppet-forge-server hostname is:
 ```

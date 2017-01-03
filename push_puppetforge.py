@@ -148,7 +148,7 @@ def main(args):
     if args.modulepath:
         modpath = args.modulepath
     else:
-        modpath = '/opt/puppetforge/modules'
+        modpath = '/opt/puppet-forge/modules'
 
     # Set the username to use to push modules
     if args.user:
