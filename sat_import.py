@@ -173,7 +173,7 @@ def count_packages(repo_id):
     return numpkg, numerrata
 
 
-def check_counts(org_id, package_count):
+def check_counts(org_id, package_count, count):
     """
     Verify the number of pkgs/errutum in each repo match the sync host.
     Input is a dictionary loaded from a pickle that was created on the sync
@@ -205,19 +205,30 @@ def check_counts(org_id, package_count):
                 # Set the output colour of the table entry based on the pkg counts
                 if int(local_pkgs) == int(sync_pkgs):
                     colour = helpers.GREEN
+                    display = False
                 elif int(local_pkgs) == 0 and int(sync_pkgs) != 0:
                     colour = helpers.RED
+                    display = True
                 elif int(local_pkgs) < int(sync_pkgs):
                     colour = helpers.YELLOW
+                    display = True
                 else:
                     # If local_pkg > sync_pkg - can happen due to 'mirror on sync' option
                     # - sync host deletes old pkgs. If this is the case we cannot verify
                     # an exact package status so we'll set BLUE
                     colour = helpers.BLUE
+                    display = True
 
                 # Tuncate the repo label to 70 chars and build the table row
                 reponame = "{:<70}".format(repo)
-                table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+                # Add all counts if it has been requested
+                if count:
+                    table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+                else:
+                    # Otherwise only add counts that are non-green (display = True)
+                    if display:
+                        table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+
 
     msg = '\nRepository package count verification...'
     helpers.log_msg(msg, 'INFO')
@@ -272,6 +283,8 @@ def main(args):
     parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
         required=False, action="store_true")
     parser.add_argument('-l', '--last', help='Display the last successful import performed', 
+        required=False, action="store_true")
+    parser.add_argument('-c', '--count', help='Display all package counts after import',
         required=False, action="store_true")
     args = parser.parse_args()
 
@@ -335,7 +348,7 @@ def main(args):
         print 'Please publish content views to make new content available.'
 
         # Verify the repository package/erratum counts match the sync host
-        check_counts(org_id, package_count)
+        check_counts(org_id, package_count, args.count)
 
     if os.path.exists(helpers.IMPORTDIR + '/puppetforge'):
         print 'Offline puppet-forge-server bundle is available to import seperately in '\

@@ -12,7 +12,11 @@ Publishes new content view versions to the Library
 """
 #pylint: disable-msg=R0912,R0913,R0914,R0915
 
-import sys, argparse
+import sys
+import os
+import argparse
+import datetime
+import pickle
 import simplejson as json
 import helpers
 
@@ -112,6 +116,13 @@ def main(args):
     # Who is running this script?
     runuser = helpers.who_is_running()
 
+    # Set the base dir of the script and where the var data is
+    global dir
+    global vardir
+    dir = os.path.dirname(__file__)
+    vardir = os.path.join(dir, 'var')
+    confdir = os.path.join(dir, 'config')
+
     # Check for sane input
     parser = argparse.ArgumentParser(
         description='Publishes content views for specified organization.')
@@ -123,12 +134,15 @@ def main(args):
         action="store_true")
     parser.add_argument('-d', '--dryrun', help='Dry Run - Only show what will be published',
         required=False, action="store_true")
+    parser.add_argument('-l', '--last', help='Display last promotions', required=False,
+        action="store_true")
 
     args = parser.parse_args()
 
     # Log the fact we are starting
-    msg = "-------- Content view publish started by " + runuser + " -----------"
-    helpers.log_msg(msg, 'INFO')
+    if not args.last:
+        msg = "-------- Content view publish started by " + runuser + " -----------"
+        helpers.log_msg(msg, 'INFO')
 
     # Set our script variables from the input args
     if args.org:
@@ -136,6 +150,25 @@ def main(args):
     else:
        org_name = helpers.ORG_NAME
     dry_run = args.dryrun
+
+    # Load the promotion history
+    if not os.path.exists(vardir + '/promotions.pkl'):
+        if not os.path.exists(vardir):
+            os.makedirs(vardir)
+        phistory = {}
+    else:
+        phistory = pickle.load(open(vardir + '/promotions.pkl', 'rb'))
+
+    # Read the promotion history if --last requested
+    if args.last:
+        if phistory:
+            print 'Last promotions:'
+            for lenv, time in phistory.iteritems():
+                print lenv, time
+        else:
+            print 'No promotions recorded'
+        sys.exit(-1)
+
 
     publish_list = []
     if not args.all:
@@ -157,6 +190,10 @@ def main(args):
 
     # Publish the content views. Returns a list of task IDs.
     (task_list, ref_list, task_name) = publish(ver_list, ver_descr, ver_version, dry_run, runuser)
+
+    # Add/Update the promotion history dictionary so we can check when we last promoted
+    phistory['Library'] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+    pickle.dump(phistory, open(vardir + '/promotions.pkl', 'wb'))
 
     # Monitor the status of the publish tasks
     helpers.watch_tasks(task_list, ref_list, task_name)

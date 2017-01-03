@@ -351,6 +351,11 @@ Publishes new content to the Library environment. The following can be published
 The dry run (-d) option can be used to see what would be published for a
 given command input.
 
+Each time a content view is published or promoted, a datestamp is recorded so that
+the last publish/promote date can be viewed with the (-l) option. Note that this
+datestamp is only updated by this script - it does NOT record publish/promote via
+the WebUI or Hammer CLI.
+
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
 publish:
@@ -371,6 +376,7 @@ optional arguments:
   -o ORG, --org ORG  Organization (Uses default if not specified)
   -a, --all          Publish ALL content views
   -d, --dryrun       Dry Run - Only show what will be published
+  -l, --last         Display last promotions 
 ```
 
 ### Examples
@@ -393,6 +399,11 @@ The following can be promoted:
 
 The dry run (-d) option can be used to see what would be promoted for a
 given command input.
+
+Each time a content view is published or promoted, a datestamp is recorded so that
+the last publish/promote date can be viewed with the (-l) option. Note that this
+datestamp is only updated by this script - it does NOT record publish/promote via
+the WebUI or Hammer CLI.
 
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
@@ -425,6 +436,7 @@ optional arguments:
   -o ORG, --org ORG  Organization (Uses default if not specified)
   -a, --all          Promote ALL content views
   -d, --dryrun       Dry Run - Only show what will be promoted
+  -l, --last         Display last promotions
 ```
 
 ### Examples
