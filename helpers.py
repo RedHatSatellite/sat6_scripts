@@ -48,6 +48,8 @@ if 'syncbatch' in CONFIG['import']:
     SYNCBATCH = CONFIG['import']['syncbatch']
 else:
     SYNCBATCH = 255
+if 'hostname' in CONFIG['puppet-forge-server']:
+    PFSERVER = CONFIG['puppet-forge-server']['hostname']
 
 # 'Global' Satellite 6 parameters
 # Satellite API

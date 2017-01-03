@@ -688,7 +688,7 @@ def main(args):
             helpers.log_msg(msg, 'ERROR')
             sys.exit(-1)
 
-        msg = "Specific environment export called for " + ename + ". Configured repos:"
+        msg = "Specific environment export called for " + ename + "."
         helpers.log_msg(msg, 'DEBUG')
         for repo in erepos:
             msg = "  - " + repo
@@ -703,6 +703,8 @@ def main(args):
     # Log the fact we are starting
     msg = "------------- Content export started by " + runuser + " ----------------"
     if not args.last:
+        if args.env:
+            msg = "------ " + ename + " Content export started by " + runuser + " ---------"
         helpers.log_msg(msg, 'INFO')
 
     # Get the current time - this will be the 'last export' time if the export is OK
@@ -768,6 +770,9 @@ def main(args):
             last_export = export_times['DoV']
             if since:
                 last_export = since_export
+            else:
+                # To ensure we get ALL the packages reset the time to midnight on the last_export day
+                last_export = last_export.split(' ')[0] + " 00:00:00"
             colb = "(INCR since " + last_export + ")"
         else:
             export_type = 'full'
@@ -835,6 +840,9 @@ def main(args):
                         last_export = export_times[repo_result['label']]
                         if since:
                             last_export = since_export
+                        else:
+                            # To ensure we get ALL the packages reset the time to midnight on the last_export day
+                            last_export = last_export.split(' ')[0] + " 00:00:00"
                         colb = "(INCR since " + last_export + ")"
                     else:
                         export_type = 'full'
@@ -914,6 +922,9 @@ def main(args):
                         last_export = export_times[repo_result['label']]
                         if since:
                             last_export = since_export
+                        else:
+                            # To ensure we get ALL the packages reset the time to midnight on the last_export day
+                            last_export = last_export.split(' ')[0] + " 00:00:00"
                         colb = "(INCR since " + last_export + ")"
                     else:
                         export_type = 'full'
@@ -960,6 +971,9 @@ def main(args):
                         last_export = export_times[repo_result['label']]
                         if since:
                             last_export = since_export
+                        else:
+                            # To ensure we get ALL the packages reset the time to midnight on the last_export day
+                            last_export = last_export.split(' ')[0] + " 00:00:00"
                         colb = "(INCR since " + last_export + ")"
                     else:
                         export_type = 'full'

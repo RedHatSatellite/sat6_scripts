@@ -250,6 +250,48 @@ optional arguments:
 ```
 
 
+# push_puppetforge
+This script allows users with an offline puppet-forge-server (rubygem) instance to
+perform a special export of puppetforge modules from the Satellite puppet-forge 
+repository (-r) in the directory structure required by the puppet-forge-server 
+application. After exporting, the modules are copied via rsync to the puppet-forge-server. 
+The puppet-forge-server hostname can be defined in the config.yml, or overridden with 
+(-s), as can the module path (-m) on the remote server. The user performing the rsync 
+will be the user that is running the script, unless overridden with (-u).
+
+The config.yml block that defines the puppet-forge-server hostname is:
+```
+puppet-forge-server:
+  hostname: puppetforge.example.org
+```
+
+```
+usage: push_puppetforge.py [-h] [-o ORG] [-r REPO] [-s SERVER] [-m MODULEPATH] [-u USER]
+
+Cleans content views for specified organization.
+
+optional arguments:
+  -h, --help            show this help message and exit
+  -o ORG, --org ORG     Organization (Uses default if not specified)
+  -r REPO, --repo REPO  Puppetforge repository label
+  -s SERVER, --server SERVER   
+                        puppet-forge-server hostname
+  -m MODULEPATH, --modulepath MODULEPATH
+                        path to puppet-forge-server modules 
+  -u USER, --user USER  Username to push modules to server as (default is user
+                        running script)
+```
+
+### Examples
+```
+./push_puppetforge.py -r Puppet_Forge  
+./push_puppetforge.py -r Puppet_Forge -u fred  
+./push_puppetforge.py -r Puppet_Forge -s test.example.org -m /opt/tmp
+```
+
+
+
+
 # clean_content_views
 This script removes orphaned versions of either all or nominated content views.
 This should be run periodically to clean out old/unused content view data from

@@ -40,3 +40,7 @@ cleanup:
       keep: 1
     - view: RHEL Workstation
       keep: 3
+
+puppet-forge-server:
+  hostname: puppetforge.example.org
+
