@@ -1,0 +1,196 @@
+.\" Manpage for sat_export.
+.\" Contact ggatward@redhat.com to correct errors or typos.
+.TH SAT_EXPORT 8 "04 Jan 2017" "sat6_scripts" "sat6_scripts User Manual" man page"
+.SH NAME
+sat_export \- export content for a disconnected Satellite 6 instance
+
+.SH SYNOPSIS
+.B sat_export [\-o ORGANISATION] [\-e ENVIRONMENT] [\-a | \-i | \-s SINCE ] [\-l] [\-n] [\-r] [\-p]
+.LP
+.B "sat_export --help"
+
+.SH DESCRIPTION
+.B sat_export
+is a custom python script for exporting content from a Satellite 6 server.
+The script allows exporting RPM, File and Puppet content that has been synchronised by the Satellite server in a format that can be transferred to a disconnected Satellite 6 instance, and imported using the
+.BR sat_import (8)
+script.
+
+The export can be performed for the Default Org View (DoV), which contains EVERY repository that is synchronised by the Satellite, or of specific bundles of repositories defined as
+.IR environments .
+Environments can be used to allow one connected Satellite server (sync host) to export content to multiple disconnected Satellite servers, for example in seperate QA and Production environments, or different security domains.
+
+.SS EXPORT PROCESS
+The export process consists of the following steps:
+.RS 3
+- The status of sync tasks is checked to ensure that none are in-progress or paused - see
+.BR check_sync (8).
+.RE
+.RS 3
+- RPM content is exported using the Satellite API commands.
+.RE
+.RS 3
+- File and Puppet content is exported using traditional 'find' commands.
+.RE
+.RS 3
+- The exported content filesystem is structured so that another Satellite 6 instance
+.RS 2
+can import directly from it.
+.RE
+.RE
+.RS 3
+- All RPM content is checked for GPG checksum integrity.
+.RE
+.RS 3
+- The number of packages present in each repository on the sync host is included in the export.
+.RE
+.RS 3
+- The subscription manifest is included if it is present - see
+.BR download_manifest (8).
+.RE
+.RS 3
+- All content is archived into a chunked tar file, with each part being 4Gb to allow
+.RS 2
+transfer via DVD if required.
+.RE
+.RE
+.RS 3
+- Each tar chunk has its sha256sum calculated and this is written to a .sha256 file.
+.RE
+.RS 3
+- A log of the exported packages is saved to the defined logdir.
+.RE
+
+
+.SH OPTIONS
+The options that apply to the
+.B sat_export
+command are:
+.PP
+.BR "-o", " --org"
+.I "ORGANISATION"
+.RS 3
+The organisation within Satellite to perform the export for. The default organisation is defined in the
+.I config.yml
+file, but can be overridden with this option.
+.RE
+.PP
+.BR "-e", " --env"
+.I "ENVIRONMENT"
+.RS 3
+Export a specific environment. Environments are defined in the
+.I exports.yml
+file, and allow for selected repositories to be exported for different target Satellites, for example QA vs Production Satellites.
+.RE
+.PP
+.BR "-a", " --all"
+.RS 3
+Export all content. The Default Org View (DoV) will be exported unless a specific environment is specified with
+.BR -e .
+.RE
+.PP
+.BR "-i", " --incr"
+.RS 3
+Perform an incremental export of content synchronised since the last successful export. This is the default behaviour unless overridden with
+.BR -a " or"
+.BR -s .
+The Default Org View (DoV) will be exported unless a specific environment is specified with
+.BR -e .
+.RE
+.PP
+.BR "-s", " --since"
+.I "DATE"
+.RS 3
+Perform an incrementatl export of content synchronised since
+.IR date ,
+specified as "YYYY-MM-DD HH:MM:SS"
+.RE
+.PP
+.BR "-l", " --last"
+.RS 3
+Display the time of the last successful export for the Default Org View (DoV). Use with
+.B -e
+to show the last exports for a specific environment.
+.RE
+.PP
+.BR "-n", " --nogpg"
+.RS 3
+Skip GPG check of exported RPM packages. The default action is to run an
+.B rpm -K <pkg>
+on every exported RPM package to verify the integrity. This is done since Satellite 6
+does not verify the integrity of packages when synchronising from upstream sources, and
+it is possible for a package to be corrupted during sync but still be pushed into the
+repository. In this case the corrupt package will be exported to the disconnected
+systems. Packages that fail the GPG check will be displayed and the export will abort.
+
+Note that this requires the GPG key to be installed on the Satellite server using
+.br
+.B "rpm --import <RPM-GPG-KEY>"
+otherwise the GPG checks will fail.
+.RE
+.PP
+.BR "-r", " --repodata"
+.RS 3
+Force export of repodata for repositories that have no new content. By default
+.B sat_import
+will only synchronise repositories that contain new packages. This option forces
+.B sat_import
+to synchronise ALL repositories even if no updates are present.
+.RE
+.PP
+.BR "-p", " --puppetforge"
+.RS 3
+If exporting puppetforge modules from Satellite, also export them in a format compatible
+.br
+with the puppet-forge-server rubygem.
+.RE
+
+
+.SH EXAMPLES
+Check when the last export was performed for environment DEVSAT:
+.RS 6
+.B "sat_export -e DEVSAT -l"
+.RE
+
+Perform an incremental export for environment DEVSAT, but with no GPG checking:
+.RS 6
+.B "sat_export -e DEVSAT -n"
+.RE
+
+Perform a full export for the Default Org View (DoV):
+.RS 6
+.B "sat_export -a"
+.RE
+
+
+.SH FILES
+.B Main Configuration
+.RS 3
+.I /usr/share/sat6_scripts/config/config.yml
+.RE
+.LP
+.B sat_export Configuration
+.RS 3
+.I /usr/share/sat6_scripts/config/exports.yml
+.RE
+.LP
+.B Exported files
+.RS 3
+.I /var/sat-export/*
+.RE
+.LP
+.B Log Files
+.RS 3
+.I /var/log/satellite/*
+.RE
+
+.SH SEE ALSO
+.BR sat6_scripts_config (8),
+.BR sat_import (8),
+.BR push_puppetforge (8),
+.BR check_sync (8),
+.BR download_manifest (8).
+
+.SH AUTHOR
+Geoff Gatward <ggatward@redhat.com>
+

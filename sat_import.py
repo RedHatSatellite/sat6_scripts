@@ -85,20 +85,22 @@ def sync_content(org_id, imported_repos):
         do_import = False
         for repo_result in enabled_repos['results']:
             if repo in repo_result['label']:
-                do_import = True
-                repos_to_sync.append(repo_result['id'])
+                # Ensure we have an exact match on the repo label
+                if repo == result['label']:
+                    do_import = True
+                    repos_to_sync.append(repo_result['id'])
 
-                # Ensure Mirror-on-sync flag is set to FALSE to make sure incremental
-                # import does not (cannot) delete existing packages.
-                msg = "Setting mirror-on-sync=false for repo id " + str(repo_result['id'])
-                helpers.log_msg(msg, 'DEBUG')
-                helpers.put_json(
-                    helpers.KATELLO_API + "/repositories/" + str(repo_result['id']), \
-                        json.dumps(
-                            {
-                                "mirror_on_sync": False
-                            }
-                        ))
+                    # Ensure Mirror-on-sync flag is set to FALSE to make sure incremental
+                    # import does not (cannot) delete existing packages.
+                    msg = "Setting mirror-on-sync=false for repo id " + str(repo_result['id'])
+                    helpers.log_msg(msg, 'DEBUG')
+                    helpers.put_json(
+                        helpers.KATELLO_API + "/repositories/" + str(repo_result['id']), \
+                            json.dumps(
+                                {
+                                    "mirror_on_sync": False
+                                }
+                            ))
 
         if do_import:
             msg = "Repo " + repo + " found in Satellite"
@@ -200,34 +202,36 @@ def check_counts(org_id, package_count, count):
         # Loop through each repo and count the local pkgs in each repo
         for repo_result in enabled_repos['results']:
             if repo in repo_result['label']:
-                local_pkgs, local_erratum = count_packages(repo_result['id'])
+                # Ensure we have an exact match on the repo label
+                if repo == repo_result['label']:
+                    local_pkgs, local_erratum = count_packages(repo_result['id'])
 
-                # Set the output colour of the table entry based on the pkg counts
-                if int(local_pkgs) == int(sync_pkgs):
-                    colour = helpers.GREEN
-                    display = False
-                elif int(local_pkgs) == 0 and int(sync_pkgs) != 0:
-                    colour = helpers.RED
-                    display = True
-                elif int(local_pkgs) < int(sync_pkgs):
-                    colour = helpers.YELLOW
-                    display = True
-                else:
-                    # If local_pkg > sync_pkg - can happen due to 'mirror on sync' option
-                    # - sync host deletes old pkgs. If this is the case we cannot verify
-                    # an exact package status so we'll set BLUE
-                    colour = helpers.BLUE
-                    display = True
+                    # Set the output colour of the table entry based on the pkg counts
+                    if int(local_pkgs) == int(sync_pkgs):
+                        colour = helpers.GREEN
+                        display = False
+                    elif int(local_pkgs) == 0 and int(sync_pkgs) != 0:
+                        colour = helpers.RED
+                        display = True
+                    elif int(local_pkgs) < int(sync_pkgs):
+                        colour = helpers.YELLOW
+                        display = True
+                    else:
+                        # If local_pkg > sync_pkg - can happen due to 'mirror on sync' option
+                        # - sync host deletes old pkgs. If this is the case we cannot verify
+                        # an exact package status so we'll set BLUE
+                        colour = helpers.BLUE
+                        display = True
 
-                # Tuncate the repo label to 70 chars and build the table row
-                reponame = "{:<70}".format(repo)
-                # Add all counts if it has been requested
-                if count:
-                    table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
-                else:
-                    # Otherwise only add counts that are non-green (display = True)
-                    if display:
+                    # Tuncate the repo label to 70 chars and build the table row
+                    reponame = "{:<70}".format(repo)
+                    # Add all counts if it has been requested
+                    if count:
                         table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+                    else:
+                        # Otherwise only add counts that are non-green (display = True)
+                        if display:
+                            table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
 
 
     msg = '\nRepository package count verification...'

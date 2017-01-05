@@ -1,0 +1,283 @@
+.\" Manpage for sat6_scripts configuration.
+.\" Contact ggatward@redhat.com to correct errors or typos.
+.TH SAT6_SCRIPTS 8 "04 Jan 2017" "sat6_scripts" "sat6_scripts User Manual" man page"
+.SH NAME
+sat6_scripts \- Configuration files for sat6_scripts package
+
+.SH SYNOPSIS
+.B /usr/share/sat6_scripts/config/config.yml
+.br
+.B /usr/share/sat6_scripts/config/exports.yml
+
+.SH DESCRIPTION
+.SS config.yml
+Most of the scripts within the
+.B sat6_scripts
+bundle read the
+.I config.yml
+file.
+
+This configuration file consists of the following sections.
+
+
+.B satellite:
+.br
+.B "  url: https://sat6.example.org"
+.RS
+URL of the Satellite 6 server.
+.br
+To avoid SSL errors, always use the FQDN and not https://localhost.
+.RE
+
+.B "  username: svc-api-user"
+.RS
+Username of the API service account
+.RE
+
+.B "  password: 1t$a$3cr3t"
+.RS
+Password of the API service account
+.RE
+
+.B "  default_org: MyOrg"
+.RS
+The default Organisation name of this Satellite.
+.br
+Can be overridden with
+.B -o
+in most scripts.
+.RE
+
+.B "  manifest: sat62prod"
+.RS
+The name of the Satellite subscription profile in the Red Hat CDN portal.
+.br
+This is used by
+.I download_manifest
+.RE
+
+.B "  disconnected: False"
+.RS
+Defines this Satellite as connected to the Internet as a sync host
+.IR False ,
+or Disconnected
+.IR True .
+.br
+This determines whether this satellite can export or import content.
+.RE
+
+
+.B logging:
+.br
+.B "  dir: /var/log/satellite"
+.RS
+Directory for log files.
+.RE
+
+.B "  debug: False"
+.RS
+Debugging enabled.
+.RE
+
+
+.B export:
+.br
+.B "  dir: /var/sat-export"
+.RS
+Directory to export content to, used by
+.IR sat_export ,
+.IR download_manifest " and"
+.IR push_puppetforge .
+.RE
+
+.B import:
+.br
+.B "  dir: /var/sat-content"
+.RS
+Directory to read import content from, used by
+.IR sat_import .
+.RE
+
+.B publish:
+.br
+.B "  content_views:"
+.br
+.B "    - RHEL Server"
+.br
+.B "    - RHEL Workstation"
+.RS
+List of content views to publish, one per line. Used by
+.IR publish_content_views .
+.RE
+
+.B promotion:
+.br
+.B "  lifecycle1:"
+.RS
+Lifecycle environment definition. There can be multiple lifecycles defined, however
+the names must be unique. Increment the number for each defined environment.
+.RE
+
+.B "    name: Quality"
+.RS
+Name of the lifecycle environment this configuration block applies to.
+.RE
+
+.B "    content_views:"
+.br
+.B "      - RHEL Server"
+.br
+.B "      - RHEL Workstation"
+.RS
+List of content views to promote to this lifecycle environment, one per line.
+.RE
+
+
+.B cleanup:
+.br
+.B "  content_views:"
+.br
+.B "    - view: RHEL Server"
+.br
+.B "      keep: 1"
+.br
+.B "    - view: RHEL Workstation"
+.br
+.B "      keep: 1"
+.RS
+Content views to clean old versions of.
+.I keep
+defines the number of versions older than the last 'in-use' version to keep.
+For example if Library is version 10.0, Quality is version 8.0 and Production is version 6.0,
+a keep value of 1 will remove versions 1.0 through 4.0, but leave 5.0 available for rollback.
+.RE
+
+
+.B puppet-forge-server:
+.br
+.B "  hostname: puppetforge.example.org"
+.RS
+FQDN of the puppet-forge-server rubygem installation for offline puppet-forge usage.
+Configuration must exist even if puppet-forge-server itself is not in use. Used by
+.IR push_puppetforge .
+.RE
+
+
+.SS exports.yml
+The 
+.B sat_export
+script uses this file to determine which repositories to export for each enviroment.
+
+This configuration file consists of the following sections.
+
+.B exports:
+.br
+.B "  env1:"
+.RS
+Export environment definition. There can be multiple environments defined, however
+the names must be unique. Increment the number for each defined environment.
+.RE
+.B "    name: SAT1"
+.RS
+Name of this environment. This is the name passed to
+.IR sat_export " with"
+the
+.BR -e " option"
+.RE
+.B "    repos:"
+.br
+.B "      - Red_Hat_Satellite_6_2_for_RHEL_7_Server_RPMs_x86_64"
+.br
+.B "      - Red_Hat_Satellite_Tools_6_2_for_RHEL_7_Server_RPMs_x86_64"
+.br
+.B "      - Red_Hat_Enterprise_Linux_7_Server_Kickstart_x86_64_7_3"
+.br
+.B "      - Red_Hat_Enterprise_Linux_7_Server_RPMs_x86_64_7Server"
+.br
+.B "      - Red_Hat_Enterprise_Linux_7_Server_-_Extras_RPMs_x86_64"
+.br
+.B "      - Red_Hat_Enterprise_Linux_7_Server_-_Optional_RPMs_x86_64_7Server"
+.br
+.B "      - Red_Hat_Enterprise_Linux_7_Server_-_RH_Common_RPMs_x86_64_7Server"
+.br
+.B "      - Red_Hat_Software_Collections_RPMs_for_Red_Hat_Enterprise_Linux_7_Server_x86_64_7Server"
+.br
+.B "      - Red_Hat_Enterprise_Linux_7_Server_ISOs_x86_64_7Server"
+.br
+.B "      - epel-7-x86_64"
+.RS
+List of repositories to export for this environment, one per line.
+.br
+Be sure to use the repository LABEL as defined in Satellite here.
+.RE
+
+.SH CONFIGURING SATELLITE
+
+.SS CONFIGURE API USER ACCOUNT
+Most scripts in the
+.B sat6_scripts
+bundle require an admin account that can interact with the API. This can be created using the
+hammer command below:
+
+.RS 3
+.B "hammer user create --login svc-api --firstname API --lastname User --password='AP1Us3r' \&\"
+.br
+.B "  --mail no-reply@example.org --auth-source-id 1 --organization-ids 1 --default-organization-id 1 \\"
+.br
+.B "  --admin true"
+.RE
+
+.SS CONFIGURE EXPORTING SATELLITE (Sync Host)
+Before the exports can be performed, the Satellite 6 server needs to be configured to allow
+exports, with a file location defined and configured to hold the export.
+
+A full Satellite 6 DoV export requires at least twice the space taken up by the pulp volume.
+This is because the content is spooled to the export location and then copied into the final export format.
+This spooling is a function of pulp and cannot be altered. As such, if we have 450Gb of synchronised content,
+we will need at least 900Gb of space in the export volume. If we are exporting a specific environment, or
+performing incremental exports, the space requirements are not as drastic, however a full sync will still
+need to be performed initially.
+
+For the examples here we have created a 900Gb logical volume mounted at
+.B /var/sat-export
+
+We need to configure Satellite to export to our new volume:
+.RS 3
+.B hammer settings set --name pulp_export_destination --value /var/sat-export
+.br
+.B chown foreman:foreman /var/sat-export
+.br
+.B semanage fcontext -a -t foreman_var_run_t "/var/sat-export(/.*)?"
+.br
+.B restorecon -RvF /var/sat-export
+.RE
+
+For the export to be reliable, the Satellite that is downloading content from upstream needs to be
+configured for IMMEDIATE download. Background and OnDemand sync will not allow for reliable  exports.
+.RS 3
+.B hammer settings set --name default_download_policy --value immediate
+.RE
+
+Finally, the export location and API user details need to be updated in the
+.I config.yml
+file.
+
+
+.SH FILES
+.I /usr/share/sat6_scripts/config/config.yml
+.br
+.I /usr/share/sat6_scripts/config/exports.yml
+
+.SH SEE ALSO
+.BR sat6_export (8),
+.BR sat_import (8),
+.BR push_puppetforge (8),
+.BR check_sync (8),
+.BR download_manifest (8),
+.BR publish_content_views (8),
+.BR promote_content_views (8),
+.BR clean_content_views (8).
+
+.SH AUTHOR
+Geoff Gatward <ggatward@redhat.com>
+
