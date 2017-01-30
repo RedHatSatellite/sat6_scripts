@@ -94,7 +94,7 @@ added to a chunked tar archive, with each part of the archive being sha256sum'd
 for cross domain transfer integrity checking. 
 
 The GPG check requires that GPG keys are imported into the local RPM GPG store.
-The RPM GPG keys must be insalled on the connected satellite.
+The RPM GPG keys must be installed on the connected satellite.
 ```
 rpm --import <gpg-key>
 ```
