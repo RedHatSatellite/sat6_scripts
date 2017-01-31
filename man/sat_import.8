@@ -1,0 +1,135 @@
+.\" Manpage for sat_import.
+.\" Contact ggatward@redhat.com to correct errors or typos.
+.TH SAT_IMPORT 8 "04 Jan 2017" "sat6_scripts" "sat6_scripts User Manual" man page"
+.SH NAME
+sat_import \- import content to a disconnected Satellite 6 instance
+
+.SH SYNOPSIS
+.B sat_import [\-o ORGANISATION] [\-d DATASET] [\-n] [\-r] [\-r] [\-c]
+.LP
+.B "sat_import --help"
+
+.SH DESCRIPTION
+.B sat_import
+is a custom python script for importing content into a Satellite 6 server. The content must have been exported using the
+.BR sat_export (8).
+script.
+
+.SS IMPORT PROCESS
+The import process consists of the following steps:
+.RS 3
+- The sha256sum of each part of the import dataset archive is verified.
+.RE
+.RS 3
+- The import dataset is extracted to the import filesystem location.
+.RE
+.RS 3
+- The existence of each repository within the import dataset is verified in Satellite. 
+.RS 2
+Any repositories found in the import that do not exist in Satellite will be indicated.
+.RE
+.RE
+.RS 3
+- Satellite will perform a bulk repository sync of the repositories within the import dataset.
+.RE
+.RS 3
+- At the completion of the import sync, a package count of each imported repository will be 
+.RS 2
+performed and compared against the count from the sync host Satellite, and discrepancies will be displayed.
+.RE
+.RE
+.RS 3
+- The import dataset input files will be removed from the disk at the completion of a successful import
+.RE
+.RS 3
+- A log of the imported process is saved to the defined logdir.
+.RE
+
+
+.SH OPTIONS
+The options that apply to the
+.B sat_import
+command are:
+.PP
+.BR "-o", " --org"
+.I "ORGANISATION"
+.RS 3
+The organisation within Satellite to perform the import for. The default organisation is defined in the
+.I config.yml
+file, but can be overridden with this option.
+.RE
+.PP
+.BR "-d", " --dataset"
+.I "DATASET"
+.RS 3
+Dataset to import. The dataset name consists of the export date and the export environment that was defined during the 
+.I sat_export
+process, for example  '2016-12-06_SAT1'
+.RE
+.PP
+.BR "-l", " --last"
+.RS 3
+Display the name of the last successfully imported dataset.
+.RE
+.PP
+.BR "-n", " --nosync"
+.RS 3
+Skip repository sync of extracted RPM packages. The default action is to run a repository sync
+on all imported repositories. Using this option will extract the import dataset and exit.
+.RE
+.PP
+.BR "-r", " --remove"
+.RS 3
+Delete the import dataset files after a successful import and sync operation. By default
+.B sat_import
+will leave the import dataset in the import location. 
+.br
+If the import process detects a repository in the dataset that does not exist in the Satellite,
+the removal of the import dataset is skipped regardless of the setting of this flag. This is 
+because the new repository will need to be manually defined in the Satellite and a manual sync
+of that repository performed.
+.RE
+.PP
+.BR "-c", " --count"
+.RS 3
+Display the full repository package count after the sync has completed. By default, only repositories 
+that have mis-matching content counts will be displayed. This option forces the package count of ALL 
+repositories to be shown, even if there is no mis-match.
+.RE
+
+
+.SH EXAMPLES
+Check when the last import was performed:
+.RS 6
+.B "sat_import -l"
+.RE
+
+Perform an import using dataset 2016-12-06_SAT1, removing input files when done:
+.RS 6
+.B "sat_import -d 2016-12-06_SAT1 -r"
+.RE
+
+
+.SH FILES
+.B Main Configuration
+.RS 3
+.I /usr/share/sat6_scripts/config/config.yml
+.RE
+.LP
+.B Dataset import location
+.RS 3
+.I /var/sat-content/*
+.RE
+.LP
+.B Log Files
+.RS 3
+.I /var/log/satellite/*
+.RE
+
+.SH SEE ALSO
+.BR sat6_scripts_config (8),
+.BR sat_export (8).
+
+.SH AUTHOR
+Geoff Gatward <ggatward@redhat.com>
+

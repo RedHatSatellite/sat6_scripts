@@ -1,0 +1,76 @@
+.\" Manpage for download_manifest.
+.\" Contact ggatward@redhat.com to correct errors or typos.
+.TH DOWNLOAD_MANIFEST 8 "04 Jan 2017" "sat6_scripts" "sat6_scripts User Manual" man page"
+.SH NAME
+download_manifest \- Verify the sync status of a Satellite 6 instance
+
+.SH SYNOPSIS
+.B download_manifest \-l LOGIN [\-p] \-s SMA [\--host]
+.LP
+.B "download_manifest --help"
+
+.SH DESCRIPTION
+.B download_manifest
+is a script to download the Red Hat Subscription Manager (RHSM) manifest for a Satellite 6 server. 
+.LP
+This is useful for disconnected environments, where the manifest cannot be refreshed online by the
+Satellite server itself.
+.LP
+The manifest is saved to the export location used by 
+.BR sat_export (8)
+script, and included in the exported dataset for transfer to a disconnected Satellite server.
+
+.SH OPTIONS
+The options that apply to the
+.B download_manifest
+command are:
+.PP
+.BR "-l", " --login"
+.I LOGIN
+.RS 3
+User login to use when accessing the Red Hat customer portal. 
+.RS 2
+The user must have access to download subscription manifests.
+.RE
+.RE
+.PP
+.BR "-p", " --password"
+.I PASSWORD
+.RS 3
+Password for the Red Hat portal user. If not specified the user will be prompted for thier password.
+.RE
+.PP
+.BR "-s", " --subscription-management-app"
+.I SMA
+.RS 3
+Name of the Satellite manifest (Subscription Management Application) to download from the Red Hat portal.
+.br
+The default value is configured in the 
+.I config.yml
+file
+.RE
+.PP
+.BI "--host" " HOST"
+.RS 3
+Hostname of the Red Hat Subscription Manager host to use (Default subscription.rhn.redhat.com)
+.RE
+
+
+.SH FILES
+.B Main Configuration
+.RS 3
+.I /usr/share/sat6_scripts/config/config.yml
+.RE
+.LP
+.B Manifest download location
+.RS 3
+.I /var/sat-export/manifest/*
+.RE
+
+.SH SEE ALSO
+.BR sat6_scripts_config (8),
+.BR sat_export (8).
+
+.SH AUTHOR
+Rich Jerrido <rjerrido@outsidaz.org>
+

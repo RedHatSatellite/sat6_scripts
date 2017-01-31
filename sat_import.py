@@ -15,13 +15,13 @@ import simplejson as json
 import helpers
 
 
-def get_inputfiles(expdate):
+def get_inputfiles(dataset):
     """
     Verify the input files exist and are valid.
-    'expdate' is a date (YYYY-MM-DD) provided by the user - date is in the filename of the archive
+    'dataset' is a date (YYYY-MM-DD) provided by the user - date is in the filename of the archive
     Returned 'basename' is the full export filename (sat6_export_YYYY-MM-DD)
     """
-    basename = 'sat6_export_' + expdate
+    basename = 'sat6_export_' + dataset
     shafile = basename + '.sha256'
     if not os.path.exists(helpers.IMPORTDIR + '/' + basename + '.sha256'):
         msg = "Cannot continue - missing sha256sum file " + helpers.IMPORTDIR + '/' + shafile
@@ -194,6 +194,7 @@ def check_counts(org_id, package_count, count):
 
     # First loop through the repos in the import dict and find the local ID
     table_data = []
+    display_data = False
     for repo, counts in package_count.iteritems():
         # Split the count data into packages and erratum
         sync_pkgs = counts.split(':')[0] 
@@ -213,20 +214,24 @@ def check_counts(org_id, package_count, count):
                     elif int(local_pkgs) == 0 and int(sync_pkgs) != 0:
                         colour = helpers.RED
                         display = True
+                        display_data = True
                     elif int(local_pkgs) < int(sync_pkgs):
                         colour = helpers.YELLOW
                         display = True
+                        display_data = True
                     else:
                         # If local_pkg > sync_pkg - can happen due to 'mirror on sync' option
                         # - sync host deletes old pkgs. If this is the case we cannot verify
                         # an exact package status so we'll set BLUE
                         colour = helpers.BLUE
                         display = True
+                        display_data = True
 
                     # Tuncate the repo label to 70 chars and build the table row
                     reponame = "{:<70}".format(repo)
                     # Add all counts if it has been requested
                     if count:
+                        display_data = True
                         table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
                     else:
                         # Otherwise only add counts that are non-green (display = True)
@@ -234,21 +239,22 @@ def check_counts(org_id, package_count, count):
                             table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
 
 
-    msg = '\nRepository package count verification...'
-    helpers.log_msg(msg, 'INFO')
-    print msg
+    if display_data:
+        msg = '\nRepository package count verification...'
+        helpers.log_msg(msg, 'INFO')
+        print msg
 
-    # Print Table header
-    header = ["", "Repository", "SyncHost", "ThisHost", ""]
-    header1 = ["", "------------------------------------------------------------", "--------", "--------", ""]
-    row_format = "{:<1} {:<70} {:>9} {:>9} {:<1}"
-    print row_format.format(*header)
-    print row_format.format(*header1)
+        # Print Table header
+        header = ["", "Repository", "SyncHost", "ThisHost", ""]
+        header1 = ["", "------------------------------------------------------------", "--------", "--------", ""]
+        row_format = "{:<1} {:<70} {:>9} {:>9} {:<1}"
+        print row_format.format(*header)
+        print row_format.format(*header1)
 
-    # Print the table rows
-    for row in table_data:
-        print row_format.format(*row)
-    print '\n'
+        # Print the table rows
+        for row in table_data:
+            print row_format.format(*row)
+        print '\n'
 
 
 def main(args):
@@ -280,8 +286,8 @@ def main(args):
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
         required=False)
-    parser.add_argument('-d', '--date', \
-        help='Date/name of Import fileset to process (YYYY-MM-DD_NAME)', required=False)
+    parser.add_argument('-d', '--dataset', \
+        help='Date/name of Import dataset to process (YYYY-MM-DD_NAME)', required=False)
     parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
         required=False, action="store_true")
     parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
@@ -297,7 +303,7 @@ def main(args):
         org_name = args.org
     else:
         org_name = helpers.ORG_NAME
-    expdate = args.date
+    dataset = args.dataset
 
     # Record where we are running from
     script_dir = str(os.getcwd())
@@ -319,12 +325,12 @@ def main(args):
         sys.exit(-1)
              
     # If we got this far without -d being specified, error out cleanly
-    if args.date is None:
-        parser.error("--date is required")
+    if args.dataset is None:
+        parser.error("--dataset is required")
 
 
     # Figure out if we have the specified input fileset
-    basename = get_inputfiles(expdate)
+    basename = get_inputfiles(dataset)
 
     # Cleanup from any previous imports
     os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
@@ -363,7 +369,7 @@ def main(args):
         msg = "Removing input files from " + helpers.IMPORTDIR
         helpers.log_msg(msg, 'INFO')
         print msg
-        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "*")
+        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + dataset + "*")
         os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
     elif delete_override:
         msg = "* Not removing input files due to incomplete sync *"
@@ -381,7 +387,7 @@ def main(args):
     os.chdir(script_dir)
     if not os.path.exists(vardir):
         os.makedirs(vardir)
-    pickle.dump(expdate, open(vardir + '/imports.pkl', "wb"))
+    pickle.dump(dataset, open(vardir + '/imports.pkl', "wb"))
 
 if __name__ == "__main__":
     try:

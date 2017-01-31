@@ -1,0 +1,41 @@
+.\" Manpage for check_sync.
+.\" Contact ggatward@redhat.com to correct errors or typos.
+.TH CHECK_SYNC 8 "04 Jan 2017" "sat6_scripts" "sat6_scripts User Manual" man page"
+.SH NAME
+check_sync \- Verify the sync status of a Satellite 6 instance
+
+.SH SYNOPSIS
+.B check_sync [\-l] 
+.LP
+.B "check_sync --help"
+
+.SH DESCRIPTION
+.B check_sync
+is a custom python script for quickly checking the repository synchroisation state of a Satellite 6 server. 
+
+.SH OPTIONS
+The options that apply to the
+.B check_sync
+command are:
+.PP
+.BR "-l", " --loop"
+.RS 3
+Refresh the output display until terminated with CTRL-C. 
+.RS 2
+The default action is to display the current status and exit.
+.RE
+.RE
+
+.SH FILES
+.B Main Configuration
+.RS 3
+.I /usr/share/sat6_scripts/config/config.yml
+.RE
+
+.SH SEE ALSO
+.BR sat6_scripts_config (8),
+.BR sat_export (8).
+
+.SH AUTHOR
+Geoff Gatward <ggatward@redhat.com>
+

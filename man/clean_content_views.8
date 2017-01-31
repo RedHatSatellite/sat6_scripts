@@ -1,0 +1,92 @@
+.\" Manpage for sat_import.
+.\" Contact ggatward@redhat.com to correct errors or typos.
+.TH CLEAN_CONTENT_VIEWS 8 "04 Jan 2017" "sat6_scripts" "sat6_scripts User Manual" man page"
+.SH NAME
+clean_content_views \- Remove unused content view versoions from Satellite 6
+
+.SH SYNOPSIS
+.B clean_content_views [\-o ORGANISATION] [\-k KEEP] [\-a] [\-d]
+.LP
+.B "clean_content_views --help"
+
+.SH DESCRIPTION
+.B clean_content_views
+is a custom python script for cleaning unused versions of content views from Satellite 6. 
+Unused view versions older than the last promoted version are candidates for deletion, with the option to retain a given number of additional views.
+
+.SH OPTIONS
+The options that apply to the
+.B clean_content_views
+command are:
+.PP
+.BR "-o", " --org"
+.I "ORGANISATION"
+.RS 3
+The organisation within Satellite to perform the activity for. The default organisation is defined in the
+.I config.yml
+file, but can be overridden with this option.
+.RE
+.PP
+.BR "-a", " --all"
+.RS 3
+Clean all configured content views. By default
+.B clean_content_views
+will cleanup only the content views defined in the 
+.I config.yml
+file - see
+.BR sat6_scripts (8).
+.RE
+.PP
+.BR "-k", " --keep"
+.RS 3
+Define the number of versions to keep beyond the oldest promoted version for all content views.
+.PP
+For example, a given content view contains versions 1, 2, 3 (Production), 4 (Quality), 5 and 6 (Library)
+.br
+In this example, versions 1, 2 and 5 are unused. By default, this script would delete versions 1 and 2 but not 5.
+If the KEEP option is used to specify additional versions to keep (for example keep=1) then version 2 would not be deleted, as it is 1 greater than the oldest promoted version. This allows for a version rollback if required.
+.PP
+The number of old views to keep can also be defined per content view in the 
+.I config.yml
+file - see
+.BR sat6_scripts (8).
+If the keep value is not specified in either the config.yml or the --keep option, the default value is 0.
+.RE
+.PP
+.BR "-d", " --dryrun"
+.RS 3
+Do not perform the actual cleanup activity, but show what would be done.
+This option can be used to verify that the correct configuration options have been defined and applied before running the actual cleanup of content.
+.RE
+
+
+.SH EXAMPLES
+Clean all content views defined in the Satellite, globally leaving 1 older version:
+.RS 6
+.B "clean_content_views -a -k 1"
+.RE
+
+Show what will be cleaned by default, but do not actually remove the content:
+.RS 6
+.B "clean_content_views -d"
+.RE
+
+.SH FILES
+.B Main Configuration
+.RS 3
+.I /usr/share/sat6_scripts/config/config.yml
+.RE
+.LP
+.B Log Files
+.RS 3
+.I /var/log/satellite/*
+.RE
+
+.SH SEE ALSO
+.BR sat6_scripts_config (8),
+.BR publish_content_views (8),
+.BR promote_content_views (8).
+
+.SH AUTHOR
+Geoff Gatward <ggatward@redhat.com>
+

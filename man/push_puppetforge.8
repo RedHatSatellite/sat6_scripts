@@ -1,0 +1,92 @@
+.\" Manpage for push_puppetforge.
+.\" Contact ggatward@redhat.com to correct errors or typos.
+.TH PUSH_PUPPETFORGE 8 "04 Jan 2017" "sat6_scripts" "sat6_scripts User Manual" man page"
+.SH NAME
+push_puppetforge \- Export puppet forge modules and push to puppet-forge-server instance
+
+.SH SYNOPSIS
+.B push_puppetforge [\-o ORGANISATION] \-r REPO [\-s SERVER] [\-m MODULEPATH] [\-u USER]
+.LP
+.B "push_puppetforge --help"
+
+.SH DESCRIPTION
+.B push_puppetforge
+is a script to push puppet forge modules that have been synchronised using Satellite 6
+to an offline puppet forge server that uses the puppet-forge-server rubygem instance:
+.br 
+.I https://github.com/unibet/puppet-forge-server
+.LP
+The puppet-forge-server instance requires a specific format for the module filesystem that
+differst from that used by Satellite 6. To make use of this script, the connected Satellite
+must sync the puppet-forge repository, and have that repo included for the 
+.BR sat_export (8)
+script. The disconnected Satellite must import the puppet modules into an identically named
+puppet repository.
+.LP
+.BR push_puppetforge " will"
+export the puppet modules from the disconnected Satellite and use rsync to transfer them to 
+the offline puppet-forge-server instance.
+
+.SH OPTIONS
+The options that apply to the
+.B push_puppetforge
+command are:
+.PP
+.BR "-o", " --org"
+.I ORGANISATION
+.RS 3
+The organisation within Satellite to perform the import for. The default organisation is defined in the
+.I config.yml
+file, but can be overridden with this option.
+.RE
+.PP
+.BR "-r", " --repo"
+.I REPO
+.RS 3
+Label of the puppet-forge repository in Satellite to use as the sync source.
+.RE
+.PP
+.BR "-s", " --server"
+.I SERVER
+.RS 3
+Hostname of the puppet-forge-server instance.
+.br
+The default value is configured in the 
+.I config.yml
+file
+.RE
+.PP
+.BR "-m", " --modulepath"
+.I MODULEPATH
+.RS 3
+Location of the puppet modules on the puppet-forge-server instance. (Default is /opt/puppet-forge/modules)
+.RE
+.PP
+.BR "-u", " --user"
+.I USER
+.RS 3
+Username to login to the puppet-forge-server as. Default is the user running the 
+.B push_puppetforge
+script, from the 
+.I SUDO_USER
+environment variable.
+.RE
+
+.SH FILES
+.B Main Configuration
+.RS 3
+.I /usr/share/sat6_scripts/config/config.yml
+.RE
+.LP
+.B Manifest download location
+.RS 3
+.I /var/sat-export/manifest/*
+.RE
+
+.SH SEE ALSO
+.BR sat6_scripts_config (8),
+.BR sat_export (8).
+
+.SH AUTHOR
+Geoff Gatward <ggatward@redhat.com>
+

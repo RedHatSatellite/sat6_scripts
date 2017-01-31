@@ -1,0 +1,85 @@
+.\" Manpage for sat_import.
+.\" Contact ggatward@redhat.com to correct errors or typos.
+.TH PUBLISH_CONTENT_VIEWS 8 "04 Jan 2017" "sat6_scripts" "sat6_scripts User Manual" man page"
+.SH NAME
+publish_content_views \- publish content views defined within Satellite 6
+
+.SH SYNOPSIS
+.B publish_content_views [\-o ORGANISATION] [\-a] [\-d] [\-l]
+.LP
+.B "publish_content_views --help"
+
+.SH DESCRIPTION
+.B publish_content_views
+is a custom python script for publishing defined content views within a Satellite 6 server. The content must have been imported and synchronised prior to the publish being performed.
+
+
+.SH OPTIONS
+The options that apply to the
+.B publish_content_views
+command are:
+.PP
+.BR "-o", " --org"
+.I "ORGANISATION"
+.RS 3
+The organisation within Satellite to perform the activity for. The default organisation is defined in the
+.I config.yml
+file, but can be overridden with this option.
+.RE
+.PP
+.BR "-a", " --all"
+.RS 3
+Publish all configured content views. By default
+.B publish_content_views
+will publish only the content views defined in the 
+.I config.yml
+file.
+.RE
+.PP
+.BR "-l", " --last"
+.RS 3
+Display the dates of the last successful publish and promotions.
+.RE
+.PP
+.BR "-d", " --dryrun"
+.RS 3
+Do not perform the actual publish activity, but show what would be done.
+This option can be used to verify that the correct configuration options have been defined and applied before running the actual publication of content.
+.RE
+
+
+.SH EXAMPLES
+Check when the last publish was performed:
+.RS 6
+.B "publish_content_views -l"
+.RE
+
+Publish all content views defined in the Satellite:
+.RS 6
+.B "publish_content_views -a"
+.RE
+
+Show what will be published by default, but do not actually publish the content:
+.RS 6
+.B "publish_content_views -d"
+.RE
+
+.SH FILES
+.B Main Configuration
+.RS 3
+.I /usr/share/sat6_scripts/config/config.yml
+.RE
+.LP
+.B Log Files
+.RS 3
+.I /var/log/satellite/*
+.RE
+
+.SH SEE ALSO
+.BR sat6_scripts_config (8),
+.BR promote_content_views (8),
+.BR clean_content_views (8).
+
+.SH AUTHOR
+Geoff Gatward <ggatward@redhat.com>
+
