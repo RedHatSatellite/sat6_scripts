@@ -338,16 +338,16 @@ hammer user create --login svc-api --firstname API --lastname User --password='A
 
 #######################
 # Create 3rd Party Content
-hammer product create --name='First Party Software for EL6' --description='ASD Locally developed/signed product' --organization-id=1
-hammer repository create --name='ACE Audit Client for EL6' --organization-id=1 --product='First Party Software for EL6' \
-  --content-type='yum' --publish-via-http=true --gpg-key='RPM-GPG-KEY-CTOIS-Audit' \
-  --url='http://localhost/pub/repos/ASD_Corporate/ACE_Audit/el6' \
+hammer product create --name='First Party Software for EL6' --description='Locally developed/signed product' --organization-id=1
+hammer repository create --name='Audit Client for EL6' --organization-id=1 --product='First Party Software for EL6' \
+  --content-type='yum' --publish-via-http=true --gpg-key='RPM-GPG-KEY-Audit' \
+  --url='http://localhost/pub/repos/Corporate/Audit/el6' \
   --mirror-on-sync false --download-policy immediate
 
-hammer product create --name='First Party Software for EL7' --description='ASD Locally developed/signed product' --organization-id=1
-hammer repository create --name='ACE Audit Client for EL7' --organization-id=1 --product='First Party Software for EL7' \
-  --content-type='yum' --publish-via-http=true --gpg-key='RPM-GPG-KEY-CTOIS-Audit' \
-  --url='http://localhost/pub/repos/ASD_Corporate/ACE_Audit/el7' \
+hammer product create --name='First Party Software for EL7' --description='Locally developed/signed product' --organization-id=1
+hammer repository create --name='Audit Client for EL7' --organization-id=1 --product='First Party Software for EL7' \
+  --content-type='yum' --publish-via-http=true --gpg-key='RPM-GPG-KEY-Audit' \
+  --url='http://localhost/pub/repos/Corporate/Audit/el7' \
   --mirror-on-sync false --download-policy immediate
 
 hammer product create --name='EPEL-6' --description='EPEL-6' --organization-id=1
