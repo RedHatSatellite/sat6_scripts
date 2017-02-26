@@ -73,7 +73,7 @@ def get_content_view_info(cvid):
     return cvinfo
 
 
-def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep):
+def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall):
     """Clean Content Views"""
 
     # Set the task name to be displayed in the task monitoring stage
@@ -125,10 +125,16 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep):
                     helpers.log_msg(msg, 'DEBUG')
 
                     if float(version['version']) > float(lastver):
-                        msg = "Skipping delete of version " + str(version['version'])
-                        helpers.log_msg(msg, 'INFO')
-                        print msg
-                        continue
+                        # If we have chosen to remove all orphans
+                        if cleanall:
+                            msg = "Removing version " + str(version['version'])
+                            helpers.log_msg(msg, 'INFO')
+                            print helpers.HEADER + msg + helpers.ENDC
+                        else:
+                            msg = "Skipping delete of version " + str(version['version'])
+                            helpers.log_msg(msg, 'INFO')
+                            print msg
+                            continue
                     else:
                         if float(version['version']) < (lastver - float(ver_keep[cvid])):
                             msg = "Removing version " + str(version['version'])
@@ -195,6 +201,8 @@ def main(args):
         required=False)
     group.add_argument('-a', '--all', help='Clean ALL content views', required=False,
         action="store_true")
+    parser.add_argument('-c', '--cleanall', help='Remove orphan versions between in-use views',
+        required=False, action="store_true")
     parser.add_argument('-d', '--dryrun', help='Dry Run - Only show what will be cleaned',
         required=False, action="store_true")
 
@@ -210,6 +218,7 @@ def main(args):
     else:
        org_name = helpers.ORG_NAME
     dry_run = args.dryrun
+    cleanall = args.cleanall
     if args.keep:
         keep = args.keep
     else:
@@ -234,7 +243,7 @@ def main(args):
     (ver_list, ver_descr, ver_keep) = get_cv(org_id, cleanup_list, keep)
 
     # Clean the content views. Returns a list of task IDs.
-    cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep)
+    cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall)
 
 
 if __name__ == "__main__":

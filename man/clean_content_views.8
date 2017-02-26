@@ -53,6 +53,19 @@ file - see
 If the keep value is not specified in either the config.yml or the --keep option, the default value is 0.
 .RE
 .PP
+.BR "-c", " --cleanall"
+.RS 3
+Clean all orphaned versions of the content view. 
+By default the removal of versions between published, in-use versions is not performed.
+.PP
+For example, a given content view contains versions 1, 2 (Production), 3, 4, 5, 6 (Quality), 7, 8 (Library)
+.br
+By default versions 3-5 and 7 will not be deleted as they exist in between 'live' published versions.
+Using the
+.B -c
+option will cause these versions to be cleaned up as well as any older than the oldest promoted version.
+.RE
+.PP
 .BR "-d", " --dryrun"
 .RS 3
 Do not perform the actual cleanup activity, but show what would be done.
