@@ -86,7 +86,7 @@ def sync_content(org_id, imported_repos):
         for repo_result in enabled_repos['results']:
             if repo in repo_result['label']:
                 # Ensure we have an exact match on the repo label
-                if repo == result['label']:
+                if repo == repo_result['label']:
                     do_import = True
                     repos_to_sync.append(repo_result['id'])
 
