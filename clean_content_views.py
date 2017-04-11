@@ -87,7 +87,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall):
     if not ver_list:
         msg = "No content view versions found matching cleanup criteria"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     for cvid in ver_list.keys():
         # Check if there is a publish/promote already running on this content view
@@ -179,7 +179,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall):
     if dry_run:
         msg = "Dry run - not actually performing removal"
         helpers.log_msg(msg, 'WARNING')
-        sys.exit(-1)
+        sys.exit(2)
 
 
 def main(args):
@@ -231,7 +231,7 @@ def main(args):
         if not cleanup_list:
             msg = "Cannot find cleanup configuration"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
 
         msg = "Config found for CV's " + str(cleanup_list)
         helpers.log_msg(msg, 'DEBUG')
@@ -245,6 +245,8 @@ def main(args):
     # Clean the content views. Returns a list of task IDs.
     cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall)
 
+    # Exit cleanly
+    sys.exit(0)
 
 if __name__ == "__main__":
     try:

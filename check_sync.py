@@ -90,7 +90,7 @@ def check_running_tasks(clear):
 
     # Exit the loop if both tests are clear
     if not running_sync and not incomplete_sync:
-        sys.exit(-1)
+        sys.exit(0)
 
 
 def main(args):
@@ -120,6 +120,8 @@ def main(args):
     else:
         clear = False
         check_running_tasks(clear)
+
+    sys.exit(0)
 
 if __name__ == "__main__":
     try:

@@ -20,7 +20,7 @@ try:
     import yaml
 except ImportError:
     print "Please install the PyYAML module."
-    sys.exit(-1)
+    sys.exit(1)
 
 
 def export_puppet(repo_id, repo_label, repo_relative, export_type):
@@ -140,7 +140,7 @@ def main(args):
     else:
         if not helpers.PFSERVER:
             print "Puppet forge server not defined"
-            sys.exit(-1)
+            sys.exit(1)
         else:
             pfserver = helpers.PFSERVER
 
@@ -167,7 +167,7 @@ def main(args):
         pfrepo = args.repo
     else:
         print "Puppetforge repo not defined"
-        sys.exit(-1)
+        sys.exit(1)
 
     # Remove any previous exported content left behind by prior unclean exit
     if os.path.exists(helpers.EXPORTDIR + '/export'):
@@ -213,7 +213,7 @@ def main(args):
 
     # And we're done!
     print helpers.GREEN + "Puppet Forge export complete.\n" + helpers.ENDC
-
+    sys.exit(0)
 
 if __name__ == "__main__":
     try:

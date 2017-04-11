@@ -26,7 +26,7 @@ def get_inputfiles(dataset):
     if not os.path.exists(helpers.IMPORTDIR + '/' + basename + '.sha256'):
         msg = "Cannot continue - missing sha256sum file " + helpers.IMPORTDIR + '/' + shafile
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Verify the checksum of each part of the import
     os.chdir(helpers.IMPORTDIR)
@@ -39,7 +39,7 @@ def get_inputfiles(dataset):
     if result != 0:
         msg = "Import Aborted - Tarfile checksum verification failed"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # We're good
     msg = "Tarfile checksum verification passed"
@@ -266,7 +266,7 @@ def main(args):
     if not helpers.DISCONNECTED:
         msg = "Import cannot be run on the connected Satellite (Sync) host"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Who is running this script?
     runuser = helpers.who_is_running()
@@ -322,7 +322,7 @@ def main(args):
             msg = "Import has never been performed"
             helpers.log_msg(msg, 'INFO')
             print msg
-        sys.exit(-1)
+        sys.exit(0)
              
     # If we got this far without -d being specified, error out cleanly
     if args.dataset is None:
@@ -371,14 +371,17 @@ def main(args):
         print msg
         os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + dataset + "*")
         os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
+        excode = 0
     elif delete_override:
         msg = "* Not removing input files due to incomplete sync *"
         helpers.log_msg(msg, 'INFO')
         print msg
+        excode = 2
     else:
         msg = " (Removal of input files was not requested)"
         helpers.log_msg(msg, 'INFO')
         print msg
+        excode = 0
 
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
@@ -388,6 +391,9 @@ def main(args):
     if not os.path.exists(vardir):
         os.makedirs(vardir)
     pickle.dump(dataset, open(vardir + '/imports.pkl', "wb"))
+
+    # And exit.
+    sys.exit(excode)
 
 if __name__ == "__main__":
     try:

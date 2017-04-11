@@ -67,7 +67,7 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser):
     if not ver_list:
         msg = "No content view versions found matching publication criteria"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     for cvid in ver_list.keys():
 
@@ -102,7 +102,7 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser):
     if dry_run:
         msg = "Dry run - not actually performing publish"
         helpers.log_msg(msg, 'WARNING')
-        sys.exit(-1)
+        sys.exit(2)
 
 
     return task_list, ref_list, task_name
@@ -167,7 +167,7 @@ def main(args):
                 print lenv, time
         else:
             print 'No promotions recorded'
-        sys.exit(-1)
+        sys.exit(0)
 
 
     publish_list = []
@@ -177,7 +177,7 @@ def main(args):
         if not publish_list:
             msg = "Cannot find publish configuration"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
 
         msg = "Config found for CV's " + str(publish_list)
         helpers.log_msg(msg, 'DEBUG')
@@ -198,6 +198,8 @@ def main(args):
     # Monitor the status of the publish tasks
     helpers.watch_tasks(task_list, ref_list, task_name)
 
+    # Exit cleanly
+    sys.exit(0)
 
 if __name__ == "__main__":
     try:

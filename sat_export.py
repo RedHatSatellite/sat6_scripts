@@ -20,7 +20,7 @@ try:
     import yaml
 except ImportError:
     print "Please install the PyYAML module."
-    sys.exit(-1)
+    sys.exit(1)
 
 # Get details about Content Views and versions
 def get_cv(org_id):
@@ -82,13 +82,13 @@ def export_cv(dov_ver, last_export, export_type):
     except: # pylint: disable-msg=W0702
         msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Trap some other error conditions
     if "Required lock is already taken" in str(task_id):
         msg = "Unable to start export - Sync in progress"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     msg = "Export started, task_id = " + str(task_id)
     helpers.log_msg(msg, 'DEBUG')
@@ -126,13 +126,13 @@ def export_repo(repo_id, last_export, export_type):
     except: # pylint: disable-msg=W0702
         msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Trap some other error conditions
     if "Required lock is already taken" in str(task_id):
         msg = "Unable to start export - Sync in progress"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     msg = "Export started, task_id = " + str(task_id)
     helpers.log_msg(msg, 'DEBUG')
@@ -336,7 +336,7 @@ def check_running_tasks(label, name):
                     msg = "Unable to export due to export task in progress"
                     if name == 'DoV':
                         helpers.log_msg(msg, 'ERROR')
-                        sys.exit(-1)
+                        sys.exit(1)
                     else:
                         helpers.log_msg(msg, 'WARNING')
                         ok_to_export = False
@@ -345,7 +345,7 @@ def check_running_tasks(label, name):
                     msg = "Unable to export due to sync task in progress"
                     if name == 'DoV':
                         helpers.log_msg(msg, 'ERROR')
-                        sys.exit(-1)
+                        sys.exit(1)
                     else:
                         helpers.log_msg(msg, 'WARNING')
                         ok_to_export = False
@@ -355,7 +355,7 @@ def check_running_tasks(label, name):
                     msg = "Unable to export due to paused export task - Please resolve this issue."
                     if name == 'DoV':
                         helpers.log_msg(msg, 'ERROR')
-                        sys.exit(-1)
+                        sys.exit(1)
                     else:
                         helpers.log_msg(msg, 'WARNING')
                         ok_to_export = False
@@ -364,7 +364,7 @@ def check_running_tasks(label, name):
                     msg = "Unable to export due to paused sync task."
                     if name == 'DoV':
                         helpers.log_msg(msg, 'ERROR')
-                        sys.exit(-1)
+                        sys.exit(1)
                     else:
                         helpers.log_msg(msg, 'WARNING')
                         ok_to_export = False
@@ -408,7 +408,7 @@ def check_incomplete_sync():
         if not answer:
             msg = "Export Aborted"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
         else:
             msg = "Export continued by user"
             helpers.log_msg(msg, 'INFO')
@@ -423,7 +423,7 @@ def check_disk_space(export_type):
     if export_type == 'full' and int(float(pulp_used)) > 50:
         msg = "Insufficient space in /var/lib/pulp for a full export. >50% free space is required."
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
 
 def locate(pattern, root=os.curdir):
@@ -466,7 +466,7 @@ def do_gpg_check(export_dir):
             helpers.log_msg(msg, 'ERROR')
         msg = "------ Export Aborted ------"
         helpers.log_msg(msg, 'INFO')
-        sys.exit(-1)
+        sys.exit(1)
     else:
         msg = "GPG check completed successfully"
         helpers.log_msg(msg, 'INFO')
@@ -612,7 +612,7 @@ def main(args):
     if helpers.DISCONNECTED:
         msg = "Export cannot be run on the disconnected Satellite host"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Who is running this script?
     runuser = helpers.who_is_running()
@@ -672,7 +672,7 @@ def main(args):
         if not os.path.exists(repocfg):
             msg = 'Config file ' + confdir + '/exports.yml not found.'
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
 
         cfg = yaml.safe_load(open(repocfg, 'r'))
         ename = args.env
@@ -686,7 +686,7 @@ def main(args):
         if not validrepo:
             msg = 'Unable to find export config for ' + ename
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
 
         msg = "Specific environment export called for " + ename + "."
         helpers.log_msg(msg, 'DEBUG')
@@ -730,7 +730,7 @@ def main(args):
                         print repo[:70] + '\t' + str(export_times[time])
                 else:
                     print "Export has never been performed for " + ename
-                sys.exit(-1)
+                sys.exit(0)
             if not export_times:
                 print "No prior export recorded for " + ename + ", performing full content export"
                 export_type = 'full'
@@ -814,7 +814,7 @@ def main(args):
         else:
             msg = "Content View Export FAILED"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
 
     else:
         # Verify that defined repos exist in Satellite
@@ -1044,6 +1044,8 @@ def main(args):
         'Once transferred, please run ' + helpers.BOLD + ' sat_import' \
         + helpers.ENDC + ' to extract it.'
 
+    # Exit cleanly
+    sys.exit(0)
 
 if __name__ == "__main__":
     try:

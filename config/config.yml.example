@@ -29,7 +29,7 @@ promotion:
       - RHEL Server
       - RHEL Workstation
 
-  lifecyclec2:
+  lifecycle2:
     name: Desktop QA
     content_views:
       - RHEL Workstation

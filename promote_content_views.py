@@ -24,7 +24,7 @@ try:
     import yaml
 except ImportError:
     print "Please install the PyYAML module."
-    sys.exit(-1)
+    sys.exit(1)
 
 
 # Get the details about the environments
@@ -58,7 +58,7 @@ def get_cv(org_id, target_env, env_list, prior_list, promote_list):
     if not target_env in env_list:
         msg = "Target environment '" + target_env + "' not found"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
     else:
         target_env_id = env_list[target_env]
         source_env_id = prior_list[target_env_id]
@@ -131,7 +131,7 @@ def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, 
     if not ver_list:
         msg = "No content view versions found matching promotion criteria"
         helpers.log_msg(msg, 'WARNING')
-        sys.exit(-1)
+        sys.exit(1)
 
     for cvid in ver_list.keys():
 
@@ -164,7 +164,7 @@ def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, 
     if dry_run:
         msg = "Dry run - not actually performing promotion"
         helpers.log_msg(msg, 'WARNING')
-        sys.exit(-1)
+        sys.exit(2)
 
 
     return task_list, ref_list, task_name
@@ -231,7 +231,7 @@ def main(args):
                 print lenv, time
         else:
             print 'No promotions recorded'
-        sys.exit(-1)
+        sys.exit(0)
 
     # Error if no environment to promote to is given
     if args.env is None:
@@ -246,7 +246,7 @@ def main(args):
         if not promote_list:
             msg = "Cannot find promotion configuration for '" + target_env + "'"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
 
         msg = "Config found for CV's " + str(promote_list)
         helpers.log_msg(msg, 'DEBUG')
@@ -272,6 +272,8 @@ def main(args):
     # Monitor the status of the promotion tasks
     helpers.watch_tasks(task_list, ref_list, task_name)
 
+    # Exit cleanly
+    sys.exit(0)
 
 if __name__ == "__main__":
     try:
