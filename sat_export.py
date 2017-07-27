@@ -700,17 +700,6 @@ def main(args):
         msg = "DoV export called"
         helpers.log_msg(msg, 'DEBUG')
 
-    # Log the fact we are starting
-    msg = "------------- Content export started by " + runuser + " ----------------"
-    if not args.last:
-        if args.env:
-            msg = "------ " + ename + " Content export started by " + runuser + " ---------"
-        helpers.log_msg(msg, 'INFO')
-
-    # Get the current time - this will be the 'last export' time if the export is OK
-    start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
-    print "START: " + start_time + " (" + ename + " export)"
-
     # Read the last export date pickle for our selected repo group.
     export_times = read_pickle(ename)
     export_type = 'incr'
@@ -741,6 +730,16 @@ def main(args):
             # We have our timestamp so we can kick of an incremental export
             print "Incremental export of content for " + ename + " synchronised after " \
             + str(since)
+
+    # Log the fact we are starting
+    msg = "------------- Content export started by " + runuser + " ----------------"
+    if args.env:
+        msg = "------ " + ename + " Content export started by " + runuser + " ---------"
+    helpers.log_msg(msg, 'INFO')
+
+    # Get the current time - this will be the 'last export' time if the export is OK
+    start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+    print "START: " + start_time + " (" + ename + " export)"
 
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)

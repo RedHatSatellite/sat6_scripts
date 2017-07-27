@@ -17,5 +17,5 @@ import:
   dir: /var/sat-content
   syncbatch: 50
 
-  puppet-forge-server:
-    hostname: puppetforge.example.org
+puppet-forge-server:
+  hostname: puppetforge.example.org

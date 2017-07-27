@@ -109,8 +109,8 @@ def main(args):
     runuser = helpers.who_is_running()
 
     # Set the base dir of the script and where the var data is
-    global dir 
-    global vardir 
+    global dir
+    global vardir
     dir = os.path.dirname(__file__)
     vardir = os.path.join(dir, 'var')
     confdir = os.path.join(dir, 'config')
@@ -122,9 +122,9 @@ def main(args):
         required=False)
     parser.add_argument('-r', '--repo', help='Puppetforge repo label', required=False)
     parser.add_argument('-s', '--server', help='puppet-forge-server hostname', required=False)
-    parser.add_argument('-m', '--modulepath', help='path to puppet-forge-server modules', 
+    parser.add_argument('-m', '--modulepath', help='path to puppet-forge-server modules',
         required=False)
-    parser.add_argument('-u', '--user', help='Username to push modules to server as (default is user running script)', 
+    parser.add_argument('-u', '--user', help='Username to push modules to server as (default is user running script)',
         required=False)
     args = parser.parse_args()
 
