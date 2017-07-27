@@ -18,13 +18,13 @@ try:
     import requests
 except ImportError:
     print "Please install the python-requests module."
-    sys.exit(-1)
+    sys.exit(1)
 
 try:
     import yaml
 except ImportError:
     print "Please install the PyYAML module."
-    sys.exit(-1)
+    sys.exit(1)
 
 
 # Import the site-specific configs
@@ -33,16 +33,23 @@ filename = os.path.join(dir, 'config/config.yml')
 CONFIG = yaml.safe_load(open(filename, 'r'))
 
 # Read in the config parameters
-URL = CONFIG["satellite"]["url"]
-USERNAME = CONFIG["satellite"]["username"]
-PASSWORD = CONFIG["satellite"]["password"]
-DISCONNECTED = CONFIG["satellite"]["disconnected"]
-ORG_NAME = CONFIG["satellite"]["default_org"]
-LOGDIR = CONFIG["logging"]["dir"]
-DEBUG = CONFIG["logging"]["debug"]
-EXPORTDIR = CONFIG["export"]["dir"]
-IMPORTDIR = CONFIG["import"]["dir"]
-SYNCBATCH = CONFIG["import"]["syncbatch"]
+URL = CONFIG['satellite']['url']
+USERNAME = CONFIG['satellite']['username']
+PASSWORD = CONFIG['satellite']['password']
+DISCONNECTED = CONFIG['satellite']['disconnected']
+if 'manifest' in CONFIG['satellite']:
+    MANIFEST = CONFIG['satellite']['manifest']
+ORG_NAME = CONFIG['satellite']['default_org']
+LOGDIR = CONFIG['logging']['dir']
+DEBUG = CONFIG['logging']['debug']
+EXPORTDIR = CONFIG['export']['dir']
+IMPORTDIR = CONFIG['import']['dir']
+if 'syncbatch' in CONFIG['import']:
+    SYNCBATCH = CONFIG['import']['syncbatch']
+else:
+    SYNCBATCH = 255
+if 'hostname' in CONFIG['puppet-forge-server']:
+    PFSERVER = CONFIG['puppet-forge-server']['hostname']
 
 # 'Global' Satellite 6 parameters
 # Satellite API
@@ -168,7 +175,7 @@ def get_org_id(org_name):
     if org.get('error', None):
         msg = "Organization '%s' does not exist." % org_name
         log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
     else:
         # Our organization exists, so let's grab the ID and write some debug
         org_id = org['id']
@@ -330,12 +337,12 @@ def check_running_sync():
             if task_result['humanized']['action'] == 'Synchronize':
                 msg = "Unable to start sync - a Sync task is currently running"
                 log_msg(msg, 'ERROR')
-                sys.exit(-1)
+                sys.exit(1)
         if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Synchronize':
                 msg = "Unable to start sync - a Sync task is paused. Resume any paused sync tasks."
                 log_msg(msg, 'ERROR')
-                sys.exit(-1)
+                sys.exit(1)
 
 
 def check_running_publish(cvid, desc):

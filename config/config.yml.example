@@ -2,8 +2,9 @@ satellite:
   url: https://sat62.example.org
   username: svc-api-user
   password: 1t$a$3cr3t
-  disconnected: False
   default_org: MyOrg
+  manifest: my-satellite
+  disconnected: False
 
 logging:
   dir: /var/log/satellite
@@ -14,4 +15,7 @@ export:
 
 import:
   dir: /var/sat-content
-  syncbatch: 10
+  syncbatch: 50
+
+  puppet-forge-server:
+    hostname: puppetforge.example.org
