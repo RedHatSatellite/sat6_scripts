@@ -47,9 +47,8 @@ def get_cv(org_id):
                 msg = "  Version ID: " + str(ver['id'])
                 helpers.log_msg(msg, 'DEBUG')
 
-        # There will only ever be one DOV
-        return cv_result['id']
-
+            # There will only ever be one DOV
+            return cv_result['id']
 
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
@@ -1042,6 +1041,8 @@ def main(args):
         ' to your disconnected Satellite system content import location.\n' \
         'Once transferred, please run ' + helpers.BOLD + ' sat_import' \
         + helpers.ENDC + ' to extract it.'
+    msg = "Export complete"
+    helpers.log_msg(msg, 'INFO')
 
     # Exit cleanly
     sys.exit(0)
