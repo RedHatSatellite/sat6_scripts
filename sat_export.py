@@ -47,9 +47,8 @@ def get_cv(org_id):
                 msg = "  Version ID: " + str(ver['id'])
                 helpers.log_msg(msg, 'DEBUG')
 
-        # There will only ever be one DOV
-        return cv_result['id']
-
+            # There will only ever be one DOV
+            return cv_result['id']
 
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
@@ -192,7 +191,7 @@ def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
                 # And this is where we want them to be moved to so we can export them in Satellite format
                 # We need to knock off '<org_name>/Library/' from beginning of repo_relative and replace with export/
                 exportpath = "/".join(repo_relative.strip("/").split('/')[2:])
-                OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath 
+                OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath
 
                 # Move the files into the final export tree
                 if not os.path.exists(OUTDIR):
@@ -303,7 +302,7 @@ def count_packages(repo_id):
     Return the number of packages/erratum in a respository
     """
     result = helpers.get_json(
-        helpers.KATELLO_API + "repositories/" + str(repo_id) 
+        helpers.KATELLO_API + "repositories/" + str(repo_id)
             )
 
     numpkg = result['content_counts']['rpm']
@@ -618,8 +617,8 @@ def main(args):
     runuser = helpers.who_is_running()
 
     # Set the base dir of the script and where the var data is
-    global dir 
-    global vardir 
+    global dir
+    global vardir
     dir = os.path.dirname(__file__)
     vardir = os.path.join(dir, 'var')
     confdir = os.path.join(dir, 'config')
@@ -641,9 +640,9 @@ def main(args):
         action="store_true")
     parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
         action="store_true")
-    parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages', 
+    parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages',
         required=False, action="store_true")
-    parser.add_argument('-p', '--puppetforge', help='Include puppet-forge-server format Puppet Forge repo', 
+    parser.add_argument('-p', '--puppetforge', help='Include puppet-forge-server format Puppet Forge repo',
         required=False, action="store_true")
     args = parser.parse_args()
 
@@ -700,17 +699,6 @@ def main(args):
         msg = "DoV export called"
         helpers.log_msg(msg, 'DEBUG')
 
-    # Log the fact we are starting
-    msg = "------------- Content export started by " + runuser + " ----------------"
-    if not args.last:
-        if args.env:
-            msg = "------ " + ename + " Content export started by " + runuser + " ---------"
-        helpers.log_msg(msg, 'INFO')
-
-    # Get the current time - this will be the 'last export' time if the export is OK
-    start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
-    print "START: " + start_time + " (" + ename + " export)"
-
     # Read the last export date pickle for our selected repo group.
     export_times = read_pickle(ename)
     export_type = 'incr'
@@ -741,6 +729,17 @@ def main(args):
             # We have our timestamp so we can kick of an incremental export
             print "Incremental export of content for " + ename + " synchronised after " \
             + str(since)
+
+    # Log the fact we are starting
+    msg = "------------- Content export started by " + runuser + " ----------------"
+    if args.env:
+        msg = "------ " + ename + " Content export started by " + runuser + " ---------"
+    helpers.log_msg(msg, 'INFO')
+
+    # Get the current time - this will be the 'last export' time if the export is OK
+    start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+    print "START: " + start_time + " (" + ename + " export)"
+
 
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)
@@ -947,7 +946,7 @@ def main(args):
 
                         # Update the export timestamp for this repo
                         export_times[repo_result['label']] = start_time
-                        
+
                         # Add the repo to the successfully exported list
                         if numfiles != 0 or args.repodata:
                             msg = "Adding " + repo_result['label'] + " to export list"
@@ -1018,7 +1017,7 @@ def main(args):
     # Define the location of our exported data.
     export_dir = helpers.EXPORTDIR + "/export"
 
-    # Write out the list of exported repos and the package counts. These will be transferred to the 
+    # Write out the list of exported repos and the package counts. These will be transferred to the
     # disconnected system and used to perform the repo sync tasks during the import.
     pickle.dump(exported_repos, open(export_dir + '/exported_repos.pkl', 'wb'))
     pickle.dump(package_count, open(export_dir + '/package_count.pkl', 'wb'))
@@ -1043,6 +1042,8 @@ def main(args):
         ' to your disconnected Satellite system content import location.\n' \
         'Once transferred, please run ' + helpers.BOLD + ' sat_import' \
         + helpers.ENDC + ' to extract it.'
+    msg = "Export complete"
+    helpers.log_msg(msg, 'INFO')
 
     # Exit cleanly
     sys.exit(0)
