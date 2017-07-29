@@ -15,18 +15,18 @@ import simplejson as json
 import helpers
 
 
-def get_inputfiles(expdate):
+def get_inputfiles(dataset):
     """
     Verify the input files exist and are valid.
-    'expdate' is a date (YYYY-MM-DD) provided by the user - date is in the filename of the archive
+    'dataset' is a date (YYYY-MM-DD) provided by the user - date is in the filename of the archive
     Returned 'basename' is the full export filename (sat6_export_YYYY-MM-DD)
     """
-    basename = 'sat6_export_' + expdate
+    basename = 'sat6_export_' + dataset
     shafile = basename + '.sha256'
     if not os.path.exists(helpers.IMPORTDIR + '/' + basename + '.sha256'):
         msg = "Cannot continue - missing sha256sum file " + helpers.IMPORTDIR + '/' + shafile
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Verify the checksum of each part of the import
     os.chdir(helpers.IMPORTDIR)
@@ -39,7 +39,7 @@ def get_inputfiles(expdate):
     if result != 0:
         msg = "Import Aborted - Tarfile checksum verification failed"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # We're good
     msg = "Tarfile checksum verification passed"
@@ -85,6 +85,8 @@ def sync_content(org_id, imported_repos):
         do_import = False
         for repo_result in enabled_repos['results']:
             if repo in repo_result['label']:
+                # Ensure we have an exact match on the repo label
+                if repo == repo_result['label']:
                 do_import = True
                 repos_to_sync.append(repo_result['id'])
 
@@ -126,7 +128,7 @@ def sync_content(org_id, imported_repos):
         helpers.log_msg(msg, 'INFO')
         print msg
 
-        # Break repos_to_sync into groups of n 
+        # Break repos_to_sync into groups of n
         repochunks = [ repos_to_sync[i:i+helpers.SYNCBATCH] for i in range(0, len(repos_to_sync), helpers.SYNCBATCH) ]
 
         # Loop through the smaller batches of repos and sync them
@@ -159,6 +161,102 @@ def sync_content(org_id, imported_repos):
         return delete_override
 
 
+def count_packages(repo_id):
+    """
+    Return the number of packages/erratum in a respository
+    """
+    result = helpers.get_json(
+        helpers.KATELLO_API + "repositories/" + str(repo_id)
+            )
+
+    numpkg = result['content_counts']['rpm']
+    numerrata = result['content_counts']['erratum']
+
+    return numpkg, numerrata
+
+
+def check_counts(org_id, package_count, count):
+    """
+    Verify the number of pkgs/errutum in each repo match the sync host.
+    Input is a dictionary loaded from a pickle that was created on the sync
+    host in format  {Repo_Label, pkgs:erratum}
+    """
+
+    # Get a listing of repositories in this Satellite
+    enabled_repos = helpers.get_p_json(
+        helpers.KATELLO_API + "/repositories/", \
+            json.dumps(
+                {
+                    "organization_id": org_id,
+                    "per_page": '1000',
+                }
+            ))
+
+    # First loop through the repos in the import dict and find the local ID
+    table_data = []
+    display_data = False
+    for repo, counts in package_count.iteritems():
+        # Split the count data into packages and erratum
+        sync_pkgs = counts.split(':')[0]
+        sync_erratum = counts.split(':')[1]
+
+        # Loop through each repo and count the local pkgs in each repo
+        for repo_result in enabled_repos['results']:
+            if repo in repo_result['label']:
+                # Ensure we have an exact match on the repo label
+                if repo == repo_result['label']:
+                    local_pkgs, local_erratum = count_packages(repo_result['id'])
+
+                    # Set the output colour of the table entry based on the pkg counts
+                    if int(local_pkgs) == int(sync_pkgs):
+                        colour = helpers.GREEN
+                        display = False
+                    elif int(local_pkgs) == 0 and int(sync_pkgs) != 0:
+                        colour = helpers.RED
+                        display = True
+                        display_data = True
+                    elif int(local_pkgs) < int(sync_pkgs):
+                        colour = helpers.YELLOW
+                        display = True
+                        display_data = True
+                    else:
+                        # If local_pkg > sync_pkg - can happen due to 'mirror on sync' option
+                        # - sync host deletes old pkgs. If this is the case we cannot verify
+                        # an exact package status so we'll set BLUE
+                        colour = helpers.BLUE
+                        display = True
+                        display_data = True
+
+                    # Tuncate the repo label to 70 chars and build the table row
+                    reponame = "{:<70}".format(repo)
+                    # Add all counts if it has been requested
+                    if count:
+                        display_data = True
+                        table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+                    else:
+                        # Otherwise only add counts that are non-green (display = True)
+                        if display:
+                            table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+
+
+    if display_data:
+        msg = '\nRepository package count verification...'
+        helpers.log_msg(msg, 'INFO')
+        print msg
+
+        # Print Table header
+        header = ["", "Repository", "SyncHost", "ThisHost", ""]
+        header1 = ["", "------------------------------------------------------------", "--------", "--------", ""]
+        row_format = "{:<1} {:<70} {:>9} {:>9} {:<1}"
+        print row_format.format(*header)
+        print row_format.format(*header1)
+
+        # Print the table rows
+        for row in table_data:
+            print row_format.format(*row)
+        print '\n'
+
+
 def main(args):
     """
     Main Routine
@@ -168,7 +266,7 @@ def main(args):
     if not helpers.DISCONNECTED:
         msg = "Import cannot be run on the connected Satellite (Sync) host"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Who is running this script?
     runuser = helpers.who_is_running()
@@ -186,15 +284,17 @@ def main(args):
     # Check for sane input
     parser = argparse.ArgumentParser(description='Performs Import of Default Content View.')
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
-    parser.add_argument('-d', '--date', \
-        help='Date/name of Import fileset to process (YYYY-MM-DD_NAME)', required=False)
+    parser.add_argument('-d', '--dataset', \
+        help='Date/name of Import dataset to process (YYYY-MM-DD_NAME)', required=False)
     parser.add_argument('-n', '--nosync', help='Do not trigger a sync after extracting content',
         required=False, action="store_true")
     parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
         required=False, action="store_true")
-    parser.add_argument('-l', '--last', help='Display the last successful import performed', 
+    parser.add_argument('-l', '--last', help='Display the last successful import performed',
+        required=False, action="store_true")
+    parser.add_argument('-c', '--count', help='Display all package counts after import',
         required=False, action="store_true")
     args = parser.parse_args()
 
@@ -203,7 +303,7 @@ def main(args):
         org_name = args.org
     else:
         org_name = helpers.ORG_NAME
-    expdate = args.date
+    dataset = args.dataset
 
     # Record where we are running from
     script_dir = str(os.getcwd())
@@ -222,15 +322,15 @@ def main(args):
             msg = "Import has never been performed"
             helpers.log_msg(msg, 'INFO')
             print msg
-        sys.exit(-1)
-             
+        sys.exit(0)
+
     # If we got this far without -d being specified, error out cleanly
-    if args.date is None:
-        parser.error("--date is required")
+    if args.dataset is None:
+        parser.error("--dataset is required")
 
 
     # Figure out if we have the specified input fileset
-    basename = get_inputfiles(expdate)
+    basename = get_inputfiles(dataset)
 
     # Cleanup from any previous imports
     os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
@@ -249,6 +349,7 @@ def main(args):
         # We need to figure out which repos to sync. This comes to us via a pickle containing
         # a list of repositories that were exported
         imported_repos = pickle.load(open('exported_repos.pkl', 'rb'))
+        package_count = pickle.load(open('package_count.pkl', 'rb'))
 
         # Run a repo sync on each imported repo
         (delete_override) = sync_content(org_id, imported_repos)
@@ -256,20 +357,31 @@ def main(args):
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
 
+        # Verify the repository package/erratum counts match the sync host
+        check_counts(org_id, package_count, args.count)
+
+    if os.path.exists(helpers.IMPORTDIR + '/puppetforge'):
+        print 'Offline puppet-forge-server bundle is available to import seperately in '\
+            + helpers.IMPORTDIR + '/puppetforge\n'
+
+
     if args.remove and not delete_override:
         msg = "Removing input files from " + helpers.IMPORTDIR
         helpers.log_msg(msg, 'INFO')
         print msg
-        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + expdate + "*")
+        os.system("rm -f " + helpers.IMPORTDIR + "/sat6_export_" + dataset + "*")
         os.system("rm -rf " + helpers.IMPORTDIR + "/{content,custom,listing,*.pkl}")
+        excode = 0
     elif delete_override:
         msg = "* Not removing input files due to incomplete sync *"
         helpers.log_msg(msg, 'INFO')
         print msg
+        excode = 2
     else:
         msg = " (Removal of input files was not requested)"
         helpers.log_msg(msg, 'INFO')
         print msg
+        excode = 0
 
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
@@ -278,7 +390,10 @@ def main(args):
     os.chdir(script_dir)
     if not os.path.exists(vardir):
         os.makedirs(vardir)
-    pickle.dump(expdate, open(vardir + '/imports.pkl', "wb"))
+    pickle.dump(dataset, open(vardir + '/imports.pkl', "wb"))
+
+    # And exit.
+    sys.exit(excode)
 
 if __name__ == "__main__":
     try:
@@ -286,4 +401,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt, e:
         print >> sys.stderr, ("\n\nExiting on user cancel.")
         sys.exit(1)
-

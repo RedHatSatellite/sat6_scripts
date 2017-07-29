@@ -20,7 +20,7 @@ try:
     import yaml
 except ImportError:
     print "Please install the PyYAML module."
-    sys.exit(-1)
+    sys.exit(1)
 
 # Get details about Content Views and versions
 def get_cv(org_id):
@@ -47,9 +47,8 @@ def get_cv(org_id):
                 msg = "  Version ID: " + str(ver['id'])
                 helpers.log_msg(msg, 'DEBUG')
 
-        # There will only ever be one DOV
-        return cv_result['id']
-
+            # There will only ever be one DOV
+            return cv_result['id']
 
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
@@ -82,13 +81,13 @@ def export_cv(dov_ver, last_export, export_type):
     except: # pylint: disable-msg=W0702
         msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Trap some other error conditions
     if "Required lock is already taken" in str(task_id):
         msg = "Unable to start export - Sync in progress"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     msg = "Export started, task_id = " + str(task_id)
     helpers.log_msg(msg, 'DEBUG')
@@ -126,13 +125,13 @@ def export_repo(repo_id, last_export, export_type):
     except: # pylint: disable-msg=W0702
         msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Trap some other error conditions
     if "Required lock is already taken" in str(task_id):
         msg = "Unable to start export - Sync in progress"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     msg = "Export started, task_id = " + str(task_id)
     helpers.log_msg(msg, 'DEBUG')
@@ -192,7 +191,7 @@ def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
                 # And this is where we want them to be moved to so we can export them in Satellite format
                 # We need to knock off '<org_name>/Library/' from beginning of repo_relative and replace with export/
                 exportpath = "/".join(repo_relative.strip("/").split('/')[2:])
-                OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath 
+                OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath
 
                 # Move the files into the final export tree
                 if not os.path.exists(OUTDIR):
@@ -207,6 +206,109 @@ def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
 
     return numfiles
 
+
+def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, pforge):
+    """
+    Export Puppet modules
+    Takes the type (full/incr) and the date of the last run
+    """
+    numfiles = 0
+    PUPEXPORTDIR = helpers.EXPORTDIR + '/puppet'
+    if not os.path.exists(PUPEXPORTDIR):
+        os.makedirs(PUPEXPORTDIR)
+
+    if export_type == 'full':
+        msg = "Exporting Puppet repository id " + str(repo_id)
+    else:
+        msg = "Exporting Puppet repository id " + str(repo_id) + " from start date " + last_export
+    helpers.log_msg(msg, 'INFO')
+
+    # This will currently export ALL ISO, not just the selected repo
+    if export_type == 'full':
+        msg = "Exporting all Puppet content"
+    else:
+        msg = "Exporting Puppet content from start date " + last_export
+    helpers.log_msg(msg, 'INFO')
+
+    msg = "  Copying updated files for export..."
+    colx = "{:<70}".format(msg)
+    print colx[:70],
+    helpers.log_msg(msg, 'INFO')
+    # Force the status message to be shown to the user
+    sys.stdout.flush()
+
+    if export_type == 'full':
+        os.system('find -L /var/lib/pulp/published/puppet/http/repos/*' + repo_label \
+            + ' -type f -exec cp --parents -Lrp {} ' + PUPEXPORTDIR + ' \;')
+    else:
+        os.system('find -L /var/lib/pulp/published/puppet/http/repos/*' + repo_label \
+            + ' -type f -newerct $(date +%Y-%m-%d -d "' + last_export + '") -exec cp --parents -Lrp {} '\
+            + PUPEXPORTDIR + ' \;')
+        # We need to copy the manifest anyway, otherwise we'll cause import issues if we have an empty repo
+        os.system('find -L /var/lib/pulp/published/puppet/http/repos/*' + repo_label \
+            + ' -name modules.json -exec cp --parents -Lrp {} ' + PUPEXPORTDIR + ' \;')
+
+    # At this point the puppet/ export dir will contain individual repos - we need to 'normalise' them
+    for dirpath, subdirs, files in os.walk(PUPEXPORTDIR):
+        for tdir in subdirs:
+            if repo_label in tdir:
+                # This is where the exported ISOs for our repo are located
+                INDIR = os.path.join(dirpath, tdir)
+                # And this is where we want them to be moved to so we can export them in Satellite format
+                # We need to knock off '<org_name>/Library/' from beginning of repo_relative and replace with export/
+                exportpath = "/".join(repo_relative.strip("/").split('/')[2:])
+                OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath
+
+                # Move the files into the final export tree
+                if not os.path.exists(OUTDIR):
+                    shutil.move(INDIR, OUTDIR)
+
+                    os.chdir(OUTDIR)
+                    numfiles = sum([len(files) for r, d, files in os.walk(OUTDIR)])
+                    # Subtract the manifest from the number of files:
+                    numfiles = numfiles - 1
+
+                    msg = "Puppet Export OK (" + str(numfiles) + " new files)"
+                    helpers.log_msg(msg, 'INFO')
+                    print helpers.GREEN + msg + helpers.ENDC
+
+    # If we are dealing with Puppet_Forge, create a second bundle for import to puppet-forge-server
+    if pforge:
+        # Only relevant if this is the Puppet_Forge repo...
+        if 'Puppet_Forge' in OUTDIR:
+            PFEXPORTDIR = helpers.EXPORTDIR + '/export/puppetforge'
+            if not os.path.exists(PFEXPORTDIR):
+                os.makedirs(PFEXPORTDIR)
+            os.system('find ' + OUTDIR + ' -name "*.gz" -exec cp {} ' + PFEXPORTDIR + ' \;')
+
+    return numfiles
+
+
+def export_manifest():
+    """
+    Copies manifest downloaded by 'download_manifest.py' into the export bundle
+    """
+    if os.path.exists(helpers.EXPORTDIR + '/manifest'):
+        msg = 'Found manifest to export'
+        helpers.log_msg(msg, 'DEBUG')
+        MFSTEXPORTDIR = helpers.EXPORTDIR + '/export/manifest'
+        if not os.path.exists(MFSTEXPORTDIR):
+            os.makedirs(MFSTEXPORTDIR)
+        os.system('cp ' + helpers.EXPORTDIR + '/manifest/* ' + MFSTEXPORTDIR)
+
+
+def count_packages(repo_id):
+    """
+    Return the number of packages/erratum in a respository
+    """
+    result = helpers.get_json(
+        helpers.KATELLO_API + "repositories/" + str(repo_id)
+            )
+
+    numpkg = result['content_counts']['rpm']
+    numerrata = result['content_counts']['erratum']
+
+    return str(numpkg) + ':' + str(numerrata)
 
 
 def check_running_tasks(label, name):
@@ -233,7 +335,7 @@ def check_running_tasks(label, name):
                     msg = "Unable to export due to export task in progress"
                     if name == 'DoV':
                         helpers.log_msg(msg, 'ERROR')
-                        sys.exit(-1)
+                        sys.exit(1)
                     else:
                         helpers.log_msg(msg, 'WARNING')
                         ok_to_export = False
@@ -242,7 +344,7 @@ def check_running_tasks(label, name):
                     msg = "Unable to export due to sync task in progress"
                     if name == 'DoV':
                         helpers.log_msg(msg, 'ERROR')
-                        sys.exit(-1)
+                        sys.exit(1)
                     else:
                         helpers.log_msg(msg, 'WARNING')
                         ok_to_export = False
@@ -252,7 +354,7 @@ def check_running_tasks(label, name):
                     msg = "Unable to export due to paused export task - Please resolve this issue."
                     if name == 'DoV':
                         helpers.log_msg(msg, 'ERROR')
-                        sys.exit(-1)
+                        sys.exit(1)
                     else:
                         helpers.log_msg(msg, 'WARNING')
                         ok_to_export = False
@@ -261,7 +363,7 @@ def check_running_tasks(label, name):
                     msg = "Unable to export due to paused sync task."
                     if name == 'DoV':
                         helpers.log_msg(msg, 'ERROR')
-                        sys.exit(-1)
+                        sys.exit(1)
                     else:
                         helpers.log_msg(msg, 'WARNING')
                         ok_to_export = False
@@ -305,7 +407,7 @@ def check_incomplete_sync():
         if not answer:
             msg = "Export Aborted"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
         else:
             msg = "Export continued by user"
             helpers.log_msg(msg, 'INFO')
@@ -320,7 +422,7 @@ def check_disk_space(export_type):
     if export_type == 'full' and int(float(pulp_used)) > 50:
         msg = "Insufficient space in /var/lib/pulp for a full export. >50% free space is required."
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
 
 def locate(pattern, root=os.curdir):
@@ -363,7 +465,7 @@ def do_gpg_check(export_dir):
             helpers.log_msg(msg, 'ERROR')
         msg = "------ Export Aborted ------"
         helpers.log_msg(msg, 'INFO')
-        sys.exit(-1)
+        sys.exit(1)
     else:
         msg = "GPG check completed successfully"
         helpers.log_msg(msg, 'INFO')
@@ -402,6 +504,8 @@ def create_tar(export_dir, name):
     shutil.rmtree(export_dir)
     if os.path.exists(helpers.EXPORTDIR + "/iso"):
         shutil.rmtree(helpers.EXPORTDIR + "/iso")
+    if os.path.exists(helpers.EXPORTDIR + "/puppet"):
+        shutil.rmtree(helpers.EXPORTDIR + "/puppet")
 
     # Split the resulting tar into DVD size chunks & remove the original.
     msg = "Splitting TAR file..."
@@ -507,20 +611,17 @@ def main(args):
     if helpers.DISCONNECTED:
         msg = "Export cannot be run on the disconnected Satellite host"
         helpers.log_msg(msg, 'ERROR')
-        sys.exit(-1)
+        sys.exit(1)
 
     # Who is running this script?
     runuser = helpers.who_is_running()
 
     # Set the base dir of the script and where the var data is
-    global dir 
-    global vardir 
+    global dir
+    global vardir
     dir = os.path.dirname(__file__)
     vardir = os.path.join(dir, 'var')
-
-    # Log the fact we are starting
-    msg = "------------- Content export started by " + runuser + " ----------------"
-    helpers.log_msg(msg, 'INFO')
+    confdir = os.path.join(dir, 'config')
 
     # Check for sane input
     parser = argparse.ArgumentParser(description='Performs Export of Default Content View.')
@@ -528,7 +629,7 @@ def main(args):
     # pylint: disable=bad-continuation
     parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
-    parser.add_argument('-e', '--env', help='Environment config file', required=False)
+    parser.add_argument('-e', '--env', help='Environment config', required=False)
     group.add_argument('-a', '--all', help='Export ALL content', required=False,
         action="store_true")
     group.add_argument('-i', '--incr', help='Incremental Export of content since last run',
@@ -539,7 +640,9 @@ def main(args):
         action="store_true")
     parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
         action="store_true")
-    parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages', 
+    parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages',
+        required=False, action="store_true")
+    parser.add_argument('-p', '--puppetforge', help='Include puppet-forge-server format Puppet Forge repo',
         required=False, action="store_true")
     args = parser.parse_args()
 
@@ -550,22 +653,41 @@ def main(args):
        org_name = helpers.ORG_NAME
     since = args.since
 
+    if args.puppetforge:
+        pforge = True
+    else:
+        pforge = False
+
     # Record where we are running from
     script_dir = str(os.getcwd())
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
     exported_repos = []
+    package_count = {}
     # If a specific environment is requested, find and read that config file
-    repocfg = os.path.join(dir, 'config/' + args.env + '.yml')
+    repocfg = os.path.join(dir, confdir + '/exports.yml')
     if args.env:
         if not os.path.exists(repocfg):
-            print "ERROR: Config file " + repocfg + " not found."
-            sys.exit(-1)
+            msg = 'Config file ' + confdir + '/exports.yml not found.'
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(1)
+
         cfg = yaml.safe_load(open(repocfg, 'r'))
         ename = args.env
-        erepos = cfg["env"]["repos"]
-        msg = "Specific environment export called for " + ename + ". Configured repos:"
+        erepos = []
+        validrepo = False
+        for x in cfg['exports']:
+            if cfg['exports'][x]['name'] == ename:
+                validrepo = True
+                erepos = cfg['exports'][x]['repos']
+
+        if not validrepo:
+            msg = 'Unable to find export config for ' + ename
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(1)
+
+        msg = "Specific environment export called for " + ename + "."
         helpers.log_msg(msg, 'DEBUG')
         for repo in erepos:
             msg = "  - " + repo
@@ -576,10 +698,6 @@ def main(args):
         label = 'DoV'
         msg = "DoV export called"
         helpers.log_msg(msg, 'DEBUG')
-
-    # Get the current time - this will be the 'last export' time if the export is OK
-    start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
-    print "START: " + start_time + " (" + ename + " export)"
 
     # Read the last export date pickle for our selected repo group.
     export_times = read_pickle(ename)
@@ -600,7 +718,7 @@ def main(args):
                         print repo[:70] + '\t' + str(export_times[time])
                 else:
                     print "Export has never been performed for " + ename
-                sys.exit(-1)
+                sys.exit(0)
             if not export_times:
                 print "No prior export recorded for " + ename + ", performing full content export"
                 export_type = 'full'
@@ -611,6 +729,16 @@ def main(args):
             # We have our timestamp so we can kick of an incremental export
             print "Incremental export of content for " + ename + " synchronised after " \
             + str(since)
+
+    # Log the fact we are starting
+    msg = "------------- Content export started by " + runuser + " ----------------"
+    if args.env:
+        msg = "------ " + ename + " Content export started by " + runuser + " ---------"
+    helpers.log_msg(msg, 'INFO')
+
+    # Get the current time - this will be the 'last export' time if the export is OK
+    start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
+    print "START: " + start_time + " (" + ename + " export)"
 
     # Check the available space in /var/lib/pulp
     check_disk_space(export_type)
@@ -640,6 +768,9 @@ def main(args):
             last_export = export_times['DoV']
             if since:
                 last_export = since_export
+            else:
+                # To ensure we get ALL the packages reset the time to midnight on the last_export day
+                last_export = last_export.split(' ')[0] + " 00:00:00"
             colb = "(INCR since " + last_export + ")"
         else:
             export_type = 'full'
@@ -681,7 +812,7 @@ def main(args):
         else:
             msg = "Content View Export FAILED"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(-1)
+            sys.exit(1)
 
     else:
         # Verify that defined repos exist in Satellite
@@ -707,6 +838,9 @@ def main(args):
                         last_export = export_times[repo_result['label']]
                         if since:
                             last_export = since_export
+                        else:
+                            # To ensure we get ALL the packages reset the time to midnight on the last_export day
+                            last_export = last_export.split(' ')[0] + " 00:00:00"
                         colb = "(INCR since " + last_export + ")"
                     else:
                         export_type = 'full'
@@ -721,6 +855,10 @@ def main(args):
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
 
                     if ok_to_export:
+                        # Count the number of packages
+                        numpkg = count_packages(repo_result['id'])
+                        package_count[repo_result['label']] = numpkg
+
                         # Trigger export on the repo
                         export_id = export_repo(repo_result['id'], last_export, export_type)
 
@@ -782,6 +920,9 @@ def main(args):
                         last_export = export_times[repo_result['label']]
                         if since:
                             last_export = since_export
+                        else:
+                            # To ensure we get ALL the packages reset the time to midnight on the last_export day
+                            last_export = last_export.split(' ')[0] + " 00:00:00"
                         colb = "(INCR since " + last_export + ")"
                     else:
                         export_type = 'full'
@@ -804,7 +945,56 @@ def main(args):
 
                         # Update the export timestamp for this repo
                         export_times[repo_result['label']] = start_time
-                        
+
+                        # Add the repo to the successfully exported list
+                        if numfiles != 0 or args.repodata:
+                            msg = "Adding " + repo_result['label'] + " to export list"
+                            helpers.log_msg(msg, 'DEBUG')
+                            exported_repos.append(repo_result['label'])
+                        else:
+                            msg = "Not including repodata for empty repo " + repo_result['label']
+                            helpers.log_msg(msg, 'DEBUG')
+
+                else:
+                    msg = "Skipping  " + repo_result['label']
+                    helpers.log_msg(msg, 'DEBUG')
+
+            elif repo_result['content_type'] == 'puppet':
+                # If we have a match, do the export
+                if repo_result['label'] in erepos:
+                    # Extract the last export time for this repo
+                    orig_export_type = export_type
+                    cola = "Export " + repo_result['label']
+                    if export_type == 'incr' and repo_result['label'] in export_times:
+                        last_export = export_times[repo_result['label']]
+                        if since:
+                            last_export = since_export
+                        else:
+                            # To ensure we get ALL the packages reset the time to midnight on the last_export day
+                            last_export = last_export.split(' ')[0] + " 00:00:00"
+                        colb = "(INCR since " + last_export + ")"
+                    else:
+                        export_type = 'full'
+                        last_export = '2000-01-01 12:00:00' # This is a dummy value, never used.
+                        colb = "(FULL)"
+                    msg = cola + " " + colb
+                    helpers.log_msg(msg, 'INFO')
+                    output = "{:<70}".format(cola)
+                    print output[:70] + ' ' + colb
+
+                    # Check if there are any currently running tasks that will conflict
+                    ok_to_export = check_running_tasks(repo_result['label'], ename)
+
+                    if ok_to_export:
+                        # Trigger export on the repo
+                        numfiles = export_puppet(repo_result['id'], repo_result['label'], repo_result['relative_path'], last_export, export_type, pforge)
+
+                        # Reset the export type to the user specified, in case we overrode it.
+                        export_type = orig_export_type
+
+                        # Update the export timestamp for this repo
+                        export_times[repo_result['label']] = start_time
+
                         # Add the repo to the successfully exported list
                         if numfiles != 0 or args.repodata:
                             msg = "Adding " + repo_result['label'] + " to export list"
@@ -819,7 +1009,6 @@ def main(args):
                     helpers.log_msg(msg, 'DEBUG')
 
 
-
     # Combine resulting directory structures into a single repo format (top level = /content)
     prep_export_tree(org_name)
 
@@ -827,13 +1016,17 @@ def main(args):
     # Define the location of our exported data.
     export_dir = helpers.EXPORTDIR + "/export"
 
-    # Write out the list of exported repos. This will be transferred to the disconnected system
-    # and used to perform the repo sync tasks during the import.
+    # Write out the list of exported repos and the package counts. These will be transferred to the
+    # disconnected system and used to perform the repo sync tasks during the import.
     pickle.dump(exported_repos, open(export_dir + '/exported_repos.pkl', 'wb'))
+    pickle.dump(package_count, open(export_dir + '/package_count.pkl', 'wb'))
 
     # Run GPG Checks on the exported RPMs
     if not args.nogpg:
         do_gpg_check(export_dir)
+
+    # Copy in the manifest, if it has been downloaded
+    export_manifest()
 
     # Add our exported data to a tarfile
     create_tar(export_dir, ename)
@@ -848,7 +1041,11 @@ def main(args):
         ' to your disconnected Satellite system content import location.\n' \
         'Once transferred, please run ' + helpers.BOLD + ' sat_import' \
         + helpers.ENDC + ' to extract it.'
+    msg = "Export complete"
+    helpers.log_msg(msg, 'INFO')
 
+    # Exit cleanly
+    sys.exit(0)
 
 if __name__ == "__main__":
     try:
