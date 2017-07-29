@@ -49,7 +49,6 @@ satellite:
   username: svc-api-user
   password: 1t$a$3cr3t
   disconnected: [True|False]     (Is direct internet connection available?)
-  manifest: my-satellite         (Red Hat Portal satellite application name)
   default_org: MyOrg             (Default org to use - can be overridden with -o)
 
 logging:
