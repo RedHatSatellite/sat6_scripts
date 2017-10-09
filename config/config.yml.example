@@ -5,6 +5,7 @@ satellite:
   default_org: MyOrg
   manifest: my-satellite
   disconnected: False
+  proxy: proxy.example.org:8080
 
 logging:
   dir: /var/log/satellite
@@ -43,4 +44,3 @@ cleanup:
 
 puppet-forge-server:
   hostname: puppetforge.example.org
-

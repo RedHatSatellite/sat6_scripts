@@ -77,6 +77,14 @@ url = "https://" + portal_host + "/subscription/users/" + login + "/owners/"
 try:
     if options.debug:
         print "Attempting to connect: " + url
+
+    # Use HTTP proxy if required
+    if helpers.PXYADDR:
+        if options.debug:
+            print "Using proxy: " + helpers.PXYADDR
+        os.environ['http_proxy'] = helpers.PXYADDR
+        os.environ['https_proxy'] = helpers.PXYADDR
+
     request = urllib2.Request(url)
     base64string = base64.encodestring('%s:%s' % (login, password)).strip()
     request.add_header("Authorization", "Basic %s" % base64string)
@@ -149,4 +157,3 @@ for consumer in consumerdata:
 print "The Subscription Management Application %s could not be found" % sma
 print "Reminder: names are case-sensitive"
 sys.exit(0)
-

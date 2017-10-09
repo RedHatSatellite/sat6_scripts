@@ -66,6 +66,15 @@ or Disconnected
 This determines whether this satellite can export or import content.
 .RE
 
+.B "  proxy: proxy.example.com:8080"
+.RS
+Definition of HTTP proxy to use in support of the
+.I download_manifest 
+script. 
+.br
+If no proxy is required this parameter can be omitted from the config file completely.
+.RE
+
 
 .B logging:
 .br
@@ -164,7 +173,7 @@ Configuration must exist even if puppet-forge-server itself is not in use. Used 
 
 
 .SS exports.yml
-The 
+The
 .B sat_export
 script uses this file to determine which repositories to export for each enviroment.
 
@@ -280,4 +289,3 @@ file.
 
 .SH AUTHOR
 Geoff Gatward <ggatward@redhat.com>
-

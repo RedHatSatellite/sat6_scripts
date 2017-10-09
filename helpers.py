@@ -40,6 +40,9 @@ DISCONNECTED = CONFIG['satellite']['disconnected']
 if 'manifest' in CONFIG['satellite']:
     MANIFEST = CONFIG['satellite']['manifest']
 ORG_NAME = CONFIG['satellite']['default_org']
+PXYADDR = None
+if 'proxy' in CONFIG['satellite']:
+    PXYADDR = CONFIG['satellite']['proxy']
 LOGDIR = CONFIG['logging']['dir']
 DEBUG = CONFIG['logging']['debug']
 EXPORTDIR = CONFIG['export']['dir']
