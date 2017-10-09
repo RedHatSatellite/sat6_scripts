@@ -80,10 +80,10 @@ try:
 
     # Use HTTP proxy if required
     if helpers.PXYADDR:
-        proxy = {"http":"http://%s" % helpers.PXYADDR}
-        proxy_support = urllib2.ProxyHandler(proxy)
-        opener = urllib2.build_opener(proxy_support, urllib2.HTTPHandler(debuglevel=1))
-        urllib2.install_opener(opener)
+        if options.debug:
+            print "Using proxy: " + helpers.PXYADDR
+        os.environ['http_proxy'] = helpers.PXYADDR
+        os.environ['https_proxy'] = helpers.PXYADDR
 
     request = urllib2.Request(url)
     base64string = base64.encodestring('%s:%s' % (login, password)).strip()
