@@ -6,6 +6,9 @@ satellite:
   manifest: my-satellite
   disconnected: False
 
+proxy:
+  address: proxy.example.org:8080
+
 logging:
   dir: /var/log/satellite
   debug: False
@@ -43,4 +46,3 @@ cleanup:
 
 puppet-forge-server:
   hostname: puppetforge.example.org
-
