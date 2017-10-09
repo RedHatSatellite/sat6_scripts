@@ -66,13 +66,15 @@ or Disconnected
 This determines whether this satellite can export or import content.
 .RE
 
-.B proxy:
-.br
-.B "  address: proxy.example.com:8080"
+.B "  proxy: proxy.example.com:8080"
 .RS
-Definition of HTTP proxy to use in support of sat6_scripts tooling. This If no proxy is required this
-parameter can be omitted from the config file completely.
+Definition of HTTP proxy to use in support of the
+.I download_manifest 
+script. 
+.br
+If no proxy is required this parameter can be omitted from the config file completely.
 .RE
+
 
 .B logging:
 .br
