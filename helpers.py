@@ -254,7 +254,7 @@ def get_task_status(task_id):
 
 
 # Get details about Content Views and versions
-def watch_tasks(task_list, ref_list, task_name):
+def watch_tasks(task_list, ref_list, task_name, quiet):
     """
     Watch the status of tasks provided in taskList.
     Loops until all tasks in the list have completed.
@@ -271,8 +271,10 @@ def watch_tasks(task_list, ref_list, task_name):
     failure = False
     while do_loop == 1:
         if len(task_list) >= 1:
-            os.system('clear')
-            print BOLD + task_name + ENDC
+            # Don't render progress bars if in quiet mode
+            if not quiet:
+                os.system('clear')
+                print BOLD + task_name + ENDC
 
             for task_id in task_list:
 
@@ -297,9 +299,10 @@ def watch_tasks(task_list, ref_list, task_name):
                     # Call the progress bar class
                     p = ProgressBar(100)
                     p.update_time(pct_done1)
-                    print colour + str(ref_list[task_id]) + ':' + ENDC
-                    print p
-
+                    # Don't render progress bars if in quiet mode
+                    if not quiet:
+                        print colour + str(ref_list[task_id]) + ':' + ENDC
+                        print p
 
                     if status['result'] != "pending":
                         # Update the pendingList dictionary to say this task is done

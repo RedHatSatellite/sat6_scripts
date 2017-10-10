@@ -31,7 +31,7 @@ file, but can be overridden with this option.
 .RS 3
 Publish all configured content views. By default
 .B publish_content_views
-will publish only the content views defined in the 
+will publish only the content views defined in the
 .I config.yml
 file.
 .RE
@@ -45,6 +45,12 @@ Display the dates of the last successful publish and promotions.
 .RS 3
 Do not perform the actual publish activity, but show what would be done.
 This option can be used to verify that the correct configuration options have been defined and applied before running the actual publication of content.
+.RE
+.PP
+.BR "-q", " --quiet"
+.RS 3
+Do not display refreshing progress bars during the operation.
+This option can be used when including this script in automated tasks, for example from cron.
 .RE
 
 
@@ -82,4 +88,3 @@ Show what will be published by default, but do not actually publish the content:
 
 .SH AUTHOR
 Geoff Gatward <ggatward@redhat.com>
-
