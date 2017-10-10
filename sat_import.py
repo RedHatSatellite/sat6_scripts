@@ -128,7 +128,7 @@ def sync_content(org_id, imported_repos):
         helpers.log_msg(msg, 'INFO')
         print msg
 
-        # Break repos_to_sync into groups of n 
+        # Break repos_to_sync into groups of n
         repochunks = [ repos_to_sync[i:i+helpers.SYNCBATCH] for i in range(0, len(repos_to_sync), helpers.SYNCBATCH) ]
 
         # Loop through the smaller batches of repos and sync them
@@ -194,10 +194,11 @@ def check_counts(org_id, package_count, count):
 
     # First loop through the repos in the import dict and find the local ID
     table_data = []
+    logtable_data = []
     display_data = False
     for repo, counts in package_count.iteritems():
         # Split the count data into packages and erratum
-        sync_pkgs = counts.split(':')[0] 
+        sync_pkgs = counts.split(':')[0]
         sync_erratum = counts.split(':')[1]
 
         # Loop through each repo and count the local pkgs in each repo
@@ -224,7 +225,7 @@ def check_counts(org_id, package_count, count):
                         # - sync host deletes old pkgs. If this is the case we cannot verify
                         # an exact package status so we'll set BLUE
                         colour = helpers.BLUE
-                        display = True
+                        display = False
                         display_data = True
 
                     # Tuncate the repo label to 70 chars and build the table row
@@ -233,14 +234,16 @@ def check_counts(org_id, package_count, count):
                     if count:
                         display_data = True
                         table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+                        logtable_data.append([repo[:70], str(sync_pkgs), str(local_pkgs)])
                     else:
                         # Otherwise only add counts that are non-green (display = True)
                         if display:
                             table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
+                            logtable_data.append([repo[:70], str(sync_pkgs), str(local_pkgs)])
 
 
     if display_data:
-        msg = '\nRepository package count verification...'
+        msg = '\nRepository package mismatch count verification...'
         helpers.log_msg(msg, 'INFO')
         print msg
 
@@ -248,12 +251,17 @@ def check_counts(org_id, package_count, count):
         header = ["", "Repository", "SyncHost", "ThisHost", ""]
         header1 = ["", "------------------------------------------------------------", "--------", "--------", ""]
         row_format = "{:<1} {:<70} {:>9} {:>9} {:<1}"
+        logrow_format = "{:<70} {:>9} {:>9}"
         print row_format.format(*header)
+        helpers.log_msg(row_format.format(*header), 'INFO')
         print row_format.format(*header1)
+        helpers.log_msg(row_format.format(*header1), 'INFO')
 
         # Print the table rows
         for row in table_data:
             print row_format.format(*row)
+        for row in logtable_data:
+            helpers.log_msg(logrow_format.format(*row), 'INFO')
         print '\n'
 
 
@@ -284,7 +292,7 @@ def main(args):
     # Check for sane input
     parser = argparse.ArgumentParser(description='Performs Import of Default Content View.')
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
     parser.add_argument('-d', '--dataset', \
         help='Date/name of Import dataset to process (YYYY-MM-DD_NAME)', required=False)
@@ -292,7 +300,7 @@ def main(args):
         required=False, action="store_true")
     parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
         required=False, action="store_true")
-    parser.add_argument('-l', '--last', help='Display the last successful import performed', 
+    parser.add_argument('-l', '--last', help='Display the last successful import performed',
         required=False, action="store_true")
     parser.add_argument('-c', '--count', help='Display all package counts after import',
         required=False, action="store_true")
@@ -323,7 +331,7 @@ def main(args):
             helpers.log_msg(msg, 'INFO')
             print msg
         sys.exit(0)
-             
+
     # If we got this far without -d being specified, error out cleanly
     if args.dataset is None:
         parser.error("--dataset is required")
@@ -401,4 +409,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt, e:
         print >> sys.stderr, ("\n\nExiting on user cancel.")
         sys.exit(1)
-
