@@ -200,6 +200,8 @@ def main(args):
         required=False, action="store_true")
     parser.add_argument('-l', '--last', help='Display last promotions', required=False,
         action="store_true")
+    parser.add_argument('-q', '--quiet', help="Suppress progress output updates", required=False,
+        action="store_true")
 
     args = parser.parse_args()
 
@@ -270,7 +272,7 @@ def main(args):
     pickle.dump(phistory, open(vardir + '/promotions.pkl', 'wb'))
 
     # Monitor the status of the promotion tasks
-    helpers.watch_tasks(task_list, ref_list, task_name)
+    helpers.watch_tasks(task_list, ref_list, task_name, args.quiet)
 
     # Exit cleanly
     sys.exit(0)
@@ -281,4 +283,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt, e:
         print >> sys.stderr, ("\n\nExiting on user cancel.")
         sys.exit(1)
-
