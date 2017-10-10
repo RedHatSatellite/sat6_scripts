@@ -234,13 +234,12 @@ def check_counts(org_id, package_count, count):
                     if count:
                         display_data = True
                         table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
-                        logtable_data.append([repo[:70], str(sync_pkgs), str(local_pkgs)])
                     else:
                         # Otherwise only add counts that are non-green (display = True)
                         if display:
                             table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
-                            logtable_data.append([repo[:70], str(sync_pkgs), str(local_pkgs)])
-
+                    # Always log all package data to the log regardless of 'count'
+                    logtable_data.append([repo[:70], str(sync_pkgs), str(local_pkgs)])
 
     if display_data:
         msg = '\nRepository package mismatch count verification...'
