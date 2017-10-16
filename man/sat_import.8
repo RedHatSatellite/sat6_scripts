@@ -24,7 +24,7 @@ The import process consists of the following steps:
 - The import dataset is extracted to the import filesystem location.
 .RE
 .RS 3
-- The existence of each repository within the import dataset is verified in Satellite. 
+- The existence of each repository within the import dataset is verified in Satellite.
 .RS 2
 Any repositories found in the import that do not exist in Satellite will be indicated.
 .RE
@@ -33,7 +33,7 @@ Any repositories found in the import that do not exist in Satellite will be indi
 - Satellite will perform a bulk repository sync of the repositories within the import dataset.
 .RE
 .RS 3
-- At the completion of the import sync, a package count of each imported repository will be 
+- At the completion of the import sync, a package count of each imported repository will be
 .RS 2
 performed and compared against the count from the sync host Satellite, and discrepancies will be displayed.
 .RE
@@ -62,7 +62,7 @@ file, but can be overridden with this option.
 .BR "-d", " --dataset"
 .I "DATASET"
 .RS 3
-Dataset to import. The dataset name consists of the export date and the export environment that was defined during the 
+Dataset to import. The dataset name consists of the export date and the export environment that was defined during the
 .I sat_export
 process, for example  '2016-12-06_SAT1'
 .RE
@@ -70,6 +70,11 @@ process, for example  '2016-12-06_SAT1'
 .BR "-l", " --last"
 .RS 3
 Display the name of the last successfully imported dataset.
+.RE
+.PP
+.BR "-L", " --list"
+.RS 3
+Display all of the previously imported datasets.
 .RE
 .PP
 .BR "-n", " --nosync"
@@ -82,21 +87,26 @@ on all imported repositories. Using this option will extract the import dataset 
 .RS 3
 Delete the import dataset files after a successful import and sync operation. By default
 .B sat_import
-will leave the import dataset in the import location. 
+will leave the import dataset in the import location.
 .br
 If the import process detects a repository in the dataset that does not exist in the Satellite,
-the removal of the import dataset is skipped regardless of the setting of this flag. This is 
+the removal of the import dataset is skipped regardless of the setting of this flag. This is
 because the new repository will need to be manually defined in the Satellite and a manual sync
 of that repository performed.
 .RE
 .PP
 .BR "-c", " --count"
 .RS 3
-Display the full repository package count after the sync has completed. By default, only repositories 
-that have mis-matching content counts will be displayed. This option forces the package count of ALL 
+Display the full repository package count after the sync has completed. By default, only repositories
+that have mis-matching content counts will be displayed. This option forces the package count of ALL
 repositories to be shown, even if there is no mis-match.
 .RE
-
+.PP
+.BR "-f", " --force"
+.RS 3
+Normally the script will prevent the importing of a dataset that has already been imported.
+However, using this option will force an import of the dataset to be performed.
+.RE
 
 .SH EXAMPLES
 Check when the last import was performed:
@@ -132,4 +142,3 @@ Perform an import using dataset 2016-12-06_SAT1, removing input files when done:
 
 .SH AUTHOR
 Geoff Gatward <ggatward@redhat.com>
-

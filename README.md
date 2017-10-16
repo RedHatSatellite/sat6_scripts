@@ -225,10 +225,14 @@ The input archive files can also be automatically removed on successful import/s
 with the (-r) flag.
 
 The last successfully completed import can be identified with the (-l) flag.
+All previously imported datasets can be shown with the (-L) flag.
+
+Note that a dataset can normally only be imported ONCE. To force an import of an
+already completed dataset, use the (-f) flag.
 
 ### Help Output
 ```
-usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l]
+usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l] [-L] [-f]
 
 Performs Import of Default Content View.
 
@@ -239,6 +243,9 @@ optional arguments:
   -n, --nosync          Do not trigger a sync after extracting content
   -r, --remove          Remove input files after import has completed
   -l, --last            Show the last successfully completed import date
+  -L, --list            List all successfully completed imports
+  -c, --count           Display all package counts after import
+  -f, --force           Force import of data if it has previously been done      
 ```
 
 ### Examples

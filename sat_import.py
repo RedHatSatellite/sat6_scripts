@@ -18,8 +18,8 @@ import helpers
 def get_inputfiles(dataset):
     """
     Verify the input files exist and are valid.
-    'dataset' is a date (YYYY-MM-DD) provided by the user - date is in the filename of the archive
-    Returned 'basename' is the full export filename (sat6_export_YYYY-MM-DD)
+    'dataset' is a date (YYYY-MM-DD_ENV) provided by the user - date is in the filename of the archive
+    Returned 'basename' is the full export filename (sat6_export_YYYY-MM-DD_ENV)
     """
     basename = 'sat6_export_' + dataset
     shafile = basename + '.sha256'
@@ -301,7 +301,11 @@ def main(args):
         required=False, action="store_true")
     parser.add_argument('-l', '--last', help='Display the last successful import performed',
         required=False, action="store_true")
+    parser.add_argument('-L', '--list', help='List all successfully completed imports',
+        required=False, action="store_true")
     parser.add_argument('-c', '--count', help='Display all package counts after import',
+        required=False, action="store_true")
+    parser.add_argument('-f', '--force', help='Force import of data if it has previously been done',
         required=False, action="store_true")
     args = parser.parse_args()
 
@@ -318,13 +322,25 @@ def main(args):
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
 
-    # Display the last successful import
-    if args.last:
+    imports = []
+    # Read the last imports data
+    if os.path.exists(vardir + '/imports.pkl'):
+        imports = pickle.load(open(vardir + '/imports.pkl', 'rb'))
+        # If we have a string we convert to a list. This should only occur the first time we
+        # migrate from the original string version of the pickle.
+        if type(imports) is str:
+            imports = imports.split()
+        last_import = imports[-1]
+    # Display the last successful import(s)
+    if args.last or args.list:
         if os.path.exists(vardir + '/imports.pkl'):
-            last_import = pickle.load(open(vardir + '/imports.pkl', 'rb'))
-            msg = "Last successful import was " + last_import
-            helpers.log_msg(msg, 'INFO')
-            print msg
+            if args.last:
+                msg = "Last successful import was " + last_import
+                helpers.log_msg(msg, 'INFO')
+                print msg
+            if args.list:
+                print "Completed imports:\n----------------"
+                for item in imports: print item
         else:
             msg = "Import has never been performed"
             helpers.log_msg(msg, 'INFO')
@@ -335,6 +351,12 @@ def main(args):
     if args.dataset is None:
         parser.error("--dataset is required")
 
+    # If we have already imported this dataset let the user know
+    if dataset in imports:
+        if not args.force:
+            msg = "Dataset " + dataset + " has already been imported. Use --force if you really want to do this."
+            helpers.log_msg(msg, 'WARNING')
+            sys.exit(1)
 
     # Figure out if we have the specified input fileset
     basename = get_inputfiles(dataset)
@@ -393,11 +415,12 @@ def main(args):
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
 
-    # Save the last completed import data
+    # Save the last completed import data (append to existing pickle)
     os.chdir(script_dir)
     if not os.path.exists(vardir):
         os.makedirs(vardir)
-    pickle.dump(dataset, open(vardir + '/imports.pkl', "wb"))
+    imports.append(dataset)
+    pickle.dump(imports, open(vardir + '/imports.pkl', "wb"))
 
     # And exit.
     sys.exit(excode)
