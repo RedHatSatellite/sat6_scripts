@@ -198,9 +198,9 @@ optional arguments:
 ./sat_export.py -e DEV -a           # Full export of repos defined in the DEV config
 
 Output file format will be:
-sat_export_2016-07-29_DEV_00
-sat_export_2016-07-29_DEV_01
-sat_export_2016-07-20_DEV.sha256
+sat_export_20160729-1021_DEV_00
+sat_export_20160729-1021_DEV_01
+sat_export_20160729-1021_DEV.sha256
 ```
 
 # sat_import
@@ -250,10 +250,10 @@ optional arguments:
 
 ### Examples
 ```
-./sat_import.py -d 2016-07-29_DEV -n            # Import content defined in DEV.yml but do not sync
-./sat_import.py -d 2016-07-29_DoV               # Extract a DoV export but do not sync it
+./sat_import.py -d 20160729-1021_DEV -n         # Import content defined in DEV.yml but do not sync
+./sat_import.py -d 20160729-1021_DoV            # Extract a DoV export but do not sync it
 ./sat_import.py -o MyOrg -l                     # Lists the date of the last successful import
-./sat_import.py -o AnotherOrg -d 2016-07-29_DEV # Import content for a different org
+./sat_import.py -o AnotherOrg -d 20160729-1021_DEV # Import content for a different org
 ```
 
 

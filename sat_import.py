@@ -18,8 +18,8 @@ import helpers
 def get_inputfiles(dataset):
     """
     Verify the input files exist and are valid.
-    'dataset' is a date (YYYY-MM-DD_ENV) provided by the user - date is in the filename of the archive
-    Returned 'basename' is the full export filename (sat6_export_YYYY-MM-DD_ENV)
+    'dataset' is a date (YYYYMMDD-HHMM_ENV) provided by the user - date is in the filename of the archive
+    Returned 'basename' is the full export filename (sat6_export_YYYYMMDD-HHMM_ENV)
     """
     basename = 'sat6_export_' + dataset
     shafile = basename + '.sha256'

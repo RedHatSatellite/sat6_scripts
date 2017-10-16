@@ -478,7 +478,7 @@ def create_tar(export_dir, name):
     Creates a single tar, then splits into DVD size chunks and calculates
     sha256sum for each chunk.
     """
-    today = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
+    today = datetime.datetime.strftime(datetime.datetime.now(), '%Y%m%d-%H%M')
     msg = "Creating TAR files..."
     helpers.log_msg(msg, 'INFO')
     print msg

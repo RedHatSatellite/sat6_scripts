@@ -62,9 +62,9 @@ file, but can be overridden with this option.
 .BR "-d", " --dataset"
 .I "DATASET"
 .RS 3
-Dataset to import. The dataset name consists of the export date and the export environment that was defined during the
+Dataset to import. The dataset name consists of the export date/time and the export environment that was defined during the
 .I sat_export
-process, for example  '2016-12-06_SAT1'
+process, for example  '20161206-1021_SAT1'
 .RE
 .PP
 .BR "-l", " --last"
@@ -114,9 +114,9 @@ Check when the last import was performed:
 .B "sat_import -l"
 .RE
 
-Perform an import using dataset 2016-12-06_SAT1, removing input files when done:
+Perform an import using dataset 20161206-1021_SAT1, removing input files when done:
 .RS 6
-.B "sat_import -d 2016-12-06_SAT1 -r"
+.B "sat_import -d 20161206-1021_SAT1 -r"
 .RE
 
 
