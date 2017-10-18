@@ -472,7 +472,7 @@ def do_gpg_check(export_dir):
         print helpers.GREEN + "GPG Check - Pass" + helpers.ENDC
 
 
-def create_tar(export_dir, name):
+def create_tar(export_dir, name, export_history):
     """
     Create a TAR of the content we have exported
     Creates a single tar, then splits into DVD size chunks and calculates
@@ -482,6 +482,12 @@ def create_tar(export_dir, name):
     msg = "Creating TAR files..."
     helpers.log_msg(msg, 'INFO')
     print msg
+
+    # Add this export to the export_history list
+    fname = today + '_' + name
+    export_history.append(fname)
+    pickle.dump(export_history, open(vardir + '/exporthistory_' + name + '.pkl', 'wb'))
+    pickle.dump(export_history, open(export_dir + '/exporthistory_' + name + '.pkl', 'wb'))
 
     os.chdir(export_dir)
     full_tarfile = helpers.EXPORTDIR + '/sat6_export_' + today + '_' + name
@@ -638,6 +644,8 @@ def main(args):
         required=False, type=helpers.valid_date)
     parser.add_argument('-l', '--last', help='Display time of last export', required=False,
         action="store_true")
+    parser.add_argument('-L', '--list', help='Display export history', required=False,
+        action="store_true")
     parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
         action="store_true")
     parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages',
@@ -664,6 +672,7 @@ def main(args):
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
     exported_repos = []
+    export_history = []
     package_count = {}
     # If a specific environment is requested, find and read that config file
     repocfg = os.path.join(dir, confdir + '/exports.yml')
@@ -703,6 +712,10 @@ def main(args):
     export_times = read_pickle(ename)
     export_type = 'incr'
 
+    # Open the export history pickle so we can append to it
+    if os.path.exists(vardir + '/exporthistory_' + ename + '.pkl'):
+        export_history = pickle.load(open(vardir + '/exporthistory_' + ename + '.pkl', 'rb'))
+
     if args.all:
         print "Performing full content export for " + ename
         export_type = 'full'
@@ -722,6 +735,18 @@ def main(args):
             if not export_times:
                 print "No prior export recorded for " + ename + ", performing full content export"
                 export_type = 'full'
+
+            # Display the full export history
+            if args.list:
+                if export_history:
+                    print "Export history for " + ename + ":"
+                    for item in export_history:
+                        print item
+                    sys.exit(0)
+                else:
+                    print "Export has never been performed for " + ename
+                sys.exit(0)
+
         else:
             # Re-populate export_times dictionary so each repo has 'since' date
             since_export = str(since)
@@ -1022,6 +1047,7 @@ def main(args):
     pickle.dump(exported_repos, open(export_dir + '/exported_repos.pkl', 'wb'))
     pickle.dump(package_count, open(export_dir + '/package_count.pkl', 'wb'))
 
+
     # Run GPG Checks on the exported RPMs
     if not args.nogpg:
         do_gpg_check(export_dir)
@@ -1030,7 +1056,7 @@ def main(args):
     export_manifest()
 
     # Add our exported data to a tarfile
-    create_tar(export_dir, ename)
+    create_tar(export_dir, ename, export_history)
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
