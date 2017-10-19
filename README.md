@@ -198,9 +198,9 @@ optional arguments:
 ./sat_export.py -e DEV -a           # Full export of repos defined in the DEV config
 
 Output file format will be:
-sat_export_2016-07-29_DEV_00
-sat_export_2016-07-29_DEV_01
-sat_export_2016-07-20_DEV.sha256
+sat_export_20160729-1021_DEV_00
+sat_export_20160729-1021_DEV_01
+sat_export_20160729-1021_DEV.sha256
 ```
 
 # sat_import
@@ -225,10 +225,14 @@ The input archive files can also be automatically removed on successful import/s
 with the (-r) flag.
 
 The last successfully completed import can be identified with the (-l) flag.
+All previously imported datasets can be shown with the (-L) flag.
+
+Note that a dataset can normally only be imported ONCE. To force an import of an
+already completed dataset, use the (-f) flag.
 
 ### Help Output
 ```
-usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l]
+usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l] [-L] [-f]
 
 Performs Import of Default Content View.
 
@@ -239,14 +243,17 @@ optional arguments:
   -n, --nosync          Do not trigger a sync after extracting content
   -r, --remove          Remove input files after import has completed
   -l, --last            Show the last successfully completed import date
+  -L, --list            List all successfully completed imports
+  -c, --count           Display all package counts after import
+  -f, --force           Force import of data if it has previously been done      
 ```
 
 ### Examples
 ```
-./sat_import.py -d 2016-07-29_DEV -n            # Import content defined in DEV.yml but do not sync
-./sat_import.py -d 2016-07-29_DoV               # Extract a DoV export but do not sync it
+./sat_import.py -d 20160729-1021_DEV -n         # Import content defined in DEV.yml but do not sync
+./sat_import.py -d 20160729-1021_DoV            # Extract a DoV export but do not sync it
 ./sat_import.py -o MyOrg -l                     # Lists the date of the last successful import
-./sat_import.py -o AnotherOrg -d 2016-07-29_DEV # Import content for a different org
+./sat_import.py -o AnotherOrg -d 20160729-1021_DEV # Import content for a different org
 ```
 
 

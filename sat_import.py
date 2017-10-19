@@ -18,8 +18,8 @@ import helpers
 def get_inputfiles(dataset):
     """
     Verify the input files exist and are valid.
-    'dataset' is a date (YYYY-MM-DD) provided by the user - date is in the filename of the archive
-    Returned 'basename' is the full export filename (sat6_export_YYYY-MM-DD)
+    'dataset' is a date (YYYYMMDD-HHMM_ENV) provided by the user - date is in the filename of the archive
+    Returned 'basename' is the full export filename (sat6_export_YYYYMMDD-HHMM_ENV)
     """
     basename = 'sat6_export_' + dataset
     shafile = basename + '.sha256'
@@ -128,7 +128,7 @@ def sync_content(org_id, imported_repos):
         helpers.log_msg(msg, 'INFO')
         print msg
 
-        # Break repos_to_sync into groups of n 
+        # Break repos_to_sync into groups of n
         repochunks = [ repos_to_sync[i:i+helpers.SYNCBATCH] for i in range(0, len(repos_to_sync), helpers.SYNCBATCH) ]
 
         # Loop through the smaller batches of repos and sync them
@@ -194,10 +194,11 @@ def check_counts(org_id, package_count, count):
 
     # First loop through the repos in the import dict and find the local ID
     table_data = []
+    logtable_data = []
     display_data = False
     for repo, counts in package_count.iteritems():
         # Split the count data into packages and erratum
-        sync_pkgs = counts.split(':')[0] 
+        sync_pkgs = counts.split(':')[0]
         sync_erratum = counts.split(':')[1]
 
         # Loop through each repo and count the local pkgs in each repo
@@ -224,7 +225,7 @@ def check_counts(org_id, package_count, count):
                         # - sync host deletes old pkgs. If this is the case we cannot verify
                         # an exact package status so we'll set BLUE
                         colour = helpers.BLUE
-                        display = True
+                        display = False
                         display_data = True
 
                     # Tuncate the repo label to 70 chars and build the table row
@@ -237,10 +238,11 @@ def check_counts(org_id, package_count, count):
                         # Otherwise only add counts that are non-green (display = True)
                         if display:
                             table_data.append([colour, repo[:70], str(sync_pkgs), str(local_pkgs), helpers.ENDC])
-
+                    # Always log all package data to the log regardless of 'count'
+                    logtable_data.append([repo[:70], str(sync_pkgs), str(local_pkgs)])
 
     if display_data:
-        msg = '\nRepository package count verification...'
+        msg = '\nRepository package mismatch count verification...'
         helpers.log_msg(msg, 'INFO')
         print msg
 
@@ -248,12 +250,17 @@ def check_counts(org_id, package_count, count):
         header = ["", "Repository", "SyncHost", "ThisHost", ""]
         header1 = ["", "------------------------------------------------------------", "--------", "--------", ""]
         row_format = "{:<1} {:<70} {:>9} {:>9} {:<1}"
+        logrow_format = "{:<70} {:>9} {:>9}"
         print row_format.format(*header)
+        helpers.log_msg(row_format.format(*header), 'INFO')
         print row_format.format(*header1)
+        helpers.log_msg(row_format.format(*header1), 'INFO')
 
         # Print the table rows
         for row in table_data:
             print row_format.format(*row)
+        for row in logtable_data:
+            helpers.log_msg(logrow_format.format(*row), 'INFO')
         print '\n'
 
 
@@ -284,7 +291,7 @@ def main(args):
     # Check for sane input
     parser = argparse.ArgumentParser(description='Performs Import of Default Content View.')
     # pylint: disable=bad-continuation
-    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)', 
+    parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
     parser.add_argument('-d', '--dataset', \
         help='Date/name of Import dataset to process (YYYY-MM-DD_NAME)', required=False)
@@ -292,9 +299,13 @@ def main(args):
         required=False, action="store_true")
     parser.add_argument('-r', '--remove', help='Remove input files after import has completed',
         required=False, action="store_true")
-    parser.add_argument('-l', '--last', help='Display the last successful import performed', 
+    parser.add_argument('-l', '--last', help='Display the last successful import performed',
+        required=False, action="store_true")
+    parser.add_argument('-L', '--list', help='List all successfully completed imports',
         required=False, action="store_true")
     parser.add_argument('-c', '--count', help='Display all package counts after import',
+        required=False, action="store_true")
+    parser.add_argument('-f', '--force', help='Force import of data if it has previously been done',
         required=False, action="store_true")
     args = parser.parse_args()
 
@@ -311,23 +322,41 @@ def main(args):
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
 
-    # Display the last successful import
-    if args.last:
+    imports = []
+    # Read the last imports data
+    if os.path.exists(vardir + '/imports.pkl'):
+        imports = pickle.load(open(vardir + '/imports.pkl', 'rb'))
+        # If we have a string we convert to a list. This should only occur the first time we
+        # migrate from the original string version of the pickle.
+        if type(imports) is str:
+            imports = imports.split()
+        last_import = imports[-1]
+    # Display the last successful import(s)
+    if args.last or args.list:
         if os.path.exists(vardir + '/imports.pkl'):
-            last_import = pickle.load(open(vardir + '/imports.pkl', 'rb'))
-            msg = "Last successful import was " + last_import
-            helpers.log_msg(msg, 'INFO')
-            print msg
+            if args.last:
+                msg = "Last successful import was " + last_import
+                helpers.log_msg(msg, 'INFO')
+                print msg
+            if args.list:
+                print "Completed imports:\n----------------"
+                for item in imports: print item
         else:
             msg = "Import has never been performed"
             helpers.log_msg(msg, 'INFO')
             print msg
         sys.exit(0)
-             
+
     # If we got this far without -d being specified, error out cleanly
     if args.dataset is None:
         parser.error("--dataset is required")
 
+    # If we have already imported this dataset let the user know
+    if dataset in imports:
+        if not args.force:
+            msg = "Dataset " + dataset + " has already been imported. Use --force if you really want to do this."
+            helpers.log_msg(msg, 'WARNING')
+            sys.exit(1)
 
     # Figure out if we have the specified input fileset
     basename = get_inputfiles(dataset)
@@ -386,11 +415,12 @@ def main(args):
     msg = "Import Complete"
     helpers.log_msg(msg, 'INFO')
 
-    # Save the last completed import data
+    # Save the last completed import data (append to existing pickle)
     os.chdir(script_dir)
     if not os.path.exists(vardir):
         os.makedirs(vardir)
-    pickle.dump(dataset, open(vardir + '/imports.pkl', "wb"))
+    imports.append(dataset)
+    pickle.dump(imports, open(vardir + '/imports.pkl', "wb"))
 
     # And exit.
     sys.exit(excode)
@@ -401,4 +431,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt, e:
         print >> sys.stderr, ("\n\nExiting on user cancel.")
         sys.exit(1)
-
