@@ -615,9 +615,10 @@ def main(args):
     #pylint: disable-msg=R0912,R0914,R0915
 
     if helpers.DISCONNECTED:
-        msg = "Export cannot be run on the disconnected Satellite host"
-        helpers.log_msg(msg, 'ERROR')
-        sys.exit(1)
+        if not helpers.DISCO_CAN_EXPORT:
+            msg = "Export cannot be run on the disconnected Satellite host"
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(1)
 
     # Who is running this script?
     runuser = helpers.who_is_running()
@@ -647,6 +648,8 @@ def main(args):
     parser.add_argument('-L', '--list', help='Display export history', required=False,
         action="store_true")
     parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
+        action="store_true")
+    parser.add_argument('-T', '--notar', help='Skip TAR creation', required=False,
         action="store_true")
     parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages',
         required=False, action="store_true")
@@ -1056,7 +1059,8 @@ def main(args):
     export_manifest()
 
     # Add our exported data to a tarfile
-    create_tar(export_dir, ename, export_history)
+    if not args.notar:
+        create_tar(export_dir, ename, export_history)
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
