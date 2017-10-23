@@ -1,11 +1,11 @@
 Name:           sat6_scripts
-Version:        1.1
-Release:        1%{?dist}
+Version:        1.1.0
+Release:        2%{?dist}
 Summary:        Scripts to automate Satellite 6 tasks
 
 License:        GPL
 URL:            https://github.com/ggatward/sat6_scripts
-Source0:        sat6_scripts-1.1.tar.gz
+Source0:        sat6_scripts-1.1.0.tar.gz
 
 Requires:       python >= 2.7, PyYAML
 
@@ -27,6 +27,7 @@ rm -rf %{buildroot}
 mkdir -p %{buildroot}/usr/local/{bin,etc/sat6_scripts,share/man/man8}
 mkdir -p %{buildroot}/usr/share/{doc/sat6_scripts,sat6_scripts/config}
 install -m 0644 README.md %{buildroot}/usr/share/doc/sat6_scripts/README.md
+install -m 0644 CHANGELOG.md %{buildroot}/usr/share/doc/sat6_scripts/CHANGELOG.md
 install -m 0644 LICENSE %{buildroot}/usr/share/doc/sat6_scripts/LICENSE
 install -m 0644 docs/sat62_install.txt %{buildroot}/usr/share/doc/sat6_scripts/sat62_install.txt
 install -m 0644 docs/sat62disc_install.txt %{buildroot}/usr/share/doc/sat6_scripts/sat62disc_install.txt
@@ -64,6 +65,7 @@ gzip -9c man/sat_import.8 > %{buildroot}/usr/local/share/man/man8/sat_import.8.g
 
 %files
 %doc /usr/share/doc/sat6_scripts/README.md
+%doc /usr/share/doc/sat6_scripts/CHANGELOG.md
 %doc /usr/share/doc/sat6_scripts/sat62_install.txt
 %doc /usr/share/doc/sat6_scripts/sat62disc_install.txt
 %doc /usr/share/doc/sat6_scripts/sat62_hardening.txt
@@ -124,16 +126,8 @@ mandb -q
 
 
 %changelog
-* Thu Oct 19 2017 Geoff Gatward <ggatward@redhat.com> 1.1
-- Various minor bugfixes
-- Updated exit codes throughout the scripts
-- Fixed bug in DoV export
-- Add proxy support for download_manifest
-- Add quiet option in publish/promote scripts
-- Add full repo package comparison to logs in disconnected import
-- Provide a history of successful content exports and imports
-- Updated export dataset name format to allow for multiple exports per day
-- Present a warning if import has already been performed for given dataset
+* Thu Oct 19 2017 Geoff Gatward <ggatward@redhat.com> 1.1.0
+- Refer https://github.com/ggatward/sat6_scripts/blob/1.1.0/CHANGELOG.md
 
 * Mon Mar 06 2017 Geoff Gatward <ggatward@redhat.com> 1.0
 - Production release

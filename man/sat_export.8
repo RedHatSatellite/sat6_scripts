@@ -5,7 +5,7 @@
 sat_export \- export content for a disconnected Satellite 6 instance
 
 .SH SYNOPSIS
-.B sat_export [\-o ORGANISATION] [\-e ENVIRONMENT] [\-a | \-i | \-s SINCE ] [\-l] [\-n] [\-r] [\-p]
+.B sat_export [\-o ORGANISATION] [\-e ENVIRONMENT] [\-a | \-i | \-s SINCE ] [\-l] [\--nogpg] [\-r] [\-p]
 .LP
 .B "sat_export --help"
 
@@ -113,7 +113,7 @@ Display the time of the last successful export for the Default Org View (DoV). U
 to show the last exports for a specific environment.
 .RE
 .PP
-.BR "-n", " --nogpg"
+.B " --nogpg"
 .RS 3
 Skip GPG check of exported RPM packages. The default action is to run an
 .B rpm -K <pkg>
@@ -127,6 +127,16 @@ Note that this requires the GPG key to be installed on the Satellite server usin
 .br
 .B "rpm --import <RPM-GPG-KEY>"
 otherwise the GPG checks will fail.
+.RE
+.PP
+.B " --notar"
+.RS 3
+Skip TAR archive of exported RPM packages. The default action is to compress the exported
+packages into 4Gb 'chunks' for import to a disconnected system.
+This option allows the exported content to remain on disk in the file structure that
+Satellite expects for the import, allowing for debugging of repo structure issues if required.
+It can also be used to create an 'offline' backup of the pulp repo in a format that Satellite can
+re-import at a later date if required.
 .RE
 .PP
 .BR "-r", " --repodata"
@@ -193,4 +203,3 @@ Perform a full export for the Default Org View (DoV):
 
 .SH AUTHOR
 Geoff Gatward <ggatward@redhat.com>
-

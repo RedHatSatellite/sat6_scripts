@@ -421,8 +421,15 @@ def check_disk_space(export_type):
     pulp_used = str(helpers.disk_usage('/var/lib/pulp'))
     if export_type == 'full' and int(float(pulp_used)) > 50:
         msg = "Insufficient space in /var/lib/pulp for a full export. >50% free space is required."
-        helpers.log_msg(msg, 'ERROR')
-        sys.exit(1)
+        helpers.log_msg(msg, 'WARNING')
+        answer = helpers.query_yes_no("Continue with export?", "no")
+        if not answer:
+            msg = "Export Aborted"
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(1)
+        else:
+            msg = "Export continued by user"
+            helpers.log_msg(msg, 'INFO')
 
 
 def locate(pattern, root=os.curdir):
@@ -614,12 +621,6 @@ def main(args):
     """
     #pylint: disable-msg=R0912,R0914,R0915
 
-    if helpers.DISCONNECTED:
-        if not helpers.DISCO_CAN_EXPORT:
-            msg = "Export cannot be run on the disconnected Satellite host"
-            helpers.log_msg(msg, 'ERROR')
-            sys.exit(1)
-
     # Who is running this script?
     runuser = helpers.who_is_running()
 
@@ -649,13 +650,22 @@ def main(args):
         action="store_true")
     parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
         action="store_true")
-    parser.add_argument('-T', '--notar', help='Skip TAR creation', required=False,
+    parser.add_argument('--notar', help='Skip TAR creation', required=False,
+        action="store_true")
+    parser.add_argument('--forcexport', help='Force export on import-only satellite', required=False,
         action="store_true")
     parser.add_argument('-r', '--repodata', help='Include repodata for repos with no new packages',
         required=False, action="store_true")
     parser.add_argument('-p', '--puppetforge', help='Include puppet-forge-server format Puppet Forge repo',
         required=False, action="store_true")
     args = parser.parse_args()
+
+    # If we are set as the 'DISCONNECTED' satellite, we will generally be IMPORTING content.
+    if helpers.DISCONNECTED:
+        if not args.forcexport:
+            msg = "Export cannot be run on the disconnected Satellite host"
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(1)
 
     # Set our script variables from the input args
     if args.org:
@@ -908,6 +918,11 @@ def main(args):
                             msg = "\nExport path = " + exportpath
                             helpers.log_msg(msg, 'DEBUG')
 
+                            if not os.path.exists(exportpath):
+                                msg = exportpath + " was not created.\nCheck permissions/SELinux on export dir"
+                                helpers.log_msg(msg, 'ERROR')
+                                sys.exit(1)
+
                             os.chdir(exportpath)
                             numrpms = len([f for f in os.walk(".").next()[2] if f[ -4: ] == ".rpm"])
 
@@ -1061,6 +1076,15 @@ def main(args):
     # Add our exported data to a tarfile
     if not args.notar:
         create_tar(export_dir, ename, export_history)
+    else:
+        # We need to manually clean up a couple of working files from the export
+        if os.path.exists(helpers.EXPORTDIR + "/iso"):
+            shutil.rmtree(helpers.EXPORTDIR + "/iso")
+        if os.path.exists(helpers.EXPORTDIR + "/puppet"):
+            shutil.rmtree(helpers.EXPORTDIR + "/puppet")
+        os.system("rm -f " + helpers.EXPORTDIR + "/*.pkl")
+        os.system("rm -f " + export_dir + "/*.pkl")
+
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
@@ -1068,10 +1092,11 @@ def main(args):
 
     # And we're done!
     print helpers.GREEN + "Export complete.\n" + helpers.ENDC
-    print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
-        ' to your disconnected Satellite system content import location.\n' \
-        'Once transferred, please run ' + helpers.BOLD + ' sat_import' \
-        + helpers.ENDC + ' to extract it.'
+    if not args.notar:
+        print 'Please transfer the contents of ' + helpers.EXPORTDIR + \
+            ' to your disconnected Satellite system content import location.\n' \
+            'Once transferred, please run ' + helpers.BOLD + ' sat_import' \
+            + helpers.ENDC + ' to extract it.'
     msg = "Export complete"
     helpers.log_msg(msg, 'INFO')
 

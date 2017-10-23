@@ -37,8 +37,6 @@ URL = CONFIG['satellite']['url']
 USERNAME = CONFIG['satellite']['username']
 PASSWORD = CONFIG['satellite']['password']
 DISCONNECTED = CONFIG['satellite']['disconnected']
-if 'discoexport' in CONFIG['satellite']:
-    DISCO_CAN_EXPORT = CONFIG['satellite']['discoexport']
 if 'manifest' in CONFIG['satellite']:
     MANIFEST = CONFIG['satellite']['manifest']
 ORG_NAME = CONFIG['satellite']['default_org']
