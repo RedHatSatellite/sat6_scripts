@@ -31,7 +31,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [1.0] - 2017-03-06
 - Initial 'public' release
 
-## [0.6] - 2017-02-27
+## 0.6 - 2017-02-27
 - Last of a series of pre-release betas
 
 [Unreleased]: https://github.com/ggatward/sat6_scripts/compare/1.1.0...HEAD
