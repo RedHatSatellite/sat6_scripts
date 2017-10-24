@@ -109,7 +109,7 @@ def get_cv(org_id, target_env, env_list, prior_list, promote_list):
 
 
 # Promote a content view version
-def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, dry_run):
+def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, dry_run, quiet):
     """Promote Content View"""
     target_env_id = env_list[target_env]
     source_env_id = prior_list[target_env_id]
@@ -133,41 +133,51 @@ def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, 
         helpers.log_msg(msg, 'WARNING')
         sys.exit(1)
 
-    for cvid in ver_list.keys():
+    # Break repos to promote into batches as configured in config.yml
+    cvchunks = [ ver_list.keys()[i:i+helpers.PROMOTEBATCH] for i in range(0, len(ver_list), helpers.PROMOTEBATCH) ]
 
-        # Check if there is a publish/promote already running on this content view
-        locked = helpers.check_running_publish(cvid, ver_descr[cvid])
+    # Loop through the smaller subsets of repo id's
+    for chunk in cvchunks:
+        for cvid in chunk:
 
-        if not locked:
-            msg = "Promoting '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) +\
-                " from " + prior_env + " to " + str(target_env)
-            helpers.log_msg(msg, 'INFO')
-            print helpers.HEADER + msg + helpers.ENDC
+            # Check if there is a publish/promote already running on this content view
+            locked = helpers.check_running_publish(cvid, ver_descr[cvid])
 
-        if not dry_run and not locked:
-            try:
-                task_id = helpers.post_json(
-                    helpers.KATELLO_API + "content_view_versions/" + str(ver_list[cvid]) +\
-                    "/promote/", json.dumps(
-                        {
-                            "environment_id": target_env_id
-                        }
-                        ))["id"]
-            except Warning:
-                msg = "Failed to initiate promotion of " + str(ver_descr[cvid])
-                helpers.log_msg(msg, 'WARNING')
-            else:
-                task_list.append(task_id)
-                ref_list[task_id] = ver_descr[cvid]
+            if not locked:
+                msg = "Promoting '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) +\
+                    " from " + prior_env + " to " + str(target_env)
+                helpers.log_msg(msg, 'INFO')
+                print helpers.HEADER + msg + helpers.ENDC
+
+            if not dry_run and not locked:
+                try:
+                    task_id = helpers.post_json(
+                        helpers.KATELLO_API + "content_view_versions/" + str(ver_list[cvid]) +\
+                        "/promote/", json.dumps(
+                            {
+                                "environment_id": target_env_id
+                            }
+                            ))["id"]
+                except Warning:
+                    msg = "Failed to initiate promotion of " + str(ver_descr[cvid])
+                    helpers.log_msg(msg, 'WARNING')
+                else:
+                    task_list.append(task_id)
+                    ref_list[task_id] = ver_descr[cvid]
+
+        # Exit in the case of a dry-run
+        if dry_run:
+            msg = "Dry run - not actually performing promotion"
+            helpers.log_msg(msg, 'WARNING')
+        else:
+            # Monitor the status of the promotion tasks
+            helpers.watch_tasks(task_list, ref_list, task_name, quiet)
 
     # Exit in the case of a dry-run
     if dry_run:
-        msg = "Dry run - not actually performing promotion"
-        helpers.log_msg(msg, 'WARNING')
         sys.exit(2)
-
-
-    return task_list, ref_list, task_name
+    else:
+        return
 
 
 def main(args):
@@ -183,7 +193,6 @@ def main(args):
     global vardir
     dir = os.path.dirname(__file__)
     vardir = os.path.join(dir, 'var')
-#    confdir = os.path.join(dir, 'config')
 
     # Check for sane input
     parser = argparse.ArgumentParser(
@@ -242,6 +251,8 @@ def main(args):
     promote_list = []
     if not args.all:
         for x in helpers.CONFIG['promotion']:
+            if x == 'batch':
+                continue
             if helpers.CONFIG['promotion'][x]['name'] == target_env:
                 promote_list = helpers.CONFIG['promotion'][x]['content_views']
 
@@ -264,15 +275,11 @@ def main(args):
         promote_list)
 
     # Promote to the given environment. Returns a list of task IDs.
-    (task_list, ref_list, task_name) = promote(target_env, ver_list, ver_descr, ver_version,
-        env_list, prior_list, dry_run)
+    promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, dry_run, args.quiet)
 
     # Add/Update the promotion history dictionary so we can check when we last promoted
     phistory[target_env] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
     pickle.dump(phistory, open(vardir + '/promotions.pkl', 'wb'))
-
-    # Monitor the status of the promotion tasks
-    helpers.watch_tasks(task_list, ref_list, task_name, args.quiet)
 
     # Exit cleanly
     sys.exit(0)

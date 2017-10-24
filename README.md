@@ -185,9 +185,12 @@ optional arguments:
   -s SINCE, --since SINCE
                         Export content since YYYY-MM-DD HH:MM:SS
   -l, --last            Display time of last export
-  -n, --nogpg           Skip GPG checking
+  -L, --list            List all successfully completed exports
+  --nogpg               Skip GPG checking
   -r, --repodata        Include repodata for repos with no incremental content
   -p, --puppetforge     Include puppet-forge-server format Puppet Forge repo
+  --notar               Do not archive the extracted content
+  --forcexport          Force export from an import-only (Disconnected) Satellite
 
 ```
 
@@ -367,11 +370,16 @@ the WebUI or Hammer CLI.
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
 publish:
+  batch: 10
   content_views:
     - RHEL Server
     - RHEL Workstation
 ```
 This configuration will publish only the two listed content views.
+
+The batch: parameter can be used to limit the number of content views that will be published at
+once, to aid in performance tuning.
+
 
 
 ```
@@ -416,13 +424,14 @@ the WebUI or Hammer CLI.
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
 promotion:
+  batch: 10
   lifecycle1:
     name: Quality
     content_views:
       - RHEL Server
       - RHEL Workstation
 
-  lifecyclec2:
+  lifecycle2:
     name: Desktop QA
     content_views:
       - RHEL Workstation
@@ -431,6 +440,9 @@ If multiple lifecycle streams are used in your Satellite installation, the
 use of the config.yml definition is strongly recommended to avoid views being
 promoted into the wrong lifecycle stream. This is more likely to be an
 issue promoting views from the Library, as this is shared by all environments.
+
+The batch: parameter can be used to limit the number of content views that will be promoted at
+once, to aid in performance tuning.
 
 ```
 usage: promote_content_view.py [-h] -e ENV [-o ORG] [-a] [-d]
