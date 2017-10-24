@@ -51,6 +51,14 @@ if 'syncbatch' in CONFIG['import']:
     SYNCBATCH = CONFIG['import']['syncbatch']
 else:
     SYNCBATCH = 255
+if 'batch' in CONFIG['publish']:
+    PUBLISHBATCH = CONFIG['publish']['batch']
+else:
+    PUBLISHBATCH = 255
+if 'batch' in CONFIG['promotion']:
+    PROMOTEBATCH = CONFIG['promotion']['batch']
+else:
+    PROMOTEBATCH = 255
 if 'hostname' in CONFIG['puppet-forge-server']:
     PFSERVER = CONFIG['puppet-forge-server']['hostname']
 

@@ -19,11 +19,13 @@ import:
   syncbatch: 50
 
 publish:
+  batch: 10
   content_views:
     - RHEL Server
     - RHEL Workstation
 
 promotion:
+  batch: 10
   lifecycle1:
     name: Quality
     content_views:

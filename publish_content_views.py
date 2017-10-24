@@ -53,7 +53,7 @@ def get_cv(org_id, publish_list):
     return ver_list, ver_descr, ver_version
 
 
-def publish(ver_list, ver_descr, ver_version, dry_run, runuser):
+def publish(ver_list, ver_descr, ver_version, dry_run, runuser, quiet):
     """Publish Content View"""
 
     # Set the task name to be displayed in the task monitoring stage
@@ -69,43 +69,53 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser):
         helpers.log_msg(msg, 'ERROR')
         sys.exit(1)
 
-    for cvid in ver_list.keys():
+    # Break repos to publish into batches as configured in config.yml
+    cvchunks = [ ver_list.keys()[i:i+helpers.PUBLISHBATCH] for i in range(0, len(ver_list), helpers.PUBLISHBATCH) ]
 
-        # Check if there is a publish/promote already running on this content view
-        locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
+    # Loop through the smaller subsets of repo id's
+    for chunk in cvchunks:
+        for cvid in chunk:
 
-        if not locked:
-            msg = "Publishing '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) + ".0"
-            helpers.log_msg(msg, 'INFO')
-            print helpers.HEADER + msg + helpers.ENDC
+            # Check if there is a publish/promote already running on this content view
+            locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
 
-        # Set up the description that will be added to the published version
-        description = "Published by " + runuser + "\n via API script"
+            if not locked:
+                msg = "Publishing '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) + ".0"
+                helpers.log_msg(msg, 'INFO')
+                print helpers.HEADER + msg + helpers.ENDC
 
-        if not dry_run and not locked:
-            try:
-                task_id = helpers.post_json(
-                    helpers.KATELLO_API + "content_views/" + str(ver_list[cvid]) +\
-                    "/publish", json.dumps(
-                        {
-                            "description": description
-                        }
-                        ))["id"]
-            except Warning:
-                msg = "Failed to initiate publication of " + str(ver_descr[cvid])
-                helpers.log_msg(msg, 'WARNING')
-            else:
-                task_list.append(task_id)
-                ref_list[task_id] = ver_descr[cvid]
+            # Set up the description that will be added to the published version
+            description = "Published by " + runuser + "\n via API script"
+
+            if not dry_run and not locked:
+                try:
+                    task_id = helpers.post_json(
+                        helpers.KATELLO_API + "content_views/" + str(ver_list[cvid]) +\
+                        "/publish", json.dumps(
+                            {
+                                "description": description
+                            }
+                            ))["id"]
+                except Warning:
+                    msg = "Failed to initiate publication of " + str(ver_descr[cvid])
+                    helpers.log_msg(msg, 'WARNING')
+                else:
+                    task_list.append(task_id)
+                    ref_list[task_id] = ver_descr[cvid]
+
+        # Notify user in the case of a dry-run
+        if dry_run:
+            msg = "Dry run - not actually performing publish"
+            helpers.log_msg(msg, 'WARNING')
+        else:
+            # Wait for the tasks to finish
+            helpers.watch_tasks(task_list, ref_list, task_name, quiet)
 
     # Exit in the case of a dry-run
     if dry_run:
-        msg = "Dry run - not actually performing publish"
-        helpers.log_msg(msg, 'WARNING')
         sys.exit(2)
-
-
-    return task_list, ref_list, task_name
+    else:
+        return
 
 
 def main(args):
@@ -191,14 +201,11 @@ def main(args):
     (ver_list, ver_descr, ver_version) = get_cv(org_id, publish_list)
 
     # Publish the content views. Returns a list of task IDs.
-    (task_list, ref_list, task_name) = publish(ver_list, ver_descr, ver_version, dry_run, runuser)
+    publish(ver_list, ver_descr, ver_version, dry_run, runuser, args.quiet)
 
     # Add/Update the promotion history dictionary so we can check when we last promoted
     phistory['Library'] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
     pickle.dump(phistory, open(vardir + '/promotions.pkl', 'wb'))
-
-    # Monitor the status of the publish tasks
-    helpers.watch_tasks(task_list, ref_list, task_name, args.quiet)
 
     # Exit cleanly
     sys.exit(0)

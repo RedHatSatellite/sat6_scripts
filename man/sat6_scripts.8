@@ -69,8 +69,8 @@ This determines whether this satellite can export or import content.
 .B "  proxy: proxy.example.com:8080"
 .RS
 Definition of HTTP proxy to use in support of the
-.I download_manifest 
-script. 
+.I download_manifest
+script.
 .br
 If no proxy is required this parameter can be omitted from the config file completely.
 .RE
@@ -102,12 +102,17 @@ Directory to export content to, used by
 .B import:
 .br
 .B "  dir: /var/sat-content"
+.br
+.B "  syncbatch: 10"
 .RS
 Directory to read import content from, used by
 .IR sat_import .
+The syncbatch: parameter defines the maximum number of repositories to sync at once, for performance tuning.
 .RE
 
 .B publish:
+.br
+.B "  batch: 10"
 .br
 .B "  content_views:"
 .br
@@ -117,14 +122,18 @@ Directory to read import content from, used by
 .RS
 List of content views to publish, one per line. Used by
 .IR publish_content_views .
+The batch: keyword specifies the maximum number of content views to publish in a batch, for performance tuning.
 .RE
 
 .B promotion:
+.br
+.B "  batch: 10"
 .br
 .B "  lifecycle1:"
 .RS
 Lifecycle environment definition. There can be multiple lifecycles defined, however
 the names must be unique. Increment the number for each defined environment.
+The batch: keyword specifies the maximum number of content views to promote in a batch, for performance tuning.
 .RE
 
 .B "    name: Quality"
