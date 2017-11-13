@@ -28,6 +28,18 @@ hammer user create --login svc-api-user --firstname API --lastname User \
   --organization-ids 1 --default-organization-id 1 --admin true
 ```
 
+Foreman needs to be configured to export content to the location you require. By default the path is 
+/var/lib/pulp/katello-export - this will result in you probably filling your /var/lib/pulp partition!
+The configs in these scripts assume that the exports are going to /var/sat-export - this should be a
+dedicated partition or even better dedicated disk just for export content.
+To set the default export location in foreman:
+```
+hammer settings set --name pulp_export_destination --value /var/sat-export
+chown foreman:foreman /var/sat-export
+semanage fcontext -a -t foreman_var_run_t "/var/sat-export(/.*)?"
+restorecon -RvF /var/sat-export
+```
+
 ## Assumptions
 For content import to a disconnected Satellite, it is assumed that the relevant
 subscription manifest has been copied to and uploaded in the disconnected satellite.
