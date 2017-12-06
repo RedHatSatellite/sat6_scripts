@@ -4,6 +4,8 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Changed
+- --notar export saved in /cdn_export dir rather than /export to prevent it being deleted
 
 
 ## [1.1.1] - 2017-10-25

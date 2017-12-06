@@ -14,6 +14,7 @@ import sys, argparse, datetime, os, shutil, pickle, re
 import fnmatch, subprocess, tarfile
 import simplejson as json
 from glob import glob
+from distutils.dir_util import copy_tree
 import helpers
 
 try:
@@ -1065,7 +1066,6 @@ def main(args):
     pickle.dump(exported_repos, open(export_dir + '/exported_repos.pkl', 'wb'))
     pickle.dump(package_count, open(export_dir + '/package_count.pkl', 'wb'))
 
-
     # Run GPG Checks on the exported RPMs
     if not args.nogpg:
         do_gpg_check(export_dir)
@@ -1085,6 +1085,11 @@ def main(args):
         os.system("rm -f " + helpers.EXPORTDIR + "/*.pkl")
         os.system("rm -f " + export_dir + "/*.pkl")
 
+        # Copy export_dir to cdn_export to prevent blowing it away next time we export
+        copy_tree(export_dir,helpers.EXPORTDIR + "/cdn_export")
+        # Cleanup
+        shutil.rmtree(helpers.EXPORTDIR + "/cdn_export/manifest", ignore_errors=True, onerror=None)
+        shutil.rmtree(export_dir)
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
