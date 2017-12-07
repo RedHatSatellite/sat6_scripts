@@ -10,9 +10,10 @@
 """Functions common to various Satellite 6 scripts"""
 
 import sys, os, time, datetime, argparse
-import logging
+import logging, tempfile
 from time import sleep
 from hashlib import sha256
+import smtplib
 
 try:
     import requests
@@ -59,6 +60,14 @@ if 'batch' in CONFIG['promotion']:
     PROMOTEBATCH = CONFIG['promotion']['batch']
 else:
     PROMOTEBATCH = 255
+if 'mailout' in CONFIG['email']:
+    MAILOUT = CONFIG['email']['mailout']
+else:
+    MAILOUT = False
+if 'mailfrom' in CONFIG['email']:
+    MAILFROM = CONFIG['email']['mailfrom']
+if 'mailto' in CONFIG['email']:
+    MAILTO = CONFIG['email']['mailto']
 if 'hostname' in CONFIG['puppet-forge-server']:
     PFSERVER = CONFIG['puppet-forge-server']['hostname']
 
@@ -85,6 +94,11 @@ ENDC = '\033[0m'
 BOLD = '\033[1m'
 UNDERLINE = '\033[4m'
 
+# Mailout pre-canned subjects
+MAILSUBJ_FI = "Satellite 6 import failure"
+MAILSUBJ_SI = "Satellite 6 import successful"
+MAILSUBJ_FP = "Satellite 6 publish failure"
+MAILSUBJ_SP = "Satellite 6 publish successful"
 
 def who_is_running():
     """ Return the OS user that is running the script """
@@ -435,6 +449,20 @@ def query_yes_no(question, default="yes"):
                              "(or 'y' or 'n').\n")
 
 
+def mailout(subject, message):
+    """
+    Function to handle simple SMTP mailouts for alerting.
+    Assumes localhost is configured for SMTP forwarding (postfix)
+    """
+    sender = MAILFROM
+    receivers = [MAILTO]
+
+    body = 'From: {}\nSubject: {}\n\n{}'.format(sender, subject, message)
+
+    smtpObj = smtplib.SMTP('localhost')
+    smtpObj.sendmail(sender, receivers, body)
+
+
 #-----------------------
 # Configure logging
 if not os.path.exists(LOGDIR):
@@ -453,6 +481,9 @@ logging.basicConfig(level=logging.DEBUG,
 logging.getLogger("requests").setLevel(logging.WARNING)
 logging.getLogger("urllib3").setLevel(logging.WARNING)
 
+# Open a temp file to hold the email output
+tf = tempfile.NamedTemporaryFile()
+
 def log_msg(msg, level):
     """Write message to logfile"""
 
@@ -463,10 +494,13 @@ def log_msg(msg, level):
             print BOLD + "DEBUG: " + msg + ENDC
     elif level == 'ERROR':
         logging.error(msg)
+        tf.write('ERROR:' + msg + '\n')
         print ERROR + "ERROR: " + msg + ENDC
     elif level == 'WARNING':
         logging.warning(msg)
+        tf.write('WARNING:' + msg + '\n')
         print WARNING + "WARNING: " + msg + ENDC
     # Otherwise if we ARE in debug, write everything to the log AND stdout
     else:
         logging.info(msg)
+        tf.write(msg + '\n')

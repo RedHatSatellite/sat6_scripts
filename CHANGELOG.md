@@ -7,6 +7,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - sat_import now checks for exports that have not been imported (missed/skipped)
 - --fixhistory option in sat_import to align import/export histories
+- Email output capability for notifications when automating scripts
+- Add unattended option to allow scripts to be automated
 
 ### Changed
 - --notar export saved in /cdn_export dir rather than /export to prevent it being deleted

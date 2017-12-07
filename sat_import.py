@@ -26,6 +26,10 @@ def get_inputfiles(dataset):
     if not os.path.exists(helpers.IMPORTDIR + '/' + basename + '.sha256'):
         msg = "Cannot continue - missing sha256sum file " + helpers.IMPORTDIR + '/' + shafile
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            helpers.mailout(helpers.MAILSUBJ_FI, output)
         sys.exit(1)
 
     # Verify the checksum of each part of the import
@@ -39,6 +43,10 @@ def get_inputfiles(dataset):
     if result != 0:
         msg = "Import Aborted - Tarfile checksum verification failed"
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            helpers.mailout(helpers.MAILSUBJ_FI, output)
         sys.exit(1)
 
     # We're good
@@ -69,6 +77,7 @@ def sync_content(org_id, imported_repos):
     """
     repos_to_sync = []
     delete_override = False
+    newrepos = False
 
     # Get a listing of repositories in this Satellite
     enabled_repos = helpers.get_p_json(
@@ -107,6 +116,7 @@ def sync_content(org_id, imported_repos):
             helpers.log_msg(msg, 'DEBUG')
         else:
             msg = "Repo " + repo + " is not enabled in Satellite"
+            newrepos = True
             # If the repo is not enabled, don't delete the input files.
             # This gives the admin a chance to manually enable the repo and re-import
             delete_override = True
@@ -119,7 +129,7 @@ def sync_content(org_id, imported_repos):
     if not repos_to_sync:
         msg = "No updates in imported content - skipping sync"
         helpers.log_msg(msg, 'WARNING')
-        return
+        return (delete_override, newrepos)
     else:
         msg = "Repo ids to sync: " + str(repos_to_sync)
         helpers.log_msg(msg, 'DEBUG')
@@ -158,7 +168,7 @@ def sync_content(org_id, imported_repos):
                 msg = "Batch sync has errors"
                 helpers.log_msg(msg, 'WARNING')
 
-        return delete_override
+        return (delete_override, newrepos)
 
 
 def count_packages(repo_id):
@@ -301,6 +311,10 @@ def main(args):
     if not helpers.DISCONNECTED:
         msg = "Import cannot be run on the connected Satellite (Sync) host"
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            helpers.mailout(helpers.MAILSUBJ_FI, output)
         sys.exit(1)
 
     # Who is running this script?
@@ -334,6 +348,8 @@ def main(args):
     parser.add_argument('-c', '--count', help='Display all package counts after import',
         required=False, action="store_true")
     parser.add_argument('-f', '--force', help='Force import of data if it has previously been done',
+        required=False, action="store_true")
+    parser.add_argument('-u', '--unattended', help='Answer any prompts safely, allowing automated usage',
         required=False, action="store_true")
     parser.add_argument('--fixhistory', help='Force import history to match export history',
         required=False, action="store_true")
@@ -391,7 +407,7 @@ def main(args):
         if not args.force:
             msg = "Dataset " + dataset + " has already been imported. Use --force if you really want to do this."
             helpers.log_msg(msg, 'WARNING')
-            sys.exit(1)
+            sys.exit(2)
 
     # Figure out if we have the specified input fileset
     basename = get_inputfiles(dataset)
@@ -409,15 +425,25 @@ def main(args):
     # Check for and let the user decide if they want to continue with missing imports
     missing_imports = check_missing(imports, exports, dataset, fixhistory, vardir)
     if missing_imports:
-        print "Run sat_import with the --fixhistory flag to reset the import history to this export"
-        answer = helpers.query_yes_no("Continue with import?", "no")
-        if not answer:
+        msg = "Run sat_import with the --fixhistory flag to reset the import history to this export"
+        helpers.log_msg(msg, 'INFO')
+        if not args.unattended:
+            answer = helpers.query_yes_no("Continue with import?", "no")
+            if not answer:
+                msg = "Import Aborted"
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(3)
+            else:
+                msg = "Import continued by user"
+                helpers.log_msg(msg, 'INFO')
+        else:
             msg = "Import Aborted"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(1)
-        else:
-            msg = "Import continued by user"
-            helpers.log_msg(msg, 'INFO')
+            if helpers.MAILOUT:
+                helpers.tf.seek(0)
+                output = "{}".format(helpers.tf.read())
+                helpers.mailout(helpers.MAILSUBJ_FI, output)
+            sys.exit(3)
 
 
     # Trigger a sync of the content into the Library
@@ -434,7 +460,7 @@ def main(args):
         package_count = pickle.load(open('package_count.pkl', 'rb'))
 
         # Run a repo sync on each imported repo
-        (delete_override) = sync_content(org_id, imported_repos)
+        (delete_override, newrepos) = sync_content(org_id, imported_repos)
 
         print helpers.GREEN + "Import complete.\n" + helpers.ENDC
         print 'Please publish content views to make new content available.'
@@ -474,6 +500,26 @@ def main(args):
         os.makedirs(vardir)
     imports.append(dataset)
     pickle.dump(imports, open(vardir + '/imports.pkl', "wb"))
+
+    # Run the mailout
+    if helpers.MAILOUT:
+        helpers.tf.seek(0)
+        output = "{}".format(helpers.tf.read())
+        if missing_imports:
+            message = "Import of dataset " + dataset + " completed successfully.\n\n \
+                Missing datasets were detected during the import - please check the logs\n\n" + output
+            subject = "Satellite 6 import completed: Missing datasets"
+
+        elif newrepos:
+            message = "Import of dataset " + dataset + " completed successfully.\n\n \
+                New repos found that need to be imported manually - please check the logs \n\n" + output
+            subject = "Satellite 6 import completed: New repos require manual intervention"
+
+        else:
+            message = "Import of dataset " + dataset + " completed successfully\n\n" + output
+            subject = "Satellite 6 import completed"
+
+        helpers.mailout(subject, message)
 
     # And exit.
     sys.exit(excode)

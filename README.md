@@ -68,6 +68,11 @@ logging:
   dir: /var/log/sat6-scripts     (Directory to use for logging)
   debug: [True|False]
 
+email:
+  mailout: True
+  mailfrom: Satellite 6 <sat62@example.org>
+  mailto: sysadmin@example.org
+
 export:
   dir: /var/sat-export           (Directory to export content to - Connected Satellite)
 
@@ -199,6 +204,7 @@ optional arguments:
   -l, --last            Display time of last export
   -L, --list            List all successfully completed exports
   --nogpg               Skip GPG checking
+  -u, --unattended      Answer any prompts safely, allowing automated usage
   -r, --repodata        Include repodata for repos with no incremental content
   -p, --puppetforge     Include puppet-forge-server format Puppet Forge repo
   --notar               Do not archive the extracted content
@@ -271,6 +277,7 @@ optional arguments:
   -L, --list            List all successfully completed imports
   -c, --count           Display all package counts after import
   -f, --force           Force import of data if it has previously been done  
+  -u, --unattended      Answer any prompts safely, allowing automated usage
   --fixhistory          Force import history to match export history  
 ```
 
