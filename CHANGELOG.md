@@ -4,6 +4,10 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- sat_import now checks for exports that have not been imported (missed/skipped)
+- --fixhistory option in sat_import to align import/export histories
+
 ### Changed
 - --notar export saved in /cdn_export dir rather than /export to prevent it being deleted
 

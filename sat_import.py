@@ -264,6 +264,34 @@ def check_counts(org_id, package_count, count):
         print '\n'
 
 
+def check_missing(imports, exports, dataset, fixhistory, vardir):
+    """
+    Compare export history with import history to find any datasets that have not been imported
+    """
+    missing = False
+
+    if fixhistory:
+        # Remove the last element (this import) before saving - we haven't imported yet!
+        exports = exports[:-1]
+        pickle.dump(exports, open(vardir + '/imports.pkl', "wb"))
+
+        # Copy the current 'exporthistory' over the 'importhistory' to 'fix' current mismatches
+        msg = "Saved export history as import history. Please re-run this import."
+        helpers.log_msg(msg, 'INFO')
+        print msg
+        sys.exit(2)
+
+    else:
+        for ds in exports:
+            if not ds in imports:
+                if not dataset in ds:
+                    msg = "Import dataset " + ds + " has not been imported"
+                    helpers.log_msg(msg, 'WARNING')
+                    missing = True
+
+    return(missing)
+
+
 def main(args):
     """
     Main Routine
@@ -307,6 +335,8 @@ def main(args):
         required=False, action="store_true")
     parser.add_argument('-f', '--force', help='Force import of data if it has previously been done',
         required=False, action="store_true")
+    parser.add_argument('--fixhistory', help='Force import history to match export history',
+        required=False, action="store_true")
     args = parser.parse_args()
 
     # Set our script variables from the input args
@@ -315,6 +345,11 @@ def main(args):
     else:
         org_name = helpers.ORG_NAME
     dataset = args.dataset
+
+    if args.fixhistory:
+        fixhistory = True
+    else:
+        fixhistory = False
 
     # Record where we are running from
     script_dir = str(os.getcwd())
@@ -366,6 +401,24 @@ def main(args):
 
     # Extract the input files
     extract_content(basename)
+
+    # Read in the export history from the input dataset
+    dsname = dataset.split('_')[1]
+    exports = pickle.load(open(helpers.IMPORTDIR + '/exporthistory_' + dsname + '.pkl', 'rb'))
+
+    # Check for and let the user decide if they want to continue with missing imports
+    missing_imports = check_missing(imports, exports, dataset, fixhistory, vardir)
+    if missing_imports:
+        print "Run sat_import with the --fixhistory flag to reset the import history to this export"
+        answer = helpers.query_yes_no("Continue with import?", "no")
+        if not answer:
+            msg = "Import Aborted"
+            helpers.log_msg(msg, 'ERROR')
+            sys.exit(1)
+        else:
+            msg = "Import continued by user"
+            helpers.log_msg(msg, 'INFO')
+
 
     # Trigger a sync of the content into the Library
     if args.nosync:
