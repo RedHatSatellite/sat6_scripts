@@ -276,7 +276,9 @@ optional arguments:
 This script allows users with an offline puppet-forge-server (rubygem) instance to
 perform a special export of puppetforge modules from the Satellite puppet-forge
 repository (-r) in the directory structure required by the puppet-forge-server
-application. After exporting, the modules are copied via rsync to the puppet-forge-server.
+application. After exporting, the modules are copied to the puppet-forge-server. The format
+of the export is controlled with the type (-t) flag, as either 'puppet-forge-server' for the
+rubygem based server, or 'artifiactory' for JFrog Artifiactory puppet server format.
 The puppet-forge-server hostname can be defined in the config.yml, or overridden with
 (-s), as can the module path (-m) on the remote server (default is /opt/puppet-forge/modules).
 The user performing the rsync will be the user that is running the script, unless
@@ -285,7 +287,9 @@ overridden with (-u).
 The config.yml block that defines the puppet-forge-server hostname is:
 ```
 puppet-forge-server:
+  servertype: puppet-forge-server
   hostname: puppetforge.example.org
+  modulepath: /opt/puppet-forge/modules
 ```
 
 ```
@@ -297,6 +301,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -o ORG, --org ORG     Organization (Uses default if not specified)
   -r REPO, --repo REPO  Puppetforge repository label
+  -t TYPE, --type TYPE  Puppetforge server type (puppet-forge-server|artifiactory)
   -s SERVER, --server SERVER   
                         puppet-forge-server hostname
   -m MODULEPATH, --modulepath MODULEPATH
@@ -309,7 +314,7 @@ optional arguments:
 ```
 ./push_puppetforge.py -r Puppet_Forge  
 ./push_puppetforge.py -r Puppet_Forge -u fred  
-./push_puppetforge.py -r Puppet_Forge -s test.example.org -m /opt/tmp
+./push_puppetforge.py -r Puppet_Forge -s test.example.org -m /opt/tmp -t artifiactory
 ```
 
 
