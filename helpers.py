@@ -96,9 +96,7 @@ UNDERLINE = '\033[4m'
 
 # Mailout pre-canned subjects
 MAILSUBJ_FI = "Satellite 6 import failure"
-MAILSUBJ_SI = "Satellite 6 import successful"
-MAILSUBJ_FP = "Satellite 6 publish failure"
-MAILSUBJ_SP = "Satellite 6 publish successful"
+MAILSUBJ_FP = "Satellite 6 publish/promote failure"
 
 def who_is_running():
     """ Return the OS user that is running the script """
