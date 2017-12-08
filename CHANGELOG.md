@@ -5,13 +5,18 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ### Added
+- push_puppetforge now supports jFrog Artifiactory repository via HTTP POST
 - sat_import now checks for exports that have not been imported (missed/skipped)
-- --fixhistory option in sat_import to align import/export histories
-- Email output capability for notifications when automating scripts
+- sat_import --fixhistory option to force align import/export histories
+- Email notification capability for use when automating content scripts
 - Add unattended option to allow scripts to be automated
+- auto_content scripts to allow unattended import/publish/promote/clean activity
 
 ### Changed
 - --notar export saved in /cdn_export dir rather than /export to prevent it being deleted
+
+### Removed
+- Skip GPG short option (-n)
 
 
 ## [1.1.1] - 2017-10-25

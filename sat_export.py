@@ -685,7 +685,7 @@ def main(args):
         action="store_true")
     parser.add_argument('-L', '--list', help='Display export history', required=False,
         action="store_true")
-    parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
+    parser.add_argument('--nogpg', help='Skip GPG checking', required=False,
         action="store_true")
     parser.add_argument('-u', '--unattended', help='Answer any prompts safely, allowing automated usage',
         required=False, action="store_true")

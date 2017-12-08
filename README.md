@@ -495,3 +495,14 @@ optional arguments:
 ./promote_content_view.py -e Production -a      # Promote all views to Production
 ./promote_content_view.py -e Quality -d         # See what would be done for Quality
 ```
+
+
+# auto_content
+Sample script that allows for the unattended automation of content management.
+This script will find any import datasets present and import them (in order).
+Successful import of the content then triggers a publish.  On nominated days/weeks
+content is promoted to various lifecycle stages, and content view cleanup is also
+performed.  Like the other scripts it calls, it supports a dry run (-d) option to
+show what would be performed without actually doing it.
+
+This script can be copied and extended to support custom automation requirements.

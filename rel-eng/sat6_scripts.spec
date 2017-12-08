@@ -130,6 +130,9 @@ mandb -q
 
 
 %changelog
+* Fri Dec 8 2017 Geoff Gatward <ggatward@redhat.com> 1.2.0
+- Refer https://github.com/ggatward/sat6_scripts/blob/1.2.0/CHANGELOG.md
+
 * Thu Oct 25 2017 Geoff Gatward <ggatward@redhat.com> 1.1.1
 - Refer https://github.com/ggatward/sat6_scripts/blob/1.1.1/CHANGELOG.md
 

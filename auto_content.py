@@ -97,6 +97,27 @@ def promote_cv(dryrun, lifecycle):
     return good_promote
 
 
+def push_puppet(dryrun):
+    print "Pushing puppet modules to puppet-forge server..."
+
+    # Set the initial state
+    good_puppetpush = False
+
+    if not dryrun:
+        for dataset in tslist:
+            rc = subprocess.call(['/usr/local/bin/push-puppetforge', '-r', 'puppet-forge'])
+
+            # If the import is successful
+            if rc == 0:
+                good_puppetpush = True
+
+    else:
+        msg = "Dry run - not actually performing module push"
+        helpers.log_msg(msg, 'WARNING')
+
+    return good_puppetpush
+
+
 def clean_cv(dryrun):
     print "Running Content View Cleanup..."
 
@@ -116,6 +137,8 @@ def main(args):
     parser = argparse.ArgumentParser(
         description='Imports, Publishes and Promotes content views.')
     parser.add_argument('-d', '--dryrun', help='Dry Run - Only show what will be done',
+        required=False, action="store_true")
+    parser.add_argument('-p', '--puppet', help='Include puppet-forge module push',
         required=False, action="store_true")
 
     args = parser.parse_args()
@@ -146,15 +169,18 @@ def main(args):
 
     # Every day, check if there are any imports in our input dir and import them.
     # run_publish will be returned as 'True' if any successful imports were performed.
-    # If no imports are performed, or they fail, publish will not be triggered.
+    # If no imports are performed, or they fail, publish can't be triggered.
     run_publish = run_imports(dryrun)
 
+    # If the imports succeeded, we can go ahead and publish the new content to Library
     if run_publish:
         publish_cv(dryrun)
+        # Push any new puppet-forge modules if we have requested that
+        if args.puppet:
+            push_puppet(dryrun)
 
-
-    ### Run cleanup on scheduled day
-    if dayofweek == 3:
+    # Run content view cleanup once a month, after we have done all promotions for the month.
+    if dayofweek == 4:
         if weekofmonth == 4:
             clean_cv(dryrun)
 
