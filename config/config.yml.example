@@ -50,4 +50,6 @@ cleanup:
       keep: 3
 
 puppet-forge-server:
+  servertype: puppet-forge-server
   hostname: puppetforge.example.org
+  modulepath: /opt/puppet-forge/modules
