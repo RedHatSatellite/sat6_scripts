@@ -52,9 +52,6 @@ def run_imports(dryrun):
                 if rc == 0:
                     good_imports = True
 
-            # Check the 'good import' state - this triggers publish if we are good here
-            print good_imports
-
         else:
             msg = "Dry run - not actually performing import"
             helpers.log_msg(msg, 'WARNING')
@@ -65,6 +62,9 @@ def run_imports(dryrun):
 def publish_cv(dryrun):
     print "Running Content View Publish..."
 
+    # Set the initial state
+    good_publish = False
+
     if not dryrun:
         rc = subprocess.call(['/usr/local/bin/publish_content_views', '-q', '-a'])
     else:
@@ -72,9 +72,17 @@ def publish_cv(dryrun):
         helpers.log_msg(msg, 'WARNING')
         rc = subprocess.call(['/usr/local/bin/publish_content_views', '-q', '-a', '-d'])
 
+    if rc == 0:
+        good_publish = True
+
+    return good_publish
+
 
 def promote_cv(dryrun, lifecycle):
-    print "Running Content View Promotion..."
+    print "Running Content View Promotion to " + lifecycle + "..."
+
+    # Set the initial state
+    good_promote = False
 
     if not dryrun:
         rc = subprocess.call(['/usr/local/bin/promote_content_views', '-q', '-e', lifecycle])
@@ -82,6 +90,11 @@ def promote_cv(dryrun, lifecycle):
         msg = "Dry run - not actually performing promotion"
         helpers.log_msg(msg, 'WARNING')
         rc = subprocess.call(['/usr/local/bin/promote_content_views', '-q', '-d', '-e', lifecycle])
+
+    if rc == 0:
+        good_promote = True
+
+    return good_promote
 
 
 def clean_cv(dryrun):
@@ -114,6 +127,7 @@ def main(args):
         dryrun = False
 
     run_publish = False
+    run_promote = True
 
     # Determine the day of week and week of month for use in our scheduling
     (dayofweek, weekofmonth) = dates()
@@ -122,10 +136,12 @@ def main(args):
     # Run promotion first - this ensures content consistency (QA->Prod, Library->QA)
     if dayofweek == 1:
         if weekofmonth == 4:
-            promote_cv(dryrun, 'Production')
+            run_promote = promote_cv(dryrun, 'Production')
 
-        if weekofmonth == 2:
-            promote_cv(dryrun, 'Quality')
+        # Run QA promotion on 2nd and 4th Monday. Conditional on Prod promotion success
+        if weekofmonth == 2 or weekofmonth == 4:
+            if run_promote:
+                run_promote = promote_cv(dryrun, 'Quality')
 
 
     # Every day, check if there are any imports in our input dir and import them.
@@ -137,12 +153,10 @@ def main(args):
         publish_cv(dryrun)
 
 
-
     ### Run cleanup on scheduled day
     if dayofweek == 3:
         if weekofmonth == 4:
             clean_cv(dryrun)
-
 
 
 if __name__ == "__main__":
