@@ -133,7 +133,7 @@ mandb -q
 * Sun Dec 10 2017 Geoff Gatward <ggatward@redhat.com> 1.2.0
 - Refer https://github.com/ggatward/sat6_scripts/blob/1.2.0/CHANGELOG.md
 
-* Thu Oct 25 2017 Geoff Gatward <ggatward@redhat.com> 1.1.1
+* Wed Oct 25 2017 Geoff Gatward <ggatward@redhat.com> 1.1.1
 - Refer https://github.com/ggatward/sat6_scripts/blob/1.1.1/CHANGELOG.md
 
 * Thu Oct 19 2017 Geoff Gatward <ggatward@redhat.com> 1.1.0
