@@ -192,7 +192,7 @@ def main(args):
     if args.modulepath:
         modpath = args.modulepath
     else:
-        if not.helpers.PFMODPATH:
+        if not helpers.PFMODPATH:
             print "Puppet forge module path not defined"
             sys.exit(1)
         else:
