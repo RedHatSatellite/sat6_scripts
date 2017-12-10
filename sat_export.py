@@ -11,7 +11,7 @@ Exports Satellite 6 yum content.
 """
 
 import sys, argparse, datetime, os, shutil, pickle, re
-import fnmatch, subprocess, tarfile, tempfile
+import fnmatch, subprocess, tarfile
 import simplejson as json
 from glob import glob
 from distutils.dir_util import copy_tree
