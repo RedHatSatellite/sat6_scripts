@@ -99,6 +99,39 @@ def copy_to_pfserver(export_dir, pfserver, pfmodpath, pfuser):
     os.system('rsync -avrzc ' + export_dir + '/* ' + target)
 
 
+def splitext(path):
+    """
+    Method to split the exported filename into author-module-version parts
+    """
+    for ext in ['.tar.gz']:
+        if path.endswith(ext):
+            return path[:-len(ext)], path[-len(ext):]
+        return os.path.splitext(path)
+
+
+def postModule(moduleTar, moduleInputDir, pfserver, pfmodpath)
+    """
+    Function to push puppet modules using curl to Artifiactory repository
+    """
+    # Remove module's extension (.tar.gz)
+    puppetModuleNameNoExt = splitext(moduleTar)[0]
+
+    # Remove the path from the module
+    puppetModuleName = puppetModuleNameNoExt.split('/')[-1]
+
+    # Split the module name into the required parts
+    puppetModuleNameList = puppetModuleName.split('-')
+    author = puppetModuleNameList[0]
+    moduleName = puppetModuleNameList[1]
+    version = puppetModuleNameList[2]
+
+    url = "http://" + pfserver + pfmodpath + "/" + author + "/" + moduleName + "/" + moduleTar
+    fileName = moduleInputDir + "/" + moduleTar
+
+    # Put the files using curl (need to clean this up)
+    subprocess.call(['curl', '-XPUT', url, '-T', fileName])
+
+
 def main(args):
     """
     Main Routine
@@ -121,6 +154,7 @@ def main(args):
     parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
     parser.add_argument('-r', '--repo', help='Puppetforge repo label', required=False)
+    parser.add_argument('-t', '--type', help='Puppetforge server type (puppet-forge-server|artifiactory)', required=False)
     parser.add_argument('-s', '--server', help='puppet-forge-server hostname', required=False)
     parser.add_argument('-m', '--modulepath', help='path to puppet-forge-server modules', 
         required=False)
@@ -133,6 +167,16 @@ def main(args):
         org_name = args.org
     else:
        org_name = helpers.ORG_NAME
+
+    # Define the type of puppet-forge server
+    if args.type:
+        pftype = args.type
+    else:
+        if not helpers.PFMETHOD:
+            print "Puppet forge server type not specified"
+            sys.exit(1)
+        else:
+            pftype = helpers.PFMETHOD
 
     # Define the puppet-forge-server hostname
     if args.server:
@@ -148,7 +192,11 @@ def main(args):
     if args.modulepath:
         modpath = args.modulepath
     else:
-        modpath = '/opt/puppet-forge/modules'
+        if not.helpers.PFMODPATH:
+            print "Puppet forge module path not defined"
+            sys.exit(1)
+        else:
+            modpath = helpers.PFMODPATH
 
     # Set the username to use to push modules
     if args.user:
@@ -206,10 +254,20 @@ def main(args):
     # Define the location of our exported data.
     export_dir = helpers.EXPORTDIR + "/puppetforge"
 
-    # Now we can copy the content to the puppet-forge-server instance
-    os.chdir(script_dir)
-    copy_to_pfserver(export_dir, pfserver, modpath, pfuser)
+    if (pftype == 'puppet-forge-server'):
+        # Method for posting to puppet-forge-server
+        os.chdir(script_dir)
+        copy_to_pfserver(export_dir, pfserver, modpath, pfuser)
 
+    elif (pftype == 'artifactory'):
+        # Method for posting to Artifactory repository
+        for module in os.listdir(export_dir):
+            print("Posing: " + module)
+            postModule(module, export_dir, pfserver, modpath)
+
+    else:
+        print("Unknown puppet-forge server type defined")
+        sys.exit(1)
 
     # And we're done!
     print helpers.GREEN + "Puppet Forge export complete.\n" + helpers.ENDC

@@ -68,8 +68,14 @@ if 'mailfrom' in CONFIG['email']:
     MAILFROM = CONFIG['email']['mailfrom']
 if 'mailto' in CONFIG['email']:
     MAILTO = CONFIG['email']['mailto']
+if 'servertype' in CONFIG['puppet-forge-server']:
+    PFMETHOD = CONFIG['puppet-forge-server']['servertype']
+else:
+    PFMETHOD = 'puppet-forge-server'
 if 'hostname' in CONFIG['puppet-forge-server']:
     PFSERVER = CONFIG['puppet-forge-server']['hostname']
+if 'modulepath' in CONFIG['puppet-forge-server']:
+    PFMODPATH = CONFIG['puppet-forge-server']['modulepath']
 
 # 'Global' Satellite 6 parameters
 # Satellite API
