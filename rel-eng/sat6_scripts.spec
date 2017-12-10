@@ -37,12 +37,14 @@ install -m 0644 config/exports.yml.example %{buildroot}/usr/share/sat6_scripts/c
 install -m 0755 bin/check_sync %{buildroot}/usr/local/bin/check_sync
 install -m 0755 bin/sat_export %{buildroot}/usr/local/bin/sat_export
 install -m 0755 bin/sat_import %{buildroot}/usr/local/bin/sat_import
+install -m 0755 bin/auto_content %{buildroot}/usr/local/bin/auto_content
 install -m 0755 bin/clean_content_views %{buildroot}/usr/local/bin/clean_content_views
 install -m 0755 bin/publish_content_views %{buildroot}/usr/local/bin/publish_content_views
 install -m 0755 bin/promote_content_views %{buildroot}/usr/local/bin/promote_content_views
 install -m 0755 bin/download_manifest %{buildroot}/usr/local/bin/download_manifest
 install -m 0755 bin/push_puppetforge %{buildroot}/usr/local/bin/push_puppetforge
 install -m 0644 helpers.py %{buildroot}/usr/share/sat6_scripts/helpers.py
+install -m 0644 auto_content.py %{buildroot}/usr/share/sat6_scripts/auto_content.py
 install -m 0644 check_sync.py %{buildroot}/usr/share/sat6_scripts/check_sync.py
 install -m 0644 sat_export.py %{buildroot}/usr/share/sat6_scripts/sat_export.py
 install -m 0644 sat_import.py %{buildroot}/usr/share/sat6_scripts/sat_import.py
@@ -84,6 +86,7 @@ gzip -9c man/sat_import.8 > %{buildroot}/usr/local/share/man/man8/sat_import.8.g
 /usr/local/share/man/man8/sat_import.8.gz
 
 /usr/share/sat6_scripts/helpers.py
+/usr/share/sat6_scripts/auto_content.py
 /usr/share/sat6_scripts/check_sync.py
 /usr/share/sat6_scripts/sat_export.py
 /usr/share/sat6_scripts/sat_import.py
@@ -93,6 +96,7 @@ gzip -9c man/sat_import.8 > %{buildroot}/usr/local/share/man/man8/sat_import.8.g
 /usr/share/sat6_scripts/download_manifest.py
 /usr/share/sat6_scripts/push_puppetforge.py
 
+/usr/local/bin/auto_content
 /usr/local/bin/check_sync
 /usr/local/bin/sat_export
 /usr/local/bin/sat_import
@@ -126,6 +130,9 @@ mandb -q
 
 
 %changelog
+* Fri Dec 8 2017 Geoff Gatward <ggatward@redhat.com> 1.2.0
+- Refer https://github.com/ggatward/sat6_scripts/blob/1.2.0/CHANGELOG.md
+
 * Thu Oct 25 2017 Geoff Gatward <ggatward@redhat.com> 1.1.1
 - Refer https://github.com/ggatward/sat6_scripts/blob/1.1.1/CHANGELOG.md
 

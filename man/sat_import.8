@@ -30,6 +30,12 @@ Any repositories found in the import that do not exist in Satellite will be indi
 .RE
 .RE
 .RS 3
+- A check is performed to see if any exports performed have not yet been imported.
+.RS 2
+Any missing imports will be displayed and the option to continue or abort will be presented.
+.RE
+.RE
+.RS 3
 - Satellite will perform a bulk repository sync of the repositories within the import dataset.
 .RE
 .RS 3
@@ -106,6 +112,16 @@ repositories to be shown, even if there is no mis-match.
 .RS 3
 Normally the script will prevent the importing of a dataset that has already been imported.
 However, using this option will force an import of the dataset to be performed.
+.RE
+.PP
+.BR "--fixhistory"
+.RS 3
+In the event that missing import datasets are detected, they should be imported to
+ensure data integrity and consistency. There may however be cases that result in
+the missing imports being included by other means, or no longer required at all.
+In these cases, this flag can be used to 'reset' the import history
+so that it matches the export history of the current import dataset, clearing
+these warnings.
 .RE
 
 .SH EXAMPLES

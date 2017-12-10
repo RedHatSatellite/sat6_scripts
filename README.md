@@ -28,7 +28,7 @@ hammer user create --login svc-api-user --firstname API --lastname User \
   --organization-ids 1 --default-organization-id 1 --admin true
 ```
 
-Foreman needs to be configured to export content to the location you require. By default the path is 
+Foreman needs to be configured to export content to the location you require. By default the path is
 /var/lib/pulp/katello-export - this will result in you probably filling your /var/lib/pulp partition!
 The configs in these scripts assume that the exports are going to /var/sat-export - this should be a
 dedicated partition or even better dedicated disk just for export content.
@@ -67,6 +67,11 @@ satellite:
 logging:
   dir: /var/log/sat6-scripts     (Directory to use for logging)
   debug: [True|False]
+
+email:
+  mailout: True
+  mailfrom: Satellite 6 <sat62@example.org>
+  mailto: sysadmin@example.org
 
 export:
   dir: /var/sat-export           (Directory to export content to - Connected Satellite)
@@ -199,6 +204,7 @@ optional arguments:
   -l, --last            Display time of last export
   -L, --list            List all successfully completed exports
   --nogpg               Skip GPG checking
+  -u, --unattended      Answer any prompts safely, allowing automated usage
   -r, --repodata        Include repodata for repos with no incremental content
   -p, --puppetforge     Include puppet-forge-server format Puppet Forge repo
   --notar               Do not archive the extracted content
@@ -223,11 +229,14 @@ This companion script to sat_export, running on the Disconnected Satellite
 performs a sha256sum verification of each part of the specified archive prior
 to extracting the transferred content to disk.
 
-Once the content has been extracted, a sync is triggered of each repository
-in the import set. Note that repositories MUST be enabled on the disconnected
-satellite prior to the sync working - for this reason a `nosync` option (-n)
-exists so that the repos can be extracted to disk and then enabled before the
-sync occurs. In order to not overload the Satellite during the sync, the
+Once the content has been extracted, a check is performed to see if any exports
+performed have not yet been imported. This is to assist with data integrity on
+the disconnected Satellite system. Any missing imports will be displayed and the
+option to continue or abort will be presented. Upon continuing, a sync is triggered
+of each repository in the import set. Note that repositories MUST be enabled on the
+disconnected satellite prior to the sync working - for this reason a `nosync`
+option (-n) exists so that the repos can be extracted to disk and then enabled
+before the sync occurs. In order to not overload the Satellite during the sync, the
 repositories will be synced in smaller batches, the number of repos in a batch
 being defined in the config.yml file. (It has been observed on systems with a
 large number of repos that triggering a sync on all repos at once pretty much
@@ -245,6 +254,13 @@ All previously imported datasets can be shown with the (-L) flag.
 Note that a dataset can normally only be imported ONCE. To force an import of an
 already completed dataset, use the (-f) flag.
 
+In the event that missing import datasets are detected, they should be imported to
+ensure data integrity and consistency. There may however be cases that result in
+the missing imports being included by other means, or no longer required at all.
+In these cases, the --fixhistory flag can be used to 'reset' the import history
+so that it matches the export history of the current import dataset, clearing
+these warnings.
+
 ### Help Output
 ```
 usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l] [-L] [-f]
@@ -260,7 +276,9 @@ optional arguments:
   -l, --last            Show the last successfully completed import date
   -L, --list            List all successfully completed imports
   -c, --count           Display all package counts after import
-  -f, --force           Force import of data if it has previously been done      
+  -f, --force           Force import of data if it has previously been done  
+  -u, --unattended      Answer any prompts safely, allowing automated usage
+  --fixhistory          Force import history to match export history  
 ```
 
 ### Examples
@@ -482,3 +500,14 @@ optional arguments:
 ./promote_content_view.py -e Production -a      # Promote all views to Production
 ./promote_content_view.py -e Quality -d         # See what would be done for Quality
 ```
+
+
+# auto_content
+Sample script that allows for the unattended automation of content management.
+This script will find any import datasets present and import them (in order).
+Successful import of the content then triggers a publish.  On nominated days/weeks
+content is promoted to various lifecycle stages, and content view cleanup is also
+performed.  Like the other scripts it calls, it supports a dry run (-d) option to
+show what would be performed without actually doing it.
+
+This script can be copied and extended to support custom automation requirements.

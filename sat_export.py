@@ -14,6 +14,7 @@ import sys, argparse, datetime, os, shutil, pickle, re
 import fnmatch, subprocess, tarfile
 import simplejson as json
 from glob import glob
+from distutils.dir_util import copy_tree
 import helpers
 
 try:
@@ -81,12 +82,22 @@ def export_cv(dov_ver, last_export, export_type):
     except: # pylint: disable-msg=W0702
         msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            subject = "Satellite 6 export failure"
+            helpers.mailout(subject, output)
         sys.exit(1)
 
     # Trap some other error conditions
     if "Required lock is already taken" in str(task_id):
         msg = "Unable to start export - Sync in progress"
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            subject = "Satellite 6 export failure"
+            helpers.mailout(subject, output)
         sys.exit(1)
 
     msg = "Export started, task_id = " + str(task_id)
@@ -104,7 +115,7 @@ def export_repo(repo_id, last_export, export_type):
         msg = "Exporting repository id " + str(repo_id)
     else:
         msg = "Exporting repository id " + str(repo_id) + " from start date " + last_export
-    helpers.log_msg(msg, 'INFO')
+    helpers.log_msg(msg, 'DEBUG')
 
     try:
         if export_type == 'full':
@@ -125,12 +136,22 @@ def export_repo(repo_id, last_export, export_type):
     except: # pylint: disable-msg=W0702
         msg = "Unable to start export - Conflicting Sync or Export already in progress"
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            subject = "Satellite 6 export failure"
+            helpers.mailout(subject, output)
         sys.exit(1)
 
     # Trap some other error conditions
     if "Required lock is already taken" in str(task_id):
         msg = "Unable to start export - Sync in progress"
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            subject = "Satellite 6 export failure"
+            helpers.mailout(subject, output)
         sys.exit(1)
 
     msg = "Export started, task_id = " + str(task_id)
@@ -403,14 +424,19 @@ def check_incomplete_sync():
     if incomplete_sync:
         msg = "Incomplete sync jobs detected"
         helpers.log_msg(msg, 'WARNING')
-        answer = helpers.query_yes_no("Continue with export?", "no")
-        if not answer:
+        if not args.unattended:
+            answer = helpers.query_yes_no("Continue with export?", "no")
+            if not answer:
+                msg = "Export Aborted"
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(3)
+            else:
+                msg = "Export continued by user"
+                helpers.log_msg(msg, 'INFO')
+        else:
             msg = "Export Aborted"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(1)
-        else:
-            msg = "Export continued by user"
-            helpers.log_msg(msg, 'INFO')
+            sys.exit(3)
 
 
 def check_disk_space(export_type):
@@ -422,14 +448,19 @@ def check_disk_space(export_type):
     if export_type == 'full' and int(float(pulp_used)) > 50:
         msg = "Insufficient space in /var/lib/pulp for a full export. >50% free space is required."
         helpers.log_msg(msg, 'WARNING')
-        answer = helpers.query_yes_no("Continue with export?", "no")
-        if not answer:
+        if not args.unattended:
+            answer = helpers.query_yes_no("Continue with export?", "no")
+            if not answer:
+                msg = "Export Aborted"
+                helpers.log_msg(msg, 'ERROR')
+                sys.exit(3)
+            else:
+                msg = "Export continued by user"
+                helpers.log_msg(msg, 'INFO')
+        else:
             msg = "Export Aborted"
             helpers.log_msg(msg, 'ERROR')
-            sys.exit(1)
-        else:
-            msg = "Export continued by user"
-            helpers.log_msg(msg, 'INFO')
+            sys.exit(3)
 
 
 def locate(pattern, root=os.curdir):
@@ -472,6 +503,12 @@ def do_gpg_check(export_dir):
             helpers.log_msg(msg, 'ERROR')
         msg = "------ Export Aborted ------"
         helpers.log_msg(msg, 'INFO')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            subject = "Satellite 6 export failure - GPG checksum failure"
+            message = "GPG check of exported RPMs failed. Check logs for details\n\n" + output
+            helpers.mailout(subject, message)
         sys.exit(1)
     else:
         msg = "GPG check completed successfully"
@@ -648,8 +685,10 @@ def main(args):
         action="store_true")
     parser.add_argument('-L', '--list', help='Display export history', required=False,
         action="store_true")
-    parser.add_argument('-n', '--nogpg', help='Skip GPG checking', required=False,
+    parser.add_argument('--nogpg', help='Skip GPG checking', required=False,
         action="store_true")
+    parser.add_argument('-u', '--unattended', help='Answer any prompts safely, allowing automated usage',
+        required=False, action="store_true")
     parser.add_argument('--notar', help='Skip TAR creation', required=False,
         action="store_true")
     parser.add_argument('--forcexport', help='Force export on import-only satellite', required=False,
@@ -773,6 +812,7 @@ def main(args):
     if args.env:
         msg = "------ " + ename + " Content export started by " + runuser + " ---------"
     helpers.log_msg(msg, 'INFO')
+
 
     # Get the current time - this will be the 'last export' time if the export is OK
     start_time = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d %H:%M:%S')
@@ -921,6 +961,11 @@ def main(args):
                             if not os.path.exists(exportpath):
                                 msg = exportpath + " was not created.\nCheck permissions/SELinux on export dir"
                                 helpers.log_msg(msg, 'ERROR')
+                                if helpers.MAILOUT:
+                                    helpers.tf.seek(0)
+                                    output = "{}".format(helpers.tf.read())
+                                    subject = "Satellite 6 export failure"
+                                    helpers.mailout(subject, output)
                                 sys.exit(1)
 
                             os.chdir(exportpath)
@@ -1065,7 +1110,6 @@ def main(args):
     pickle.dump(exported_repos, open(export_dir + '/exported_repos.pkl', 'wb'))
     pickle.dump(package_count, open(export_dir + '/package_count.pkl', 'wb'))
 
-
     # Run GPG Checks on the exported RPMs
     if not args.nogpg:
         do_gpg_check(export_dir)
@@ -1085,6 +1129,11 @@ def main(args):
         os.system("rm -f " + helpers.EXPORTDIR + "/*.pkl")
         os.system("rm -f " + export_dir + "/*.pkl")
 
+        # Copy export_dir to cdn_export to prevent blowing it away next time we export
+        copy_tree(export_dir,helpers.EXPORTDIR + "/cdn_export")
+        # Cleanup
+        shutil.rmtree(helpers.EXPORTDIR + "/cdn_export/manifest", ignore_errors=True, onerror=None)
+        shutil.rmtree(export_dir)
 
     # We're done. Write the start timestamp to file for next time
     os.chdir(script_dir)
@@ -1099,6 +1148,13 @@ def main(args):
             + helpers.ENDC + ' to extract it.'
     msg = "Export complete"
     helpers.log_msg(msg, 'INFO')
+
+    if helpers.MAILOUT:
+        helpers.tf.seek(0)
+        output = "{}".format(helpers.tf.read())
+        subject = "Satellite 6 export complete"
+        message = "Export of " + ename + " successfully completed\n\n" + output
+        helpers.mailout(subject, message)
 
     # Exit cleanly
     sys.exit(0)

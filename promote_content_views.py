@@ -58,6 +58,10 @@ def get_cv(org_id, target_env, env_list, prior_list, promote_list):
     if not target_env in env_list:
         msg = "Target environment '" + target_env + "' not found"
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            helpers.mailout(helpers.MAILSUBJ_FP, output)
         sys.exit(1)
     else:
         target_env_id = env_list[target_env]
@@ -131,6 +135,10 @@ def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, 
     if not ver_list:
         msg = "No content view versions found matching promotion criteria"
         helpers.log_msg(msg, 'WARNING')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            helpers.mailout(helpers.MAILSUBJ_FP, output)
         sys.exit(1)
 
     # Break repos to promote into batches as configured in config.yml
@@ -259,6 +267,10 @@ def main(args):
         if not promote_list:
             msg = "Cannot find promotion configuration for '" + target_env + "'"
             helpers.log_msg(msg, 'ERROR')
+            if helpers.MAILOUT:
+                helpers.tf.seek(0)
+                output = "{}".format(helpers.tf.read())
+                helpers.mailout(helpers.MAILSUBJ_FP, output)
             sys.exit(1)
 
         msg = "Config found for CV's " + str(promote_list)
@@ -280,6 +292,14 @@ def main(args):
     # Add/Update the promotion history dictionary so we can check when we last promoted
     phistory[target_env] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
     pickle.dump(phistory, open(vardir + '/promotions.pkl', 'wb'))
+
+    # Run the mailout
+    if helpers.MAILOUT:
+        helpers.tf.seek(0)
+        output = "{}".format(helpers.tf.read())
+        message = "Promotion completed successfully\n\n" + output
+        subject = "Satellite 6 promotion completed"
+        helpers.mailout(subject, message)
 
     # Exit cleanly
     sys.exit(0)

@@ -67,6 +67,10 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser, quiet):
     if not ver_list:
         msg = "No content view versions found matching publication criteria"
         helpers.log_msg(msg, 'ERROR')
+        if helpers.MAILOUT:
+            helpers.tf.seek(0)
+            output = "{}".format(helpers.tf.read())
+            helpers.mailout(helpers.MAILSUBJ_FP, output)
         sys.exit(1)
 
     # Break repos to publish into batches as configured in config.yml
@@ -189,6 +193,10 @@ def main(args):
         if not publish_list:
             msg = "Cannot find publish configuration"
             helpers.log_msg(msg, 'ERROR')
+            if helpers.MAILOUT:
+                helpers.tf.seek(0)
+                output = "{}".format(helpers.tf.read())
+                helpers.mailout(helpers.MAILSUBJ_FP, output)
             sys.exit(1)
 
         msg = "Config found for CV's " + str(publish_list)
@@ -206,6 +214,14 @@ def main(args):
     # Add/Update the promotion history dictionary so we can check when we last promoted
     phistory['Library'] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
     pickle.dump(phistory, open(vardir + '/promotions.pkl', 'wb'))
+
+    # Run the mailout
+    if helpers.MAILOUT:
+        helpers.tf.seek(0)
+        output = "{}".format(helpers.tf.read())
+        message = "Publish completed successfully\n\n" + output
+        subject = "Satellite 6 publish completed"
+        helpers.mailout(subject, message)
 
     # Exit cleanly
     sys.exit(0)
