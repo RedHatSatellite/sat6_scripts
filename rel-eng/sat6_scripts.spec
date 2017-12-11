@@ -1,11 +1,11 @@
 Name:           sat6_scripts
-Version:        1.2.0
+Version:        1.2.1
 Release:        1%{?dist}
 Summary:        Scripts to automate Satellite 6 tasks
 
 License:        GPL
 URL:            https://github.com/ggatward/sat6_scripts
-Source0:        sat6_scripts-1.2.0.tar.gz
+Source0:        sat6_scripts-1.2.1.tar.gz
 
 Requires:       python >= 2.7, PyYAML
 
@@ -130,6 +130,9 @@ mandb -q
 
 
 %changelog
+* Mon Dec 11 2017 Geoff Gatward <ggatward@redhat.com> 1.2.1
+- Refer https://github.com/ggatward/sat6_scripts/blob/1.2.1/CHANGELOG.md
+
 * Sun Dec 10 2017 Geoff Gatward <ggatward@redhat.com> 1.2.0
 - Refer https://github.com/ggatward/sat6_scripts/blob/1.2.0/CHANGELOG.md
 
