@@ -1,6 +1,6 @@
 Name:           sat6_scripts
 Version:        1.2.1
-Release:        1%{?dist}
+Release:        2%{?dist}
 Summary:        Scripts to automate Satellite 6 tasks
 
 License:        GPL

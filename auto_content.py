@@ -111,12 +111,11 @@ def push_puppet(dryrun):
     good_puppetpush = False
 
     if not dryrun:
-        for dataset in tslist:
-            rc = subprocess.call(['/usr/local/bin/push-puppetforge', '-r', 'puppet-forge'])
+        rc = subprocess.call(['/usr/local/bin/push_puppetforge', '-r', 'puppet-forge'])
 
-            # If the import is successful
-            if rc == 0:
-                good_puppetpush = True
+        # If the import is successful
+        if rc == 0:
+            good_puppetpush = True
 
     else:
         msg = "Dry run - not actually performing module push"
