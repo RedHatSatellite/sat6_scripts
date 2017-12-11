@@ -129,8 +129,6 @@ def postModule(moduleTar, moduleInputDir, pfserver, pfmodpath, pfuser, pftoken):
     fileName = moduleInputDir + "/" + moduleTar
 
     # Put the files using curl (need to clean this up)
-#    subprocess.call(['curl', '-XPUT', url, '-T', fileName])
-
     authtoken = pfuser + ":" + pftoken
     subprocess.call(['curl', '-u', authtoken, '-XPUT', url, '-T', fileName])
 
@@ -163,7 +161,7 @@ def main(args):
         required=False)
     parser.add_argument('-u', '--user', help='Username to push modules to server as (default is user running script)',
         required=False)
-    parser.add_argument('-p', '--password', help='Password for username to push modules',
+    parser.add_argument('-p', '--password', help='Password (token) for username to push modules to Artifactory',
         required=False)
     args = parser.parse_args()
 
@@ -209,7 +207,7 @@ def main(args):
     else:
         pfuser = helpers.PFUSER
 
-    # Read in the token for Artifiactory 
+    # Read in the token for Artifiactory
     if args.password:
         pftoken = args.password
     else:
