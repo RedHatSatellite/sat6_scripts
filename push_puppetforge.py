@@ -109,7 +109,7 @@ def splitext(path):
         return os.path.splitext(path)
 
 
-def postModule(moduleTar, moduleInputDir, pfserver, pfmodpath):
+def postModule(moduleTar, moduleInputDir, pfserver, pfmodpath, pfuser, pftoken):
     """
     Function to push puppet modules using curl to Artifiactory repository
     """
@@ -129,7 +129,8 @@ def postModule(moduleTar, moduleInputDir, pfserver, pfmodpath):
     fileName = moduleInputDir + "/" + moduleTar
 
     # Put the files using curl (need to clean this up)
-    subprocess.call(['curl', '-XPUT', url, '-T', fileName])
+    authtoken = pfuser + ":" + pftoken
+    subprocess.call(['curl', '-u', authtoken, '-XPUT', url, '-T', fileName])
 
 
 def main(args):
@@ -159,6 +160,8 @@ def main(args):
     parser.add_argument('-m', '--modulepath', help='path to puppet-forge-server modules',
         required=False)
     parser.add_argument('-u', '--user', help='Username to push modules to server as (default is user running script)',
+        required=False)
+    parser.add_argument('-p', '--password', help='Password (token) for username to push modules to Artifactory',
         required=False)
     args = parser.parse_args()
 
@@ -202,7 +205,13 @@ def main(args):
     if args.user:
         pfuser = args.user
     else:
-        pfuser = runuser
+        pfuser = helpers.PFUSER
+
+    # Read in the token for Artifiactory
+    if args.password:
+        pftoken = args.password
+    else:
+        pftoken = helpers.PFTOKEN
 
     # Record where we are running from
     script_dir = str(os.getcwd())
@@ -263,7 +272,7 @@ def main(args):
         # Method for posting to Artifactory repository
         for module in os.listdir(export_dir):
             print("Posing: " + module)
-            postModule(module, export_dir, pfserver, modpath)
+            postModule(module, export_dir, pfserver, modpath, pfuser, pftoken)
 
     else:
         print("Unknown puppet-forge server type defined")

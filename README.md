@@ -71,7 +71,8 @@ logging:
 email:
   mailout: True
   mailfrom: Satellite 6 <sat62@example.org>
-  mailto: sysadmin@example.org
+  mailto:
+    - sysadmin@example.org
 
 export:
   dir: /var/sat-export           (Directory to export content to - Connected Satellite)
@@ -308,6 +309,8 @@ puppet-forge-server:
   servertype: puppet-forge-server
   hostname: puppetforge.example.org
   modulepath: /opt/puppet-forge/modules
+  username: someuser
+  token: ArtifactoryAPIToken
 ```
 
 ```
@@ -326,6 +329,8 @@ optional arguments:
                         path to puppet-forge-server modules
   -u USER, --user USER  Username to push modules to server as (default is user
                         running script)
+  -p PASSWORD --password PASSWORD
+                        Token for Artifactory API authentication
 ```
 
 ### Examples

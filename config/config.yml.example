@@ -14,7 +14,8 @@ logging:
 email:
   mailout: True
   mailfrom: Satellite 6 <sat62@example.org>
-  mailto: sysadmin@example.org
+  mailto:
+    - sysadmin@example.org
 
 export:
   dir: /var/sat-export
@@ -53,3 +54,5 @@ puppet-forge-server:
   servertype: puppet-forge-server
   hostname: puppetforge.example.org
   modulepath: /opt/puppet-forge/modules
+  username: pfuser
+  token: ABCdef123ABCded382654

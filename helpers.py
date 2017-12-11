@@ -76,6 +76,12 @@ if 'hostname' in CONFIG['puppet-forge-server']:
     PFSERVER = CONFIG['puppet-forge-server']['hostname']
 if 'modulepath' in CONFIG['puppet-forge-server']:
     PFMODPATH = CONFIG['puppet-forge-server']['modulepath']
+if 'username' in CONFIG['puppet-forge-server']:
+    PFUSER = CONFIG['puppet-forge-server']['username']
+else:
+    PFUSER = runuser
+if 'token' in CONFIG['puppet-forge-server']:
+    PFTOKEN = CONFIG['puppet-forge-server']['token']
 
 # 'Global' Satellite 6 parameters
 # Satellite API
@@ -459,7 +465,7 @@ def mailout(subject, message):
     Assumes localhost is configured for SMTP forwarding (postfix)
     """
     sender = MAILFROM
-    receivers = [MAILTO]
+    receivers = MAILTO
 
     body = 'From: {}\nSubject: {}\n\n{}'.format(sender, subject, message)
 

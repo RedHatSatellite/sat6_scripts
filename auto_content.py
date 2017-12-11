@@ -8,7 +8,7 @@ import helpers
 
 
 def dates():
-    # What day is it?  (0=Sun -> 6=Sat)
+    # What day is it?  (0=Mon -> 6=Sun)
     dayofweek = datetime.datetime.today().weekday()
 
     # Figure out which week of the month we are in
@@ -16,7 +16,10 @@ def dates():
 
     print "Day %s of week %s" % (dayofweek, weekofmonth)
 
-    return(dayofweek,weekofmonth)
+    # Define dictionary mapping 'human readable' days to thier numeric value
+    days = {'Mon' : 0, 'Tue' : 1, 'Wed' : 2, 'Thu' : 3, 'Fri' : 4, 'Sat' : 5, 'Sun' : 6}
+
+    return(dayofweek,weekofmonth,days)
 
 
 def run_imports(dryrun):
@@ -98,6 +101,10 @@ def promote_cv(dryrun, lifecycle):
 
 
 def push_puppet(dryrun):
+    """
+    Performs a push of puppet modules using the DEFAULT puppet-forge-server defined in the
+    config.yml
+    """
     print "Pushing puppet modules to puppet-forge server..."
 
     # Set the initial state
@@ -130,8 +137,9 @@ def clean_cv(dryrun):
 
 
 def main(args):
-
-    ### Run import/publish on scheduled day
+    """
+    Performs import/publish/promote/cleanup on scheduled days
+    """
 
     # Check for sane input
     parser = argparse.ArgumentParser(
@@ -153,11 +161,12 @@ def main(args):
     run_promote = True
 
     # Determine the day of week and week of month for use in our scheduling
-    (dayofweek, weekofmonth) = dates()
+    (dayofweek, weekofmonth, days) = dates()
 
 
+    # MONDAYS
     # Run promotion first - this ensures content consistency (QA->Prod, Library->QA)
-    if dayofweek == 1:
+    if dayofweek == days['Mon']:
         if weekofmonth == 4:
             run_promote = promote_cv(dryrun, 'Production')
 
@@ -167,7 +176,8 @@ def main(args):
                 run_promote = promote_cv(dryrun, 'Quality')
 
 
-    # Every day, check if there are any imports in our input dir and import them.
+    # EVERY DAY
+    # Check if there are any imports in our input dir and import them.
     # run_publish will be returned as 'True' if any successful imports were performed.
     # If no imports are performed, or they fail, publish can't be triggered.
     run_publish = run_imports(dryrun)
@@ -179,8 +189,10 @@ def main(args):
         if args.puppet:
             push_puppet(dryrun)
 
+
+    # THURSDAYS
     # Run content view cleanup once a month, after we have done all promotions for the month.
-    if dayofweek == 4:
+    if dayofweek == days['Thu']:
         if weekofmonth == 4:
             clean_cv(dryrun)
 

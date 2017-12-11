@@ -13,18 +13,18 @@ push_puppetforge \- Export puppet forge modules and push to puppet-forge-server 
 .B push_puppetforge
 is a script to push puppet forge modules that have been synchronised using Satellite 6
 to an offline puppet forge server that uses the puppet-forge-server rubygem instance:
-.br 
+.br
 .I https://github.com/unibet/puppet-forge-server
 .LP
 The puppet-forge-server instance requires a specific format for the module filesystem that
-differst from that used by Satellite 6. To make use of this script, the connected Satellite
-must sync the puppet-forge repository, and have that repo included for the 
+different from that used by Satellite 6. To make use of this script, the connected Satellite
+must sync the puppet-forge repository, and have that repo included for the
 .BR sat_export (8)
 script. The disconnected Satellite must import the puppet modules into an identically named
 puppet repository.
 .LP
 .BR push_puppetforge " will"
-export the puppet modules from the disconnected Satellite and use rsync to transfer them to 
+export the puppet modules from the disconnected Satellite and use rsync to transfer them to
 the offline puppet-forge-server instance.
 
 .SH OPTIONS
@@ -51,7 +51,7 @@ Label of the puppet-forge repository in Satellite to use as the sync source.
 .RS 3
 Hostname of the puppet-forge-server instance.
 .br
-The default value is configured in the 
+The default value is configured in the
 .I config.yml
 file
 .RE
@@ -65,11 +65,17 @@ Location of the puppet modules on the puppet-forge-server instance. (Default is 
 .BR "-u", " --user"
 .I USER
 .RS 3
-Username to login to the puppet-forge-server as. Default is the user running the 
+Username to login to the puppet-forge-server as. Default is the user running the
 .B push_puppetforge
-script, from the 
+script, from the
 .I SUDO_USER
 environment variable.
+.RE
+.PP
+.BR "-p", " --password"
+.I PASSWORD
+.RS 3
+API Token for user to post modules to Artifactory. Ignored if servertype is puppet-forge-server.
 .RE
 
 .SH FILES
@@ -89,4 +95,3 @@ environment variable.
 
 .SH AUTHOR
 Geoff Gatward <ggatward@redhat.com>
-
