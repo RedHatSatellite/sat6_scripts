@@ -8,7 +8,7 @@ import helpers
 
 
 def dates():
-    # What day is it?  (0=Sun -> 6=Sat)
+    # What day is it?  (0=Mon -> 6=Sun)
     dayofweek = datetime.datetime.today().weekday()
 
     # Figure out which week of the month we are in
@@ -157,7 +157,7 @@ def main(args):
 
 
     # Run promotion first - this ensures content consistency (QA->Prod, Library->QA)
-    if dayofweek == 1:
+    if dayofweek == 0:
         if weekofmonth == 4:
             run_promote = promote_cv(dryrun, 'Production')
 
@@ -180,7 +180,7 @@ def main(args):
             push_puppet(dryrun)
 
     # Run content view cleanup once a month, after we have done all promotions for the month.
-    if dayofweek == 4:
+    if dayofweek == 3:
         if weekofmonth == 4:
             clean_cv(dryrun)
 
