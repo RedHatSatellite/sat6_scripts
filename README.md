@@ -71,7 +71,8 @@ logging:
 email:
   mailout: True
   mailfrom: Satellite 6 <sat62@example.org>
-  mailto: sysadmin@example.org
+  mailto:
+    - sysadmin@example.org
 
 export:
   dir: /var/sat-export           (Directory to export content to - Connected Satellite)

@@ -465,7 +465,7 @@ def mailout(subject, message):
     Assumes localhost is configured for SMTP forwarding (postfix)
     """
     sender = MAILFROM
-    receivers = [MAILTO]
+    receivers = MAILTO
 
     body = 'From: {}\nSubject: {}\n\n{}'.format(sender, subject, message)
 

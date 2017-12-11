@@ -7,6 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - Incorrect mapping of days in auto_content.py
 - Support for username:token authentication to Artifactory Puppet Forge server
+- Email now supports multiple recipients
 
 
 ## [1.2.0] - 2017-12-10
