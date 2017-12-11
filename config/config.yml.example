@@ -53,3 +53,5 @@ puppet-forge-server:
   servertype: puppet-forge-server
   hostname: puppetforge.example.org
   modulepath: /opt/puppet-forge/modules
+  username: pfuser
+  token: ABCdef123ABCded382654

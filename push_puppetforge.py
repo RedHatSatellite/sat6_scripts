@@ -207,13 +207,13 @@ def main(args):
     if args.user:
         pfuser = args.user
     else:
-        pfuser = runuser
+        pfuser = helpers.PFUSER
 
-    ### FIXME
+    # Read in the token for Artifiactory 
     if args.password:
         pftoken = args.password
     else:
-        pftoken = ""
+        pftoken = helpers.PFTOKEN
 
     # Record where we are running from
     script_dir = str(os.getcwd())
