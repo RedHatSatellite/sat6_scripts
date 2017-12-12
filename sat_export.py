@@ -439,7 +439,7 @@ def check_incomplete_sync():
             sys.exit(3)
 
 
-def check_disk_space(export_type):
+def check_disk_space(export_type,unattended):
     """
     Check the disk usage of the pulp partition
     For a full export we need at least 50% free, as we spool to /var/lib/pulp.
@@ -448,7 +448,7 @@ def check_disk_space(export_type):
     if export_type == 'full' and int(float(pulp_used)) > 50:
         msg = "Insufficient space in /var/lib/pulp for a full export. >50% free space is required."
         helpers.log_msg(msg, 'WARNING')
-        if not args.unattended:
+        if not unattended:
             answer = helpers.query_yes_no("Continue with export?", "no")
             if not answer:
                 msg = "Export Aborted"
@@ -820,7 +820,7 @@ def main(args):
 
 
     # Check the available space in /var/lib/pulp
-    check_disk_space(export_type)
+    check_disk_space(export_type,args.unattended)
 
     # Remove any previous exported content left behind by prior unclean exit
     if os.path.exists(helpers.EXPORTDIR + '/export'):
