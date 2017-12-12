@@ -111,10 +111,10 @@ is exported by default, meaning that there is no specific requirement to create
 lifecycle environments or Content Views on the sync host. If there is a requirement
 to export only certain repositories, this can also be specified using additional
 configuration files. The following export types can be performed:
-    * A full export (-a)
-    * An incremental export of content since the last successful export (-i)
-    * An incremental export of content from a given date (-s)
-    * Export of a limited repository set (-e) defined by config file (see below)
+* A full export (-a)
+* An incremental export of content since the last successful export (-i)
+* An incremental export of content from a given date (-s)
+* Export of a limited repository set (-e) defined by config file (see below)
 
 By default, the exported RPMs are verified for GPG integrity before being
 added to a chunked tar archive, with each part of the archive being sha256sum'd
@@ -264,7 +264,7 @@ these warnings.
 
 ### Help Output
 ```
-usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l] [-L] [-f]
+usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l] [-L] [-c] [-f] [--fixhistory]
 
 Performs Import of Default Content View.
 
@@ -314,7 +314,7 @@ puppet-forge-server:
 ```
 
 ```
-usage: push_puppetforge.py [-h] [-o ORG] [-r REPO] [-s SERVER] [-m MODULEPATH] [-u USER]
+usage: push_puppetforge.py [-h] [-o ORG] [-r REPO] [-t TYPE] [-s SERVER] [-m MODULEPATH] [-u USER]
 
 Exports puppet modules in puppet-forge-server format.
 
@@ -348,9 +348,9 @@ This script removes orphaned versions of either all or nominated content views.
 This should be run periodically to clean out old/unused content view data from
 the mongo database and improve the responsiveness of the Satellite server.
 Any orphaned versions older than the last in-use version are purged (orphans
-between in-use versions will NOT be purged). There is a keep (-k) option that
-allows a specific number of versions older than the last in-use to be kept as
-well, allowing for possible rollback of versions.
+between in-use versions will NOT be purged, unless the cleanall (-c) option is used).
+There is a keep (-k) option that allows a specific number of versions older than the
+last in-use to be kept as well, allowing for possible rollback of versions.
 
 Content views to clean can be defined by either:
   - Specific content views defined in the main config file
@@ -373,7 +373,7 @@ specified number of versions beyond the oldest in-use.
 
 
 ```
-usage: clean_content_views.py [-h] [-o ORG] [-a] [-d]
+usage: clean_content_views.py [-h] [-o ORG] [-a] [-c] [-d]
 
 Cleans content views for specified organization.
 
@@ -382,6 +382,7 @@ optional arguments:
   -o ORG, --org ORG     Organization (Uses default if not specified)
   -k KEEP, --keep KEEP  How many old versions to keep (only used with -a)
   -a, --all             Clean ALL content views
+  -c, --cleanall        Remove orphan versions between in-use views
   -d, --dryrun          Dry Run - Only show what will be cleaned
 ```
 
