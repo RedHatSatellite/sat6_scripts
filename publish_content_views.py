@@ -53,7 +53,7 @@ def get_cv(org_id, publish_list):
     return ver_list, ver_descr, ver_version
 
 
-def publish(ver_list, ver_descr, ver_version, dry_run, runuser, quiet):
+def publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, quiet):
     """Publish Content View"""
 
     # Set the task name to be displayed in the task monitoring stage
@@ -87,9 +87,6 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser, quiet):
                 msg = "Publishing '" + str(ver_descr[cvid]) + "' Version " + str(ver_version[cvid]) + ".0"
                 helpers.log_msg(msg, 'INFO')
                 print helpers.HEADER + msg + helpers.ENDC
-
-            # Set up the description that will be added to the published version
-            description = "Published by " + runuser + "\n via API script"
 
             if not dry_run and not locked:
                 try:
@@ -150,6 +147,7 @@ def main(args):
         required=False, action="store_true")
     parser.add_argument('-l', '--last', help='Display last promotions', required=False,
         action="store_true")
+    parser.add_argument('-c', '--comment', help="Add a custom description", required=False)
     parser.add_argument('-q', '--quiet', help="Suppress progress output updates", required=False,
         action="store_true")
 
@@ -164,8 +162,14 @@ def main(args):
     if args.org:
         org_name = args.org
     else:
-       org_name = helpers.ORG_NAME
+        org_name = helpers.ORG_NAME
     dry_run = args.dryrun
+    
+    # Set up the description that will be added to the published version
+    if args.comment:
+        description = args.comment
+    else:
+        description = "Published by " + runuser + "\n via API script"
 
     # Load the promotion history
     if not os.path.exists(vardir + '/promotions.pkl'):
@@ -209,7 +213,7 @@ def main(args):
     (ver_list, ver_descr, ver_version) = get_cv(org_id, publish_list)
 
     # Publish the content views. Returns a list of task IDs.
-    publish(ver_list, ver_descr, ver_version, dry_run, runuser, args.quiet)
+    publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, args.quiet)
 
     # Add/Update the promotion history dictionary so we can check when we last promoted
     phistory['Library'] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
