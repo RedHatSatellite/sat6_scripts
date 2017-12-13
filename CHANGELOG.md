@@ -4,6 +4,9 @@ The format is based on [Keep a Changelog](http://keepachangelog.com/en/1.0.0/)
 and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.html).
 
 ## [Unreleased]
+### Added
+- Option to tag a published content view with a custom comment
+
 ### Fixed
 - Fix unreferenced var in check_disk_space function
 - Various minor README corrections

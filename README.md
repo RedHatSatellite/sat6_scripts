@@ -401,7 +401,13 @@ Publishes new content to the Library environment. The following can be published
   - All content views (-a)
 
 The dry run (-d) option can be used to see what would be published for a
-given command input.
+given command input. By default progress bars will be displayed for each content
+view being published. It may be desirable to not display these (e.g. automating), so
+they can be disabled using the (-q) option.
+
+A default comment will be added to the published content view version containing the
+username of the user that initiated the publish. Alternatively, a custom comment 
+can be added to the published view using the (-c) option.
 
 Each time a content view is published or promoted, a datestamp is recorded so that
 the last publish/promote date can be viewed with the (-l) option. Note that this
@@ -424,7 +430,7 @@ once, to aid in performance tuning.
 
 
 ```
-usage: publish_content_view.py [-h] [-o ORG] [-a] [-d]
+usage: publish_content_view.py [-h] [-o ORG] [-a] [-d] [-c COMMENT] [-q]
 
 Publishes content views for specified organization.
 
@@ -434,6 +440,8 @@ optional arguments:
   -a, --all          Publish ALL content views
   -d, --dryrun       Dry Run - Only show what will be published
   -l, --last         Display last promotions
+  -c, --comment      Add a custom description
+  -q, --quiet        Suppress progress output updates
 ```
 
 ### Examples
@@ -455,7 +463,9 @@ The following can be promoted:
   - All content views (-a)
 
 The dry run (-d) option can be used to see what would be promoted for a
-given command input.
+given command input. By default progress bars will be displayed for each content
+view being promoted. It may be desirable to not display these (e.g. automating), so
+they can be disabled using the (-q) option.
 
 Each time a content view is published or promoted, a datestamp is recorded so that
 the last publish/promote date can be viewed with the (-l) option. Note that this
@@ -486,7 +496,7 @@ The batch: parameter can be used to limit the number of content views that will 
 once, to aid in performance tuning.
 
 ```
-usage: promote_content_view.py [-h] -e ENV [-o ORG] [-a] [-d]
+usage: promote_content_view.py [-h] -e ENV [-o ORG] [-a] [-d] [-q]
 
 Promotes content views for specified organization to the target environment.
 
@@ -498,6 +508,7 @@ optional arguments:
   -a, --all          Promote ALL content views
   -d, --dryrun       Dry Run - Only show what will be promoted
   -l, --last         Display last promotions
+  -q, --quiet        Suppress progress output updates
 ```
 
 ### Examples
