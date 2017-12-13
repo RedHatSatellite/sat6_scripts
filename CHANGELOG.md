@@ -69,9 +69,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## 0.6 - 2017-02-27
 - Last of a series of pre-release betas
 
-[Unreleased]: https://github.com/ggatward/sat6_scripts/compare/1.2.1...HEAD
-[1.2.1]: https://github.com/ggatward/sat6_scripts/compare/1.2.0...1.2.1
-[1.2.0]: https://github.com/ggatward/sat6_scripts/compare/1.1.1...1.2.0
-[1.1.1]: https://github.com/ggatward/sat6_scripts/compare/1.1.0...1.1.1
-[1.1.0]: https://github.com/ggatward/sat6_scripts/compare/1.0...1.1.0
-[1.0]: https://github.com/ggatward/sat6_scripts/compare/0.6...1.0
+[Unreleased]: https://github.com/RedHatSatellite/sat6_scripts/compare/1.2.1...HEAD
+[1.2.1]: https://github.com/RedHatSatellite/sat6_scripts/compare/1.2.0...1.2.1
+[1.2.0]: https://github.com/RedHatSatellite/sat6_scripts/compare/1.1.1...1.2.0
+[1.1.1]: https://github.com/RedHatSatellite/sat6_scripts/compare/1.1.0...1.1.1
+[1.1.0]: https://github.com/RedHatSatellite/sat6_scripts/compare/1.0...1.1.0
+[1.0]: https://github.com/RedHatSatellite/sat6_scripts/compare/0.6...1.0
