@@ -73,7 +73,7 @@ def get_content_view_info(cvid):
     return cvinfo
 
 
-def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall):
+def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefirstpromoted):
     """Clean Content Views"""
 
     # Set the task name to be displayed in the task monitoring stage
@@ -102,18 +102,30 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall):
 
         # Find the oldest published version
         version_list = []
+        version_list_all = []
         for version in cvinfo['versions']:
             if not version['environment_ids']:
+                version_list_all.append(float(version['version']))
                 continue
             else:
                 msg = "Found version " + str(version['version'])
                 helpers.log_msg(msg, 'DEBUG')
                 # Add the version id to a list
                 version_list.append(float(version['version']))
+
         # Find the oldest 'in use' version id
         lastver = min(version_list)
-
         msg = "Oldest in-use version is " + str(lastver)
+        helpers.log_msg(msg, 'DEBUG')
+
+        # Find the oldest 'NOT in use' version id
+        msg = "Oldest NOT-in-use version is " + str(min(version_list_all))
+        helpers.log_msg(msg, 'DEBUG')
+
+        # Find version to delete (based on keep parameter) if --ignorefirstpromoted
+        version_list_all.sort()
+        todelete = version_list_all[:(len(version_list_all) - ver_keep[cvid])]
+        msg = "Versions to remove if --ignorefirstpromoted: " + str(todelete)
         helpers.log_msg(msg, 'DEBUG')
 
         for version in cvinfo['versions']:
@@ -124,27 +136,44 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall):
                         str(ver_descr[cvid]) + "'"
                     helpers.log_msg(msg, 'DEBUG')
 
-                    if float(version['version']) > float(lastver):
-                        # If we have chosen to remove all orphans
+                    if ignorefirstpromoted:
                         if cleanall:
                             msg = "Removing version " + str(version['version'])
                             helpers.log_msg(msg, 'INFO')
                             print helpers.HEADER + msg + helpers.ENDC
                         else:
-                            msg = "Skipping delete of version " + str(version['version'])
-                            helpers.log_msg(msg, 'INFO')
-                            print msg
-                            continue
+                            if float(version['version']) in todelete:
+                                # If ignorefirstpromoted delete CV
+                                msg = "Removing version " + str(version['version'])
+                                helpers.log_msg(msg, 'INFO')
+                                print helpers.HEADER + msg + helpers.ENDC
+                            else:
+                                msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
+                                helpers.log_msg(msg, 'INFO')
+                                print msg
+                                continue
                     else:
-                        if float(version['version']) < (lastver - float(ver_keep[cvid])):
-                            msg = "Removing version " + str(version['version'])
-                            helpers.log_msg(msg, 'INFO')
-                            print helpers.HEADER + msg + helpers.ENDC
+                        if float(version['version']) > float(lastver):
+                            # If we have chosen to remove all orphans
+                            if cleanall:
+                                msg = "Removing version " + str(version['version'])
+                                helpers.log_msg(msg, 'INFO')
+                                print helpers.HEADER + msg + helpers.ENDC
+                            else:
+                                msg = "Skipping delete of version " + str(version['version'])
+                                helpers.log_msg(msg, 'INFO')
+                                print msg
+                                continue
                         else:
-                            msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
-                            helpers.log_msg(msg, 'INFO')
-                            print msg
-                            continue
+                            if float(version['version']) < (lastver - float(ver_keep[cvid])):
+                                msg = "Removing version " + str(version['version'])
+                                helpers.log_msg(msg, 'INFO')
+                                print helpers.HEADER + msg + helpers.ENDC
+                            else:
+                                msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
+                                helpers.log_msg(msg, 'INFO')
+                                print msg
+                                continue
 
                 # Delete the view version from the content view
                 if not dry_run and not locked:
@@ -203,6 +232,8 @@ def main(args):
         action="store_true")
     parser.add_argument('-c', '--cleanall', help='Remove orphan versions between in-use views',
         required=False, action="store_true")
+    parser.add_argument('-i', '--ignorefirstpromoted', help='Version to keep count starts from first CV, not first promoted CV',
+        required=False, action="store_true")
     parser.add_argument('-d', '--dryrun', help='Dry Run - Only show what will be cleaned',
         required=False, action="store_true")
 
@@ -219,6 +250,7 @@ def main(args):
        org_name = helpers.ORG_NAME
     dry_run = args.dryrun
     cleanall = args.cleanall
+    ignorefirstpromoted = args.ignorefirstpromoted
     if args.keep:
         keep = args.keep
     else:
@@ -243,7 +275,7 @@ def main(args):
     (ver_list, ver_descr, ver_keep) = get_cv(org_id, cleanup_list, keep)
 
     # Clean the content views. Returns a list of task IDs.
-    cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall)
+    cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefirstpromoted)
 
     # Exit cleanly
     sys.exit(0)
@@ -254,4 +286,5 @@ if __name__ == "__main__":
     except KeyboardInterrupt, e:
         print >> sys.stderr, ("\n\nExiting on user cancel.")
         sys.exit(1)
+
 
