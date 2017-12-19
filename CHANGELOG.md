@@ -10,6 +10,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Fixed
 - Fix unreferenced var in check_disk_space function
 - Various minor README corrections
+- auto_content did not publish CV if the satellite is internet connected
 
 
 ## [1.2.1] - 2017-12-11
