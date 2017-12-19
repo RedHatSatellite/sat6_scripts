@@ -22,7 +22,17 @@ def dates():
     return(dayofweek,weekofmonth,days)
 
 
-def run_imports(dryrun):
+def run_imports(dryrun,dayofweek,days):
+    # If we are on an internet connected satellite, there will never be anything to import
+    # In this case, we'll run the publish on Tuesday
+    if helpers.DISCONNECTED == False:
+        print "Internet connected, nothing to import"
+        if dayofweek == days['Tue']:
+            good_imports = True
+        else:
+            good_imports = False
+        return good_imports
+
     print "Processing Imports..."
 
     # Find any sha256 files in the import dir
@@ -179,7 +189,7 @@ def main(args):
     # Check if there are any imports in our input dir and import them.
     # run_publish will be returned as 'True' if any successful imports were performed.
     # If no imports are performed, or they fail, publish can't be triggered.
-    run_publish = run_imports(dryrun)
+    run_publish = run_imports(dryrun,dayofweek,days)
 
     # If the imports succeeded, we can go ahead and publish the new content to Library
     if run_publish:
