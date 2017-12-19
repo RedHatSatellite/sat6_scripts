@@ -124,7 +124,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
 
         # Find version to delete (based on keep parameter) if --ignorefirstpromoted
         version_list_all.sort()
-        todelete = version_list_all[:(len(version_list_all) - ver_keep[cvid])]
+        todelete = version_list_all[:(len(version_list_all) - int(ver_keep[cvid]))]
         msg = "Versions to remove if --ignorefirstpromoted: " + str(todelete)
         helpers.log_msg(msg, 'DEBUG')
 
