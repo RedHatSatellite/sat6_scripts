@@ -80,6 +80,9 @@ def check_running_tasks(clear):
                     if repo_status['last_sync']['result'] == 'warning':
                         incomplete_sync = 1
                         print helpers.WARNING + "Incomplete: " + helpers.ENDC + repo_status['name']
+                    else:
+                        msg = repo_status['name'] + " - last_sync: " + repo_status['last_sync']['ended_at']
+                        helpers.log_msg(msg, 'DEBUG')
 
     # If we have detected incomplete sync tasks, ask the user if they want to export anyway.
     # This isn't fatal, but *MAY* lead to inconsistent repositories on the dieconnected sat.
