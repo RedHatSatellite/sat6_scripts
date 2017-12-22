@@ -355,9 +355,11 @@ last in-use to be kept as well, allowing for possible rollback of versions.
 Content views to clean can be defined by either:
   - Specific content views defined in the main config file
   - All content views (-a)
+  - All content views, ignoring the first promoted one (-i)
 
 The dry run (-d) option can be used to see what would be published for a
-given command input.
+given command input. Use this option to see the difference in behaviour between
+(-a) and (-i) options, with and without (-c)
 
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
@@ -383,6 +385,7 @@ optional arguments:
   -k KEEP, --keep KEEP  How many old versions to keep (only used with -a)
   -a, --all             Clean ALL content views
   -c, --cleanall        Remove orphan versions between in-use views
+  -i, --ignorefirstpromoted  Version to keep count starts from first CV, not first promoted CV
   -d, --dryrun          Dry Run - Only show what will be cleaned
 ```
 
@@ -406,7 +409,7 @@ view being published. It may be desirable to not display these (e.g. automating)
 they can be disabled using the (-q) option.
 
 A default comment will be added to the published content view version containing the
-username of the user that initiated the publish. Alternatively, a custom comment 
+username of the user that initiated the publish. Alternatively, a custom comment
 can be added to the published view using the (-c) option.
 
 Each time a content view is published or promoted, a datestamp is recorded so that

@@ -11,7 +11,7 @@ clean_content_views \- Remove unused content view versoions from Satellite 6
 
 .SH DESCRIPTION
 .B clean_content_views
-is a custom python script for cleaning unused versions of content views from Satellite 6. 
+is a custom python script for cleaning unused versions of content views from Satellite 6.
 Unused view versions older than the last promoted version are candidates for deletion, with the option to retain a given number of additional views.
 
 .SH OPTIONS
@@ -31,10 +31,21 @@ file, but can be overridden with this option.
 .RS 3
 Clean all configured content views. By default
 .B clean_content_views
-will cleanup only the content views defined in the 
+will cleanup only the content views defined in the
 .I config.yml
 file - see
 .BR sat6_scripts (8).
+.RE
+.PP
+.BR "-i", " --ignorefirstpromoted"
+.RS 3
+Clean configured content views, ignoring the first promoted content view.
+.PP
+For example. a given content view contains versions 1 (goldenimg), 2, 3 (Production), 4, 5, 6 (Dev) and 7 (Library)
+.br
+In this example, versions 2, 4 and 5 are unused. Using the
+.I -i
+option (with a keep value of 1), versions 2 and 4 will be deleted and 5 will remain as a backup.
 .RE
 .PP
 .BR "-k", " --keep"
@@ -46,7 +57,7 @@ For example, a given content view contains versions 1, 2, 3 (Production), 4 (Qua
 In this example, versions 1, 2 and 5 are unused. By default, this script would delete versions 1 and 2 but not 5.
 If the KEEP option is used to specify additional versions to keep (for example keep=1) then version 2 would not be deleted, as it is 1 greater than the oldest promoted version. This allows for a version rollback if required.
 .PP
-The number of old views to keep can also be defined per content view in the 
+The number of old views to keep can also be defined per content view in the
 .I config.yml
 file - see
 .BR sat6_scripts (8).
@@ -55,7 +66,7 @@ If the keep value is not specified in either the config.yml or the --keep option
 .PP
 .BR "-c", " --cleanall"
 .RS 3
-Clean all orphaned versions of the content view. 
+Clean all orphaned versions of the content view.
 By default the removal of versions between published, in-use versions is not performed.
 .PP
 For example, a given content view contains versions 1, 2 (Production), 3, 4, 5, 6 (Quality), 7, 8 (Library)
@@ -102,4 +113,3 @@ Show what will be cleaned by default, but do not actually remove the content:
 
 .SH AUTHOR
 Geoff Gatward <ggatward@redhat.com>
-
