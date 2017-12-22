@@ -100,6 +100,9 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, qui
                 except Warning:
                     msg = "Failed to initiate publication of " + str(ver_descr[cvid])
                     helpers.log_msg(msg, 'WARNING')
+                except KeyError:
+                    msg = "Failed to initiate publication of " + str(ver_descr[cvid])
+                    helpers.log_msg(msg, 'WARNING')
                 else:
                     task_list.append(task_id)
                     ref_list[task_id] = ver_descr[cvid]
@@ -164,7 +167,7 @@ def main(args):
     else:
         org_name = helpers.ORG_NAME
     dry_run = args.dryrun
-    
+
     # Set up the description that will be added to the published version
     if args.comment:
         description = args.comment
