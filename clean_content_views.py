@@ -114,12 +114,18 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
                 version_list.append(float(version['version']))
 
         # Find the oldest 'in use' version id
-        lastver = min(version_list)
-        msg = "Oldest in-use version is " + str(lastver)
+        if not version_list:
+            msg = "No oldest in-use version found"
+        else:
+            lastver = min(version_list)
+            msg = "Oldest in-use version is " + str(lastver)
         helpers.log_msg(msg, 'DEBUG')
 
         # Find the oldest 'NOT in use' version id
-        msg = "Oldest NOT-in-use version is " + str(min(version_list_all))
+        if not version_list_all:
+            msg = "No oldest NOT-in-use version found"
+        else:
+            msg = "Oldest NOT-in-use version is " + str(min(version_list_all))
         helpers.log_msg(msg, 'DEBUG')
 
         # Find version to delete (based on keep parameter) if --ignorefirstpromoted
