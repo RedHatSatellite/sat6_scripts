@@ -53,7 +53,7 @@ def get_cv(org_id, publish_list):
     return ver_list, ver_descr, ver_version
 
 
-def publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, quiet):
+def publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, quiet, forcemeta):
     """Publish Content View"""
 
     # Set the task name to be displayed in the task monitoring stage
@@ -94,7 +94,8 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, qui
                         helpers.KATELLO_API + "content_views/" + str(ver_list[cvid]) +\
                         "/publish", json.dumps(
                             {
-                                "description": description
+                                "description": description,
+                                "force_yum_metadata_regeneration": forcemeta
                             }
                             ))["id"]
                 except Warning:
@@ -152,6 +153,8 @@ def main(args):
         action="store_true")
     parser.add_argument('-c', '--comment', help="Add a custom description", required=False)
     parser.add_argument('-q', '--quiet', help="Suppress progress output updates", required=False,
+        action="store_true")
+    parser.add_argument('-m', '--forcemeta', help="Force metadata regeneration", required=False,
         action="store_true")
 
     args = parser.parse_args()
@@ -216,7 +219,7 @@ def main(args):
     (ver_list, ver_descr, ver_version) = get_cv(org_id, publish_list)
 
     # Publish the content views. Returns a list of task IDs.
-    publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, args.quiet)
+    publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, args.quiet, args.forcemeta)
 
     # Add/Update the promotion history dictionary so we can check when we last promoted
     phistory['Library'] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')

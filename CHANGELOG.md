@@ -7,12 +7,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Option to tag a published content view with a custom comment
 - Option to clean versions taking into account published versions
+- Option to force metadata regeneration during publish
 
 ### Fixed
 - Fix unreferenced var in check_disk_space function
 - Various minor README corrections
 - auto_content did not publish CV if the satellite is internet connected
 - publish_content_views KeyError exception if API returns null value
+- Fix handling empty lists for used and unused versions in clean_content_views
 
 
 ## [1.2.1] - 2017-12-11

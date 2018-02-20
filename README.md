@@ -417,6 +417,9 @@ the last publish/promote date can be viewed with the (-l) option. Note that this
 datestamp is only updated by this script - it does NOT record publish/promote via
 the WebUI or Hammer CLI.
 
+By default the repository metadata is not rebuilt. In some scenarios it may be required
+to force a rebuild of the metadata, in which case the (-m) option can be used to trigger this.
+
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
 publish:
@@ -445,6 +448,7 @@ optional arguments:
   -l, --last         Display last promotions
   -c, --comment      Add a custom description
   -q, --quiet        Suppress progress output updates
+  -m, --forcemeta    Force metadata regeneration
 ```
 
 ### Examples
