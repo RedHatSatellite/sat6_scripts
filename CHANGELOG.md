@@ -7,7 +7,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ### Added
 - Option to tag a published content view with a custom comment
 - Option to clean versions taking into account published versions
-- Option to force metadata regeneration during publish
+- Option to force metadata regeneration during publish and promote
 
 ### Fixed
 - Fix unreferenced var in check_disk_space function

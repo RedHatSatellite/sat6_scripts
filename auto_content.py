@@ -79,11 +79,11 @@ def publish_cv(dryrun):
     good_publish = False
 
     if not dryrun:
-        rc = subprocess.call(['/usr/local/bin/publish_content_views', '-q', '-a'])
+        rc = subprocess.call(['/usr/local/bin/publish_content_views', '-q', '-a', '-m'])
     else:
         msg = "Dry run - not actually performing publish"
         helpers.log_msg(msg, 'WARNING')
-        rc = subprocess.call(['/usr/local/bin/publish_content_views', '-q', '-a', '-d'])
+        rc = subprocess.call(['/usr/local/bin/publish_content_views', '-q', '-a', '-m', '-d'])
 
     if rc == 0:
         good_publish = True
@@ -98,11 +98,11 @@ def promote_cv(dryrun, lifecycle):
     good_promote = False
 
     if not dryrun:
-        rc = subprocess.call(['/usr/local/bin/promote_content_views', '-q', '-e', lifecycle])
+        rc = subprocess.call(['/usr/local/bin/promote_content_views', '-q', '-m', '-e', lifecycle])
     else:
         msg = "Dry run - not actually performing promotion"
         helpers.log_msg(msg, 'WARNING')
-        rc = subprocess.call(['/usr/local/bin/promote_content_views', '-q', '-d', '-e', lifecycle])
+        rc = subprocess.call(['/usr/local/bin/promote_content_views', '-q', '-d', '-m', '-e', lifecycle])
 
     if rc == 0:
         good_promote = True
