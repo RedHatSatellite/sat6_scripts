@@ -264,7 +264,7 @@ these warnings.
 
 ### Help Output
 ```
-usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l] [-L] [-c] [-f] [--fixhistory]
+usage: sat_import.py [-h] [-o ORG] -d DATE [-n] [-r] [-l] [-L] [-c] [-f] [--fixhistory] [-u]
 
 Performs Import of Default Content View.
 
@@ -375,7 +375,7 @@ specified number of versions beyond the oldest in-use.
 
 
 ```
-usage: clean_content_views.py [-h] [-o ORG] [-a] [-c] [-d]
+usage: clean_content_views.py [-h] [-o ORG] [-a] [-c] [-d] [-i]
 
 Cleans content views for specified organization.
 
@@ -417,6 +417,9 @@ the last publish/promote date can be viewed with the (-l) option. Note that this
 datestamp is only updated by this script - it does NOT record publish/promote via
 the WebUI or Hammer CLI.
 
+By default the repository metadata is not rebuilt. In some scenarios it may be required
+to force a rebuild of the metadata, in which case the (-m) option can be used to trigger this.
+
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
 publish:
@@ -433,7 +436,7 @@ once, to aid in performance tuning.
 
 
 ```
-usage: publish_content_view.py [-h] [-o ORG] [-a] [-d] [-c COMMENT] [-q]
+usage: publish_content_view.py [-h] [-o ORG] [-a] [-d] [-c COMMENT] [-m] [-q] [-l]
 
 Publishes content views for specified organization.
 
@@ -445,6 +448,7 @@ optional arguments:
   -l, --last         Display last promotions
   -c, --comment      Add a custom description
   -q, --quiet        Suppress progress output updates
+  -m, --forcemeta    Force metadata regeneration
 ```
 
 ### Examples
@@ -475,6 +479,9 @@ the last publish/promote date can be viewed with the (-l) option. Note that this
 datestamp is only updated by this script - it does NOT record publish/promote via
 the WebUI or Hammer CLI.
 
+By default the repository metadata is not rebuilt. In some scenarios it may be required
+to force a rebuild of the metadata, in which case the (-m) option can be used to trigger this.
+
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
 promotion:
@@ -499,7 +506,7 @@ The batch: parameter can be used to limit the number of content views that will 
 once, to aid in performance tuning.
 
 ```
-usage: promote_content_view.py [-h] -e ENV [-o ORG] [-a] [-d] [-q]
+usage: promote_content_view.py [-h] -e ENV [-o ORG] [-a] [-d] [-m] [-q] [-l]
 
 Promotes content views for specified organization to the target environment.
 
@@ -512,6 +519,7 @@ optional arguments:
   -d, --dryrun       Dry Run - Only show what will be promoted
   -l, --last         Display last promotions
   -q, --quiet        Suppress progress output updates
+  -m, --forcemeta    Force metadata regeneration
 ```
 
 ### Examples

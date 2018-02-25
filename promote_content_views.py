@@ -113,7 +113,7 @@ def get_cv(org_id, target_env, env_list, prior_list, promote_list):
 
 
 # Promote a content view version
-def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, dry_run, quiet):
+def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, dry_run, quiet, forcemeta):
     """Promote Content View"""
     target_env_id = env_list[target_env]
     source_env_id = prior_list[target_env_id]
@@ -163,7 +163,8 @@ def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, 
                         helpers.KATELLO_API + "content_view_versions/" + str(ver_list[cvid]) +\
                         "/promote/", json.dumps(
                             {
-                                "environment_id": target_env_id
+                                "environment_id": target_env_id,
+                                "force_yum_metadata_regeneration": str(forcemeta)
                             }
                             ))["id"]
                 except Warning:
@@ -218,6 +219,8 @@ def main(args):
     parser.add_argument('-l', '--last', help='Display last promotions', required=False,
         action="store_true")
     parser.add_argument('-q', '--quiet', help="Suppress progress output updates", required=False,
+        action="store_true")
+    parser.add_argument('-m', '--forcemeta', help="Force metadata regeneration", required=False,
         action="store_true")
 
     args = parser.parse_args()
@@ -287,7 +290,8 @@ def main(args):
         promote_list)
 
     # Promote to the given environment. Returns a list of task IDs.
-    promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, dry_run, args.quiet)
+    promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, dry_run,
+        args.quiet, args.forcemeta)
 
     # Add/Update the promotion history dictionary so we can check when we last promoted
     phistory[target_env] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
