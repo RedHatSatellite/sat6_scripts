@@ -479,6 +479,9 @@ the last publish/promote date can be viewed with the (-l) option. Note that this
 datestamp is only updated by this script - it does NOT record publish/promote via
 the WebUI or Hammer CLI.
 
+By default the repository metadata is not rebuilt. In some scenarios it may be required
+to force a rebuild of the metadata, in which case the (-m) option can be used to trigger this.
+
 The defaults are configured in the main config.yml file in a YAML block like this:
 ```
 promotion:
@@ -503,7 +506,7 @@ The batch: parameter can be used to limit the number of content views that will 
 once, to aid in performance tuning.
 
 ```
-usage: promote_content_view.py [-h] -e ENV [-o ORG] [-a] [-d] [-q] [-l]
+usage: promote_content_view.py [-h] -e ENV [-o ORG] [-a] [-d] [-m] [-q] [-l]
 
 Promotes content views for specified organization to the target environment.
 
@@ -516,6 +519,7 @@ optional arguments:
   -d, --dryrun       Dry Run - Only show what will be promoted
   -l, --last         Display last promotions
   -q, --quiet        Suppress progress output updates
+  -m, --forcemeta    Force metadata regeneration
 ```
 
 ### Examples

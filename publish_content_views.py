@@ -95,7 +95,7 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, qui
                         "/publish", json.dumps(
                             {
                                 "description": description,
-                                "force_yum_metadata_regeneration": forcemeta
+                                "force_yum_metadata_regeneration": str(forcemeta)
                             }
                             ))["id"]
                 except Warning:
@@ -219,7 +219,8 @@ def main(args):
     (ver_list, ver_descr, ver_version) = get_cv(org_id, publish_list)
 
     # Publish the content views. Returns a list of task IDs.
-    publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, args.quiet, args.forcemeta)
+    publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, args.quiet,
+        args.forcemeta)
 
     # Add/Update the promotion history dictionary so we can check when we last promoted
     phistory['Library'] = datetime.datetime.strftime(datetime.datetime.now(), '%Y-%m-%d')
