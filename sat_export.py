@@ -571,7 +571,7 @@ def create_tar(export_dir, name, export_history):
     os.system('sha256sum ' + short_tarfile + '_* > ' + short_tarfile + '.sha256')
 
 
-def prep_export_tree(org_name):
+def prep_export_tree(org_name, basepaths):
     """
     Function to combine individual export directories into single export tree
     Export top level contains /content and /custom directories with 'listing'
@@ -583,11 +583,16 @@ def prep_export_tree(org_name):
     devnull = open(os.devnull, 'wb')
     if not os.path.exists(helpers.EXPORTDIR + "/export"):
         os.makedirs(helpers.EXPORTDIR + "/export")
-    # Haven't found a nice python way to do this - yet...
-    subprocess.call("cp -rp " + helpers.EXPORTDIR + "/" + org_name + "*/" + org_name + \
-        "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
-    # Remove original directores
-    os.system("rm -rf " + helpers.EXPORTDIR + "/" + org_name + "*/")
+
+    # Copy the content from each exported repo into a common /export structure
+    for basepath in basepaths:
+        msg = "Processing " + basepath
+        helpers.log_msg(msg, 'DEBUG')
+        subprocess.call("cp -rp " + basepath + "/" + org_name + \
+            "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
+
+        # Remove original directores
+        os.system("rm -rf " + basepath + "/")
 
     # We need to re-generate the 'listing' files as we will have overwritten some during the merge
     msg = "Rebuilding listing files..."
@@ -725,6 +730,7 @@ def main(args):
     org_id = helpers.get_org_id(org_name)
     exported_repos = []
     export_history = []
+    basepaths = []
     package_count = {}
     # If a specific environment is requested, find and read that config file
     repocfg = os.path.join(dir, confdir + '/exports.yml')
@@ -951,7 +957,17 @@ def main(args):
                             # First resolve the product label - this forms part of the export path
                             product = get_product(org_id, repo_result['product']['cp_id'])
                             # Now we can build the export path itself
-                            basepath = helpers.EXPORTDIR + "/" + org_name + "-" + product + "-" + repo_result['label']
+
+                            # Satellite 6.3 uses a new backend_identifier key in the API result
+                            if 'backend_identifier' in repo_result:
+                                basepath = helpers.EXPORTDIR + "/" + repo_result['backend_identifier']
+                            else:
+                                basepath = helpers.EXPORTDIR + "/" + org_name + "-" + product + "-" + repo_result['label']
+
+                            # Add to the basepath list so we can use specific paths later
+                            # (Introduced due to path name changes in Sat6.3)
+                            basepaths.append(basepath)
+
                             if export_type == 'incr':
                                 basepath = basepath + "-incremental"
                             exportpath = basepath + "/" + repo_result['relative_path']
@@ -968,8 +984,13 @@ def main(args):
                                     helpers.mailout(subject, output)
                                 sys.exit(1)
 
-                            os.chdir(exportpath)
-                            numrpms = len([f for f in os.walk(".").next()[2] if f[ -4: ] == ".rpm"])
+                            # Count the number of .rpm files in the exported repo (recursively)
+                            numrpms = 0
+                            for dirpath, dirs, files in os.walk(exportpath):
+                                for filename in files:
+                                    fname = os.path.join(dirpath,filename)
+                                    if fname.endswith('.rpm'):
+                                        numrpms = numrpms + 1
 
                             msg = "Repository Export OK (" + str(numrpms) + " new packages)"
                             helpers.log_msg(msg, 'INFO')
@@ -1099,7 +1120,7 @@ def main(args):
 
 
     # Combine resulting directory structures into a single repo format (top level = /content)
-    prep_export_tree(org_name)
+    prep_export_tree(org_name, basepaths)
 
     # Now we need to process the on-disk export data.
     # Define the location of our exported data.
