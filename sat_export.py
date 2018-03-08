@@ -269,6 +269,7 @@ def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, 
         os.system('find -L /var/lib/pulp/published/puppet/http/repos/*' + repo_label \
             + ' -name modules.json -exec cp --parents -Lrp {} ' + PUPEXPORTDIR + ' \;')
 
+
     # At this point the puppet/ export dir will contain individual repos - we need to 'normalise' them
     for dirpath, subdirs, files in os.walk(PUPEXPORTDIR):
         for tdir in subdirs:
@@ -1095,9 +1096,15 @@ def main(args):
                     # Check if there are any currently running tasks that will conflict
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
 
+                    # Satellite 6.3 uses a new backend_identifier key in the API result
+                    if 'backend_identifier' in repo_result:
+                        backend_id = repo_result['backend_identifier']
+                    else:
+                        backend_id = repo_result['label']
+
                     if ok_to_export:
                         # Trigger export on the repo
-                        numfiles = export_puppet(repo_result['id'], repo_result['label'], repo_result['relative_path'], last_export, export_type, pforge)
+                        numfiles = export_puppet(repo_result['id'], backend_id, repo_result['relative_path'], last_export, export_type, pforge)
 
                         # Reset the export type to the user specified, in case we overrode it.
                         export_type = orig_export_type
