@@ -48,8 +48,8 @@ def get_cv(org_id):
                 msg = "  Version ID: " + str(ver['id'])
                 helpers.log_msg(msg, 'DEBUG')
 
-            # There will only ever be one DOV
-            return cv_result['id']
+            # Return the ID (should be '1') and the label (forms part of the export path name)
+            return cv_result['id'], cv_result['label']
 
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
@@ -891,7 +891,13 @@ def main(args):
         check_running_tasks(label, ename)
 
         # Get the version of the CV (Default Org View) to export
-        dov_ver = get_cv(org_id)
+        dov_ver, dov_label = get_cv(org_id)
+
+        # Set the basepath of the export (needed due to Satellite 6.3 changes in other exports)
+        # 6.3 provides a 'latest_version' in the API that gives us '1.0' however this is not available
+        #   in 6.2 so we must build the string manually for compatibility
+        basepath = helpers.EXPORTDIR + "/" + org_name + "-" + dov_label + "-v" + str(dov_ver) + ".0"
+        basepaths.append(basepath)
 
         # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
         export_id = export_cv(dov_ver, last_export, export_type)
