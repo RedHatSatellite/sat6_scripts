@@ -160,7 +160,7 @@ def export_repo(repo_id, last_export, export_type):
     return str(task_id)
 
 
-def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
+def export_iso(repo_id, repo_path, repo_label, repo_relative, last_export, export_type, satver):
     """
     Export iso repository
     Takes the repository id and a start time (find newer than value)
@@ -192,25 +192,45 @@ def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
     sys.stdout.flush()
 
     if export_type == 'full':
-        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_path \
             + ' -type f -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + " \;")
     else:
-        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_path \
             + ' -type f -newerct $(date +%Y-%m-%d -d "' + last_export + '") -exec cp --parents -Lrp {} ' \
             + ISOEXPORTDIR + ' \;')
         # We need to copy the manifest anyway, otherwise we'll cause import issues if we have an empty repo
-        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_path \
             + ' -name PULP_MANIFEST -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + ' \;')
 
 
     # At this point the iso/ export dir will contain individual repos - we need to 'normalise' them
-    for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
-        for tdir in subdirs:
-            if repo_label in tdir:
-                # This is where the exported ISOs for our repo are located
-                INDIR = os.path.join(dirpath, tdir)
-                # And this is where we want them to be moved to so we can export them in Satellite format
-                # We need to knock off '<org_name>/Library/' from beginning of repo_relative and replace with export/
+    if satver == '6.2':
+        for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
+            for tdir in subdirs:
+                if repo_label in tdir:
+                    # This is where the exported ISOs for our repo are located
+                    INDIR = os.path.join(dirpath, tdir)
+                    # And this is where we want them to be moved to so we can export them in Satellite format
+                    # We need to knock off '<org_name>/Library/' from beginning of repo_relative and replace with export/
+                    exportpath = "/".join(repo_relative.strip("/").split('/')[2:])
+                    OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath
+
+                    # Move the files into the final export tree
+                    if not os.path.exists(OUTDIR):
+                        shutil.move(INDIR, OUTDIR)
+
+                        os.chdir(OUTDIR)
+                        numfiles = len([f for f in os.walk(".").next()[2] if f[ -8: ] != "MANIFEST"])
+
+                        msg = "File Export OK (" + str(numfiles) + " new files)"
+                        helpers.log_msg(msg, 'INFO')
+                        print helpers.GREEN + msg + helpers.ENDC
+
+    else:
+    #  Satellite 6.3 changed the published file structure
+        for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
+            if repo_relative in dirpath:
+                INDIR = dirpath
                 exportpath = "/".join(repo_relative.strip("/").split('/')[2:])
                 OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath
 
@@ -1048,8 +1068,16 @@ def main(args):
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
 
                     if ok_to_export:
+                        # Satellite 6.3 uses a different path for published file content
+                        if 'backend_identifier' in repo_result:
+                            repo_path = repo_result['relative_path']
+                            satver = '6.3'
+                        else:
+                            repo_path = repo_result['label']
+                            satver = '6.2'
+
                         # Trigger export on the repo
-                        numfiles = export_iso(repo_result['id'], repo_result['label'], repo_result['relative_path'], last_export, export_type)
+                        numfiles = export_iso(repo_result['id'], repo_path, repo_result['label'], repo_result['relative_path'], last_export, export_type, satver)
 
                         # Reset the export type to the user specified, in case we overrode it.
                         export_type = orig_export_type
