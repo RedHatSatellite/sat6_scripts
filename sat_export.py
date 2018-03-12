@@ -48,8 +48,8 @@ def get_cv(org_id):
                 msg = "  Version ID: " + str(ver['id'])
                 helpers.log_msg(msg, 'DEBUG')
 
-            # There will only ever be one DOV
-            return cv_result['id']
+            # Return the ID (should be '1') and the label (forms part of the export path name)
+            return cv_result['id'], cv_result['label']
 
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
@@ -160,7 +160,7 @@ def export_repo(repo_id, last_export, export_type):
     return str(task_id)
 
 
-def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
+def export_iso(repo_id, repo_path, repo_label, repo_relative, last_export, export_type, satver):
     """
     Export iso repository
     Takes the repository id and a start time (find newer than value)
@@ -192,25 +192,45 @@ def export_iso(repo_id, repo_label, repo_relative, last_export, export_type):
     sys.stdout.flush()
 
     if export_type == 'full':
-        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_path \
             + ' -type f -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + " \;")
     else:
-        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_path \
             + ' -type f -newerct $(date +%Y-%m-%d -d "' + last_export + '") -exec cp --parents -Lrp {} ' \
             + ISOEXPORTDIR + ' \;')
         # We need to copy the manifest anyway, otherwise we'll cause import issues if we have an empty repo
-        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_label \
+        os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_path \
             + ' -name PULP_MANIFEST -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + ' \;')
 
 
     # At this point the iso/ export dir will contain individual repos - we need to 'normalise' them
-    for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
-        for tdir in subdirs:
-            if repo_label in tdir:
-                # This is where the exported ISOs for our repo are located
-                INDIR = os.path.join(dirpath, tdir)
-                # And this is where we want them to be moved to so we can export them in Satellite format
-                # We need to knock off '<org_name>/Library/' from beginning of repo_relative and replace with export/
+    if satver == '6.2':
+        for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
+            for tdir in subdirs:
+                if repo_label in tdir:
+                    # This is where the exported ISOs for our repo are located
+                    INDIR = os.path.join(dirpath, tdir)
+                    # And this is where we want them to be moved to so we can export them in Satellite format
+                    # We need to knock off '<org_name>/Library/' from beginning of repo_relative and replace with export/
+                    exportpath = "/".join(repo_relative.strip("/").split('/')[2:])
+                    OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath
+
+                    # Move the files into the final export tree
+                    if not os.path.exists(OUTDIR):
+                        shutil.move(INDIR, OUTDIR)
+
+                        os.chdir(OUTDIR)
+                        numfiles = len([f for f in os.walk(".").next()[2] if f[ -8: ] != "MANIFEST"])
+
+                        msg = "File Export OK (" + str(numfiles) + " new files)"
+                        helpers.log_msg(msg, 'INFO')
+                        print helpers.GREEN + msg + helpers.ENDC
+
+    else:
+    #  Satellite 6.3 changed the published file structure
+        for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
+            if repo_relative in dirpath:
+                INDIR = dirpath
                 exportpath = "/".join(repo_relative.strip("/").split('/')[2:])
                 OUTDIR = helpers.EXPORTDIR + '/export/' + exportpath
 
@@ -289,7 +309,7 @@ def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, 
                     # Subtract the manifest from the number of files:
                     numfiles = numfiles - 1
 
-                    msg = "Puppet Export OK (" + str(numfiles) + " new files)"
+                    msg = "Puppet Export OK (" + str(numfiles) + " new modules)"
                     helpers.log_msg(msg, 'INFO')
                     print helpers.GREEN + msg + helpers.ENDC
 
@@ -571,7 +591,7 @@ def create_tar(export_dir, name, export_history):
     os.system('sha256sum ' + short_tarfile + '_* > ' + short_tarfile + '.sha256')
 
 
-def prep_export_tree(org_name):
+def prep_export_tree(org_name, basepaths):
     """
     Function to combine individual export directories into single export tree
     Export top level contains /content and /custom directories with 'listing'
@@ -583,11 +603,16 @@ def prep_export_tree(org_name):
     devnull = open(os.devnull, 'wb')
     if not os.path.exists(helpers.EXPORTDIR + "/export"):
         os.makedirs(helpers.EXPORTDIR + "/export")
-    # Haven't found a nice python way to do this - yet...
-    subprocess.call("cp -rp " + helpers.EXPORTDIR + "/" + org_name + "*/" + org_name + \
-        "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
-    # Remove original directores
-    os.system("rm -rf " + helpers.EXPORTDIR + "/" + org_name + "*/")
+
+    # Copy the content from each exported repo into a common /export structure
+    for basepath in basepaths:
+        msg = "Processing " + basepath
+        helpers.log_msg(msg, 'DEBUG')
+        subprocess.call("cp -rp " + basepath + "*/" + org_name + \
+            "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
+
+        # Remove original directores
+        os.system("rm -rf " + basepath + "*/")
 
     # We need to re-generate the 'listing' files as we will have overwritten some during the merge
     msg = "Rebuilding listing files..."
@@ -725,6 +750,7 @@ def main(args):
     org_id = helpers.get_org_id(org_name)
     exported_repos = []
     export_history = []
+    basepaths = []
     package_count = {}
     # If a specific environment is requested, find and read that config file
     repocfg = os.path.join(dir, confdir + '/exports.yml')
@@ -864,7 +890,13 @@ def main(args):
         check_running_tasks(label, ename)
 
         # Get the version of the CV (Default Org View) to export
-        dov_ver = get_cv(org_id)
+        dov_ver, dov_label = get_cv(org_id)
+
+        # Set the basepath of the export (needed due to Satellite 6.3 changes in other exports)
+        # 6.3 provides a 'latest_version' in the API that gives us '1.0' however this is not available
+        #   in 6.2 so we must build the string manually for compatibility
+        basepath = helpers.EXPORTDIR + "/" + org_name + "-" + dov_label + "-v" + str(dov_ver) + ".0"
+        basepaths.append(basepath)
 
         # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
         export_id = export_cv(dov_ver, last_export, export_type)
@@ -951,7 +983,17 @@ def main(args):
                             # First resolve the product label - this forms part of the export path
                             product = get_product(org_id, repo_result['product']['cp_id'])
                             # Now we can build the export path itself
-                            basepath = helpers.EXPORTDIR + "/" + org_name + "-" + product + "-" + repo_result['label']
+
+                            # Satellite 6.3 uses a new backend_identifier key in the API result
+                            if 'backend_identifier' in repo_result:
+                                basepath = helpers.EXPORTDIR + "/" + repo_result['backend_identifier']
+                            else:
+                                basepath = helpers.EXPORTDIR + "/" + org_name + "-" + product + "-" + repo_result['label']
+
+                            # Add to the basepath list so we can use specific paths later
+                            # (Introduced due to path name changes in Sat6.3)
+                            basepaths.append(basepath)
+
                             if export_type == 'incr':
                                 basepath = basepath + "-incremental"
                             exportpath = basepath + "/" + repo_result['relative_path']
@@ -968,10 +1010,21 @@ def main(args):
                                     helpers.mailout(subject, output)
                                 sys.exit(1)
 
-                            os.chdir(exportpath)
-                            numrpms = len([f for f in os.walk(".").next()[2] if f[ -4: ] == ".rpm"])
+                            # Count the number of .rpm files in the exported repo (recursively)
+                            numrpms = 0
+                            numdrpms = 0
+                            for dirpath, dirs, files in os.walk(exportpath):
+                                for filename in files:
+                                    fname = os.path.join(dirpath,filename)
+                                    if fname.endswith('.rpm'):
+                                        numrpms = numrpms + 1
+                                    if fname.endswith('.drpm'):
+                                        numdrpms = numdrpms + 1
 
-                            msg = "Repository Export OK (" + str(numrpms) + " new packages)"
+                            if numdrpms == 0:
+                                msg = "Repository Export OK (" + str(numrpms) + " new rpms)"
+                            else:
+                                msg = "Repository Export OK (" + str(numrpms) + " new rpms + " + str(numdrpms) + " drpms)"
                             helpers.log_msg(msg, 'INFO')
                             print helpers.GREEN + msg + helpers.ENDC
 
@@ -1026,8 +1079,16 @@ def main(args):
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
 
                     if ok_to_export:
+                        # Satellite 6.3 uses a different path for published file content
+                        if 'backend_identifier' in repo_result:
+                            repo_path = repo_result['relative_path']
+                            satver = '6.3'
+                        else:
+                            repo_path = repo_result['label']
+                            satver = '6.2'
+
                         # Trigger export on the repo
-                        numfiles = export_iso(repo_result['id'], repo_result['label'], repo_result['relative_path'], last_export, export_type)
+                        numfiles = export_iso(repo_result['id'], repo_path, repo_result['label'], repo_result['relative_path'], last_export, export_type, satver)
 
                         # Reset the export type to the user specified, in case we overrode it.
                         export_type = orig_export_type
@@ -1074,9 +1135,15 @@ def main(args):
                     # Check if there are any currently running tasks that will conflict
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
 
+                    # Satellite 6.3 uses a new backend_identifier key in the API result
+                    if 'backend_identifier' in repo_result:
+                        backend_id = repo_result['backend_identifier']
+                    else:
+                        backend_id = repo_result['label']
+
                     if ok_to_export:
                         # Trigger export on the repo
-                        numfiles = export_puppet(repo_result['id'], repo_result['label'], repo_result['relative_path'], last_export, export_type, pforge)
+                        numfiles = export_puppet(repo_result['id'], backend_id, repo_result['relative_path'], last_export, export_type, pforge)
 
                         # Reset the export type to the user specified, in case we overrode it.
                         export_type = orig_export_type
@@ -1099,7 +1166,7 @@ def main(args):
 
 
     # Combine resulting directory structures into a single repo format (top level = /content)
-    prep_export_tree(org_name)
+    prep_export_tree(org_name, basepaths)
 
     # Now we need to process the on-disk export data.
     # Define the location of our exported data.
