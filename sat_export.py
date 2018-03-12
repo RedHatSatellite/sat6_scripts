@@ -289,7 +289,6 @@ def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, 
         os.system('find -L /var/lib/pulp/published/puppet/http/repos/*' + repo_label \
             + ' -name modules.json -exec cp --parents -Lrp {} ' + PUPEXPORTDIR + ' \;')
 
-
     # At this point the puppet/ export dir will contain individual repos - we need to 'normalise' them
     for dirpath, subdirs, files in os.walk(PUPEXPORTDIR):
         for tdir in subdirs:

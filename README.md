@@ -4,7 +4,12 @@ Importing content in a disconnected environment can be a challenge.
 These scripts make use of the Inter-Satellite Sync capability in Satellite 6.2 to
 allow for full and incremental export/import of content between environments.
 
-These scripts have been written and tested using Satellite 6.2 on RHEL7
+These scripts have been written and tested using Satellite 6.x on RHEL7. (RHEL6 not supported)
+Export/Import testing has been performed on the following version combinations:
+* 6.2 -> 6.2
+* 6.2 -> 6.3
+* 6.3 -> 6.2
+* 6.3 -> 6.3
 
 ## Definitions
 Throughout these scripts the following references are used:
@@ -14,8 +19,8 @@ Throughout these scripts the following references are used:
 
 
 # Requirements
-* Satellite >= 6.2.x
-* Python >= 2.7
+* Satellite >= 6.2.9
+* Python = 2.7
 * PyYAML
 
 The Export and Import scripts are intended to be run on the Satellite servers directly.
