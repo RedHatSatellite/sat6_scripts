@@ -310,7 +310,7 @@ def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, 
                     # Subtract the manifest from the number of files:
                     numfiles = numfiles - 1
 
-                    msg = "Puppet Export OK (" + str(numfiles) + " new files)"
+                    msg = "Puppet Export OK (" + str(numfiles) + " new modules)"
                     helpers.log_msg(msg, 'INFO')
                     print helpers.GREEN + msg + helpers.ENDC
 
@@ -609,11 +609,11 @@ def prep_export_tree(org_name, basepaths):
     for basepath in basepaths:
         msg = "Processing " + basepath
         helpers.log_msg(msg, 'DEBUG')
-        subprocess.call("cp -rp " + basepath + "/" + org_name + \
+        subprocess.call("cp -rp " + basepath + "*/" + org_name + \
             "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
 
         # Remove original directores
-        os.system("rm -rf " + basepath + "/")
+        os.system("rm -rf " + basepath + "*/")
 
     # We need to re-generate the 'listing' files as we will have overwritten some during the merge
     msg = "Rebuilding listing files..."
@@ -1013,13 +1013,19 @@ def main(args):
 
                             # Count the number of .rpm files in the exported repo (recursively)
                             numrpms = 0
+                            numdrpms = 0
                             for dirpath, dirs, files in os.walk(exportpath):
                                 for filename in files:
                                     fname = os.path.join(dirpath,filename)
                                     if fname.endswith('.rpm'):
                                         numrpms = numrpms + 1
+                                    if fname.endswith('.drpm'):
+                                        numdrpms = numdrpms + 1
 
-                            msg = "Repository Export OK (" + str(numrpms) + " new packages)"
+                            if numdrpms == 0:
+                                msg = "Repository Export OK (" + str(numrpms) + " new rpms)"
+                            else:
+                                msg = "Repository Export OK (" + str(numrpms) + " new rpms + " + str(numdrpms) + " drpms)"
                             helpers.log_msg(msg, 'INFO')
                             print helpers.GREEN + msg + helpers.ENDC
 
