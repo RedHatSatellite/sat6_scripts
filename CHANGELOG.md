@@ -9,6 +9,9 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Default org view was assumed to be version 1.0. Correct version is now extracted (Issue #43)
 - Org name and label do not always match. Issue with mixed case and spaces in org name (Issue #42)
 
+### Added
+- Option to define the tar split size (Issue #44)
+
 
 ## [1.2.3] - 2018-03-12
 ### Changed

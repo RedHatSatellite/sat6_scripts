@@ -537,7 +537,7 @@ def do_gpg_check(export_dir):
         print helpers.GREEN + "GPG Check - Pass" + helpers.ENDC
 
 
-def create_tar(export_dir, name, export_history):
+def create_tar(export_dir, name, export_history, splitsize):
     """
     Create a TAR of the content we have exported
     Creates a single tar, then splits into DVD size chunks and calculates
@@ -583,7 +583,7 @@ def create_tar(export_dir, name, export_history):
     msg = "Splitting TAR file..."
     helpers.log_msg(msg, 'INFO')
     print msg
-    os.system("split -d -b 4200M " + full_tarfile + " " + full_tarfile + "_")
+    os.system("split -d -b " + str(splitsize) + "M " + full_tarfile + " " + full_tarfile + "_")
     os.remove(full_tarfile)
 
     # Temporary until pythonic method is done
@@ -610,7 +610,6 @@ def prep_export_tree(org_label, basepaths):
     for basepath in basepaths:
         msg = "Processing " + basepath
         helpers.log_msg(msg, 'DEBUG')
-        print "cp -rp " + basepath + "*/" + org_label + "/Library/* " + helpers.EXPORTDIR + "/export"
         subprocess.call("cp -rp " + basepath + "*/" + org_label + \
             "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
 
@@ -725,6 +724,8 @@ def main(args):
         required=False, action="store_true")
     parser.add_argument('-p', '--puppetforge', help='Include puppet-forge-server format Puppet Forge repo',
         required=False, action="store_true")
+    parser.add_argument('-S', '--splitsize', help='Size of split files in Megabytes, defaults to 4200',
+        required=False, type=int, default=4200)
     args = parser.parse_args()
 
     # If we are set as the 'DISCONNECTED' satellite, we will generally be IMPORTING content.
@@ -1187,7 +1188,7 @@ def main(args):
 
     # Add our exported data to a tarfile
     if not args.notar:
-        create_tar(export_dir, ename, export_history)
+        create_tar(export_dir, ename, export_history, args.splitsize)
     else:
         # We need to manually clean up a couple of working files from the export
         if os.path.exists(helpers.EXPORTDIR + "/iso"):
