@@ -6,6 +6,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 ## [Unreleased]
 ### Fixed
 - clean_content_views raised an exception if a CV version was included in a composite view.
+- Default org view was assumed to be version 1.0. Correct version is now extracted (Issue #43)
+- Org name and label do not always match. Issue with mixed case and spaces in org name (Issue #42)
 
 
 ## [1.2.3] - 2018-03-12

@@ -45,11 +45,12 @@ def get_cv(org_id):
                 helpers.log_msg(msg, 'DEBUG')
                 msg = "  Version:    " + str(ver['version'])
                 helpers.log_msg(msg, 'DEBUG')
+                cv_ver = str(ver['version'])
                 msg = "  Version ID: " + str(ver['id'])
                 helpers.log_msg(msg, 'DEBUG')
 
             # Return the ID (should be '1') and the label (forms part of the export path name)
-            return cv_result['id'], cv_result['label']
+            return cv_result['id'], cv_ver, cv_result['label']
 
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
@@ -554,6 +555,7 @@ def create_tar(export_dir, name, export_history):
     pickle.dump(export_history, open(export_dir + '/exporthistory_' + name + '.pkl', 'wb'))
 
     os.chdir(export_dir)
+    print "export_dir is " + export_dir
     full_tarfile = helpers.EXPORTDIR + '/sat6_export_' + today + '_' + name
     short_tarfile = 'sat6_export_' + today + '_' + name
     with tarfile.open(full_tarfile, 'w') as archive:
@@ -591,7 +593,7 @@ def create_tar(export_dir, name, export_history):
     os.system('sha256sum ' + short_tarfile + '_* > ' + short_tarfile + '.sha256')
 
 
-def prep_export_tree(org_name, basepaths):
+def prep_export_tree(org_label, basepaths):
     """
     Function to combine individual export directories into single export tree
     Export top level contains /content and /custom directories with 'listing'
@@ -608,10 +610,11 @@ def prep_export_tree(org_name, basepaths):
     for basepath in basepaths:
         msg = "Processing " + basepath
         helpers.log_msg(msg, 'DEBUG')
-        subprocess.call("cp -rp " + basepath + "*/" + org_name + \
+        print "cp -rp " + basepath + "*/" + org_label + "/Library/* " + helpers.EXPORTDIR + "/export"
+        subprocess.call("cp -rp " + basepath + "*/" + org_label + \
             "/Library/* " + helpers.EXPORTDIR + "/export", shell=True, stdout=devnull, stderr=devnull)
 
-        # Remove original directores
+        # Remove original directories
         os.system("rm -rf " + basepath + "*/")
 
     # We need to re-generate the 'listing' files as we will have overwritten some during the merge
@@ -748,6 +751,7 @@ def main(args):
 
     # Get the org_id (Validates our connection to the API)
     org_id = helpers.get_org_id(org_name)
+    org_label = helpers.get_org_label(org_name)
     exported_repos = []
     export_history = []
     basepaths = []
@@ -890,16 +894,16 @@ def main(args):
         check_running_tasks(label, ename)
 
         # Get the version of the CV (Default Org View) to export
-        dov_ver, dov_label = get_cv(org_id)
+        dov_id, dov_ver, dov_label = get_cv(org_id)
 
         # Set the basepath of the export (needed due to Satellite 6.3 changes in other exports)
         # 6.3 provides a 'latest_version' in the API that gives us '1.0' however this is not available
         #   in 6.2 so we must build the string manually for compatibility
-        basepath = helpers.EXPORTDIR + "/" + org_name + "-" + dov_label + "-v" + str(dov_ver) + ".0"
+        basepath = helpers.EXPORTDIR + "/" + org_label + "-" + dov_label + "-v" + str(dov_ver)
         basepaths.append(basepath)
 
         # Now we have a CV ID and a starting date, and no conflicting tasks, we can export
-        export_id = export_cv(dov_ver, last_export, export_type)
+        export_id = export_cv(dov_id, last_export, export_type)
 
         # Now we need to wait for the export to complete
         helpers.wait_for_task(export_id, 'export')
@@ -964,7 +968,6 @@ def main(args):
 
                     # Check if there are any currently running tasks that will conflict
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
-
                     if ok_to_export:
                         # Count the number of packages
                         numpkg = count_packages(repo_result['id'])
@@ -1077,7 +1080,6 @@ def main(args):
 
                     # Check if there are any currently running tasks that will conflict
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
-
                     if ok_to_export:
                         # Satellite 6.3 uses a different path for published file content
                         if 'backend_identifier' in repo_result:
@@ -1134,7 +1136,6 @@ def main(args):
 
                     # Check if there are any currently running tasks that will conflict
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
-
                     # Satellite 6.3 uses a new backend_identifier key in the API result
                     if 'backend_identifier' in repo_result:
                         backend_id = repo_result['backend_identifier']
@@ -1166,7 +1167,7 @@ def main(args):
 
 
     # Combine resulting directory structures into a single repo format (top level = /content)
-    prep_export_tree(org_name, basepaths)
+    prep_export_tree(org_label, basepaths)
 
     # Now we need to process the on-disk export data.
     # Define the location of our exported data.
