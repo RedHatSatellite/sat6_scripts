@@ -52,9 +52,13 @@ def get_cv(org_id):
             # Return the ID (should be '1') and the label (forms part of the export path name)
             return cv_result['id'], cv_ver, cv_result['label']
 <<<<<<< HEAD
+<<<<<<< HEAD
 =======
 
 >>>>>>> master
+=======
+
+>>>>>>> e2448ba67fb918a5a4a04d1d3811f9f91b579239
 
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
