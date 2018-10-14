@@ -146,6 +146,9 @@ for import sync, however this behaviour can be overridden with the (-r) flag. Th
 will be useful to periodically ensure that the disconnected satellite repos are
 consistent - the repodata will indicate mismatches with synced content.
 
+The exported content will be archived in TAR format, with a chunk size specified
+by the (-S) option. The default is 4200Mb.
+
 To export a selected repository set, the exports.yml config file must exist in the
 config directory. The format of this file is shown below, and contains one or more
 'env' stanzas, containing a list of repositories to export. The repository name is
@@ -195,7 +198,7 @@ directory being written to the import directory during the sat_import process.
 
 ### Help Output
 ```
-usage: sat_export.py [-h] [-o ORG] [-e ENV] [-a | -i | -s SINCE] [-l] [-n]
+usage: sat_export.py [-h] [-o ORG] [-e ENV] [-a | -i | -s SINCE] [-l] [-n] [-S SIZE]
 
 Performs Export of Default Content View.
 
@@ -212,6 +215,7 @@ optional arguments:
   --nogpg               Skip GPG checking
   -u, --unattended      Answer any prompts safely, allowing automated usage
   -r, --repodata        Include repodata for repos with no incremental content
+  -S, --splitsize       Size of split files in Megabytes, defaults to 4200
   -p, --puppetforge     Include puppet-forge-server format Puppet Forge repo
   --notar               Do not archive the extracted content
   --forcexport          Force export from an import-only (Disconnected) Satellite

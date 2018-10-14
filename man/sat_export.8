@@ -49,9 +49,9 @@ can import directly from it.
 .BR download_manifest (8).
 .RE
 .RS 3
-- All content is archived into a chunked tar file, with each part being 4Gb to allow
+- All content is archived into a chunked tar file, with each part being a default of 4Gb to allow
 .RS 2
-transfer via DVD if required.
+transfer via DVD if required. This size can be changed if required.
 .RE
 .RE
 .RS 3
@@ -146,6 +146,13 @@ Force export of repodata for repositories that have no new content. By default
 will only synchronise repositories that contain new packages. This option forces
 .B sat_import
 to synchronise ALL repositories even if no updates are present.
+.RE
+.PP
+.BR "-S", " --splitsize"
+.RS 3
+Define the size of the tar chunks generated during export. By default the size will be
+4200Mb (4.2Gb) to allow for transfer of segments via DVD. In some cases data diodes
+require smaller chunk sizes for reliable transfer.
 .RE
 .PP
 .BR "-p", " --puppetforge"

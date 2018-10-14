@@ -219,6 +219,25 @@ def get_org_id(org_name):
 
     return org_id
 
+def get_org_label(org_name):
+    """
+    Return the Organisation label for a given Org Name
+    """
+    # Check if our organization exists, and extract its label
+    org = get_json(SAT_API + "organizations/" + org_name)
+    # If the requested organization is not found, exit
+    if org.get('error', None):
+        msg = "Organization '%s' does not exist." % org_name
+        log_msg(msg, 'ERROR')
+        sys.exit(1)
+    else:
+        # Our organization exists, so let's grab the label and write some debug
+        org_label = org['label']
+        msg = "Organisation '" + org_name + "' found with label " + org['label']
+        log_msg(msg, 'DEBUG')
+
+    return org_label
+
 
 class ProgressBar:
     def __init__(self, duration):
