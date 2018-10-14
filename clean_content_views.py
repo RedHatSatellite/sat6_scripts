@@ -62,6 +62,11 @@ def get_cv(org_id, cleanup_list, keep):
 
     return ver_list, ver_descr, ver_keep
 
+def get_content_view_version(cvid):
+    cvv = helpers.get_json(
+        helpers.KATELLO_API + "content_view_versions/" + str(cvid))
+
+    return cvv
 
 def get_content_view_info(cvid):
     """
@@ -135,8 +140,10 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
         helpers.log_msg(msg, 'DEBUG')
 
         for version in cvinfo['versions']:
-            # Find versions that are not in any environment
-            if not version['environment_ids']:
+            # Get composite content views for version
+            cvv = get_content_view_version(version['id'])
+            # Find versions that are not in any environment and not in any composite content view
+            if not version['environment_ids'] and not cvv['composite_content_view_ids']:
                 if not locked:
                     msg = "Orphan view version " + str(version['version']) + " found in '" +\
                         str(ver_descr[cvid]) + "'"
