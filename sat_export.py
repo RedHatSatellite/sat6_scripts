@@ -52,6 +52,7 @@ def get_cv(org_id):
             # Return the ID (should be '1') and the label (forms part of the export path name)
             return cv_result['id'], cv_ver, cv_result['label']
 
+
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
     """
@@ -1137,6 +1138,12 @@ def main(args):
 
                     # Check if there are any currently running tasks that will conflict
                     ok_to_export = check_running_tasks(repo_result['label'], ename)
+                    # Satellite 6.3 uses a new backend_identifier key in the API result
+                    if 'backend_identifier' in repo_result:
+                        backend_id = repo_result['backend_identifier']
+                    else:
+                        backend_id = repo_result['label']
+
                     # Satellite 6.3 uses a new backend_identifier key in the API result
                     if 'backend_identifier' in repo_result:
                         backend_id = repo_result['backend_identifier']
