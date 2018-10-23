@@ -98,7 +98,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
         # Check if there is a publish/promote already running on this content view
         locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
 
-        msg = "Cleaning content view '" + str(ver_descr[cvid]) + "'" 
+        msg = "Cleaning content view '" + str(ver_descr[cvid]) + "'"
         helpers.log_msg(msg, 'INFO')
         print helpers.HEADER + msg + helpers.ENDC
 
@@ -217,6 +217,10 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
                         msg = "Failed to initiate removal"
                         helpers.log_msg(msg, 'WARNING')
 
+                    except KeyError:
+                        msg = "Failed to initiate removal"
+                        helpers.log_msg(msg, 'WARNING')
+                        
     # Exit in the case of a dry-run
     if dry_run:
         msg = "Dry run - not actually performing removal"
@@ -299,5 +303,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt, e:
         print >> sys.stderr, ("\n\nExiting on user cancel.")
         sys.exit(1)
-
-
