@@ -178,7 +178,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
                                 print msg
                                 continue
                         else:
-                            if float(version['version']) < (lastver - float(ver_keep[cvid])):
+                            if float(version['version']) < (float(lastver) - float(ver_keep[cvid])):
                                 msg = "Removing version " + str(version['version'])
                                 helpers.log_msg(msg, 'INFO')
                                 print helpers.HEADER + msg + helpers.ENDC
@@ -220,7 +220,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
                     except KeyError:
                         msg = "Failed to initiate removal"
                         helpers.log_msg(msg, 'WARNING')
-                        
+
     # Exit in the case of a dry-run
     if dry_run:
         msg = "Dry run - not actually performing removal"
