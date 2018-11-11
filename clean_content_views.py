@@ -110,6 +110,8 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
         version_list_all = []
         for version in cvinfo['versions']:
             if not version['environment_ids']:
+                # These are the versions that don't belong to an environment
+                # i.e. orphans.
                 version_list_all.append(float(version['version']))
                 continue
             else:
@@ -133,10 +135,20 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
             msg = "Oldest NOT-in-use version is " + str(min(version_list_all))
         helpers.log_msg(msg, 'DEBUG')
 
-        # Find version to delete (based on keep parameter) if --ignorefirstpromoted
+        # Find versions to delete (based on keep parameter)
+        # Make sure the version list is in order
         version_list_all.sort()
-        todelete = version_list_all[:(len(version_list_all) - int(ver_keep[cvid]))]
-        msg = "Versions to remove if --ignorefirstpromoted: " + str(todelete)
+
+        if cleanall:
+            # Remove all orphaned versions
+            todelete = version_list_all
+        elif ignorefirstpromoted:
+            # Remove the last 'keep' elements from the orphans list (from PR #26)
+            todelete = version_list_all[:(len(version_list_all) - int(ver_keep[cvid]))]
+        else:
+            # Need to find 'lastver' in the list and then calculate keep from that
+            todelete = version_list_all[:(len(version_list_all) - int(ver_keep[cvid]))]
+        msg = "Versions to remove: " + str(todelete)
         helpers.log_msg(msg, 'DEBUG')
 
         for version in cvinfo['versions']:
@@ -149,44 +161,21 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
                         str(ver_descr[cvid]) + "'"
                     helpers.log_msg(msg, 'DEBUG')
 
-                    if ignorefirstpromoted:
-                        if cleanall:
+                    if cleanall:
+                        msg = "Removing version " + str(version['version'])
+                        helpers.log_msg(msg, 'INFO')
+                        print helpers.HEADER + msg + helpers.ENDC
+                    else:
+                        if float(version['version']) in todelete:
+                            # If ignorefirstpromoted delete CV
                             msg = "Removing version " + str(version['version'])
                             helpers.log_msg(msg, 'INFO')
                             print helpers.HEADER + msg + helpers.ENDC
                         else:
-                            if float(version['version']) in todelete:
-                                # If ignorefirstpromoted delete CV
-                                msg = "Removing version " + str(version['version'])
-                                helpers.log_msg(msg, 'INFO')
-                                print helpers.HEADER + msg + helpers.ENDC
-                            else:
-                                msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
-                                helpers.log_msg(msg, 'INFO')
-                                print msg
-                                continue
-                    else:
-                        if float(version['version']) > float(lastver):
-                            # If we have chosen to remove all orphans
-                            if cleanall:
-                                msg = "Removing version " + str(version['version'])
-                                helpers.log_msg(msg, 'INFO')
-                                print helpers.HEADER + msg + helpers.ENDC
-                            else:
-                                msg = "Skipping delete of version " + str(version['version'])
-                                helpers.log_msg(msg, 'INFO')
-                                print msg
-                                continue
-                        else:
-                            if float(version['version']) < (float(lastver) - float(ver_keep[cvid])):
-                                msg = "Removing version " + str(version['version'])
-                                helpers.log_msg(msg, 'INFO')
-                                print helpers.HEADER + msg + helpers.ENDC
-                            else:
-                                msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
-                                helpers.log_msg(msg, 'INFO')
-                                print msg
-                                continue
+                            msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
+                            helpers.log_msg(msg, 'INFO')
+                            print msg
+                            continue
 
                 # Delete the view version from the content view
                 if not dry_run and not locked:
