@@ -369,6 +369,7 @@ Content views to clean can be defined by either:
 The option to use will depend on the historic (old) content views you wish to keep.
 An example of the different options with a keep value of '1' is shown below:
 
+```
 +-----------------+------+------+------+
 | version         |  -i  |  -c  | none |
 +-----------------+------+------+------+
@@ -380,6 +381,7 @@ An example of the different options with a keep value of '1' is shown below:
 | 108.0           | DEL  | DEL  | DEL  |
 | 107.0           | DEL  | DEL  | DEL  |
 +-----------------+------+------+------+
+```
 
 The dry run (-d) option can be used to see what would be published for a
 given command input. Use this option to see the difference in behaviour between
