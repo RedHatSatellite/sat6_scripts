@@ -360,27 +360,31 @@ Any orphaned versions older than the last in-use version are purged (orphans
 between in-use versions will NOT be purged, unless the cleanall (-c) option is used).
 There is a keep (-k) option that allows a specific number of versions older than the
 last in-use to be kept as well, allowing for possible rollback of versions.
+Note that the (-c) option will delete ALL orphaned versions, regardless of the (-k)
+value. An alternative option (-i) slightly alters the calculation of the versions
+that will be deleted, in that the (-k) option defines how many versions after the
+newest (last promoted) version will be kept, rather than use the oldest (first
+promoted) version.
 
 Content views to clean can be defined by either:
   - Specific content views defined in the main config file
   - All content views (-a)
-  - All content views, ignoring the first promoted one (-i)
 
 The option to use will depend on the historic (old) content views you wish to keep.
 An example of the different options with a keep value of '1' is shown below:
 
 ```
-+-----------------+------+------+------+
-| version         |  -i  |  -c  | none |
-+-----------------+------+------+------+
-| 110.0 (Library) |      |      |      |
-| 109.0           | KEEP | DEL  | KEEP |
-| 108.3           | DEL  | DEL  | KEEP |
-| 108.2 (Quality) |      |      |      |    
-| 108.1           | DEL  | DEL  | KEEP |
-| 108.0           | DEL  | DEL  | DEL  |
-| 107.0           | DEL  | DEL  | DEL  |
-+-----------------+------+------+------+
++-----------------+----------+-----------------------+------------+
+| version         | no flags | --ignorefirstpromoted | --cleanall |
++-----------------+----------+-----------------------+------------+
+| 110.0 (Library) |          |                       |            |
+| 109.0           |   KEEP   |         KEEP          |    DEL     |
+| 108.3           |   KEEP   |         DEL           |    DEL     |
+| 108.2 (Quality) |          |                       |            |    
+| 108.1           |   KEEP   |         DEL           |    DEL     |
+| 108.0           |   DEL    |         DEL           |    DEL     |
+| 107.0           |   DEL    |         DEL           |    DEL     |
++-----------------+----------+-----------------------+------------+
 ```
 
 The dry run (-d) option can be used to see what would be published for a
