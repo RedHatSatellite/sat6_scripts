@@ -9,6 +9,7 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 - Default org view was assumed to be version 1.0. Correct version is now extracted (Issue #43)
 - Org name and label do not always match. Issue with mixed case and spaces in org name (Issue #42)
 - clean_content_views did not handle exception if API returns null value (Issue #49)
+- clean_content_views now correctly handles incremental content view deletion (Issue #49)
 
 ### Added
 - Option to define the tar split size (Issue #44)

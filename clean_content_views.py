@@ -107,12 +107,14 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
 
         # Find the oldest published version
         version_list = []
-        version_list_all = []
+        orphan_versions = []
+        all_versions = []
         for version in cvinfo['versions']:
+            all_versions.append(float(version['version']))
             if not version['environment_ids']:
                 # These are the versions that don't belong to an environment
                 # i.e. orphans.
-                version_list_all.append(float(version['version']))
+                orphan_versions.append(float(version['version']))
                 continue
             else:
                 msg = "Found version " + str(version['version'])
@@ -129,25 +131,38 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
         helpers.log_msg(msg, 'DEBUG')
 
         # Find the oldest 'NOT in use' version id
-        if not version_list_all:
+        if not orphan_versions:
             msg = "No oldest NOT-in-use version found"
         else:
-            msg = "Oldest NOT-in-use version is " + str(min(version_list_all))
+            msg = "Oldest NOT-in-use version is " + str(min(orphan_versions))
         helpers.log_msg(msg, 'DEBUG')
+
+        # Find the element position in the all_versions list of the oldest in-use version
+        # e.g. vers 102.0 is oldest in-use and is element [5] in the all_versions list
+        list_position = [i for i,x in enumerate(all_versions) if x == lastver]
+        # Remove the number of views to keep from the element position of the oldest in-use
+        # e.g. keep=2 results in an adjusted list element position [3]
+        num_to_delete = list_position[0] - int(ver_keep[cvid])
+        # Delete from position [0] to the first 'keep' position
+        # e.g. first keep element is [3] so list of elements [0, 1, 2] is created
+        list_pos_to_delete = [i for i in range(num_to_delete)]
 
         # Find versions to delete (based on keep parameter)
         # Make sure the version list is in order
-        version_list_all.sort()
+        orphan_versions.sort()
 
         if cleanall:
             # Remove all orphaned versions
-            todelete = version_list_all
+            todelete = orphan_versions
         elif ignorefirstpromoted:
             # Remove the last 'keep' elements from the orphans list (from PR #26)
-            todelete = version_list_all[:(len(version_list_all) - int(ver_keep[cvid]))]
+            todelete = orphan_versions[:(len(orphan_versions) - int(ver_keep[cvid]))]
         else:
-            # Need to find 'lastver' in the list and then calculate keep from that
-            todelete = version_list_all[:(len(version_list_all) - int(ver_keep[cvid]))]
+            todelete = []
+            # Remove the element numbers for deletion from the list all versions
+            for i in sorted(list_pos_to_delete, reverse=True):
+                todelete.append(orphan_versions[i])
+
         msg = "Versions to remove: " + str(todelete)
         helpers.log_msg(msg, 'DEBUG')
 

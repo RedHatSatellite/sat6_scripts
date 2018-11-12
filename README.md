@@ -366,6 +366,21 @@ Content views to clean can be defined by either:
   - All content views (-a)
   - All content views, ignoring the first promoted one (-i)
 
+The option to use will depend on the historic (old) content views you wish to keep.
+An example of the different options with a keep value of '1' is shown below:
+
++-----------------+------+------+------+
+| version         |  -i  |  -c  | none |
++-----------------+------+------+------+
+| 110.0 (Library) |      |      |      |
+| 109.0           | KEEP | DEL  | KEEP |
+| 108.3           | DEL  | DEL  | KEEP |
+| 108.2 (Quality) |      |      |      |    
+| 108.1           | DEL  | DEL  | KEEP |
+| 108.0           | DEL  | DEL  | DEL  |
+| 107.0           | DEL  | DEL  | DEL  |
++-----------------+------+------+------+
+
 The dry run (-d) option can be used to see what would be published for a
 given command input. Use this option to see the difference in behaviour between
 (-a) and (-i) options, with and without (-c)
