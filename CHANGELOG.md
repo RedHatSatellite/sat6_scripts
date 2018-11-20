@@ -5,11 +5,14 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ### Fixed
-- clean_content_views raised an exception if a CV version was included in a composite view.
+- clean_content_views raised an exception if a CV version was included in a composite view
 - Default org view was assumed to be version 1.0. Correct version is now extracted (Issue #43)
 - Org name and label do not always match. Issue with mixed case and spaces in org name (Issue #42)
 - clean_content_views did not handle exception if API returns null value (Issue #49)
 - clean_content_views now correctly handles incremental content view deletion (Issue #49)
+- Tasks in 'planning' state were not being considered when checking for locks
+- foreman_tasks API returns action as 'Promote' instead of 'Promotion' in Sat 6.3
+
 
 ### Added
 - Option to define the tar split size (Issue #44)

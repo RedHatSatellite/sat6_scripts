@@ -414,6 +414,13 @@ def check_running_publish(cvid, desc):
     # From the list of tasks, look for any running sync jobs.
     # If e have any we exit, as we can't trigger a new sync in this state.
     for task_result in tasks['results']:
+        if task_result['state'] == 'planning' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Publish':
+                if task_result['input']['content_view']['id'] == cvid:
+                    msg = "Unable to start '" + desc + "': content view is locked by another task"
+                    log_msg(msg, 'WARNING')
+                    locked = True
+                    return locked
         if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Publish':
                 if task_result['input']['content_view']['id'] == cvid:
@@ -428,15 +435,22 @@ def check_running_publish(cvid, desc):
                     log_msg(msg, 'WARNING')
                     locked = True
                     return locked
+        if task_result['state'] == 'planning' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Promotion' or task_result['humanized']['action'] == 'Promote':
+                if task_result['input']['content_view']['id'] == cvid:
+                    msg = "Unable to start '" + desc + "': content view is locked by another task"
+                    log_msg(msg, 'WARNING')
+                    locked = True
+                    return locked
         if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
-            if task_result['humanized']['action'] == 'Promotion':
+            if task_result['humanized']['action'] == 'Promotion' or task_result['humanized']['action'] == 'Promote':
                 if task_result['input']['content_view']['id'] == cvid:
                     msg = "Unable to start '" + desc + "': content view is locked by another task"
                     log_msg(msg, 'WARNING')
                     locked = True
                     return locked
         if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
-            if task_result['humanized']['action'] == 'Promotion':
+            if task_result['humanized']['action'] == 'Promotion' or task_result['humanized']['action'] == 'Promote':
                 if task_result['input']['content_view']['id'] == cvid:
                     msg = "Unable to start '" + desc + "': content view is locked by a paused task"
                     log_msg(msg, 'WARNING')
