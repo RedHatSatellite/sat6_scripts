@@ -1,15 +1,19 @@
 # Overview
 
 Importing content in a disconnected environment can be a challenge.
-These scripts make use of the Inter-Satellite Sync capability in Satellite 6.2 to
+These scripts make use of the Inter-Satellite Sync capability in Satellite 6 to
 allow for full and incremental export/import of content between environments.
 
 These scripts have been written and tested using Satellite 6.x on RHEL7. (RHEL6 not supported)
 Export/Import testing has been performed on the following version combinations:
 * 6.2 -> 6.2
 * 6.2 -> 6.3
-* 6.3 -> 6.2
 * 6.3 -> 6.3
+* 6.3 -> 6.2
+* 6.3 -> 6.4
+* 6.4 -> 6.4
+* 6.4 -> 6.3
+
 
 ## Definitions
 Throughout these scripts the following references are used:

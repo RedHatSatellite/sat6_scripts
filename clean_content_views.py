@@ -62,11 +62,6 @@ def get_cv(org_id, cleanup_list, keep):
 
     return ver_list, ver_descr, ver_keep
 
-# def get_content_view_version(cvid):
-#     cvv = helpers.get_json(
-#         helpers.KATELLO_API + "content_view_versions/" + str(cvid))
-#
-#     return cvv
 
 def get_content_view_info(cvid):
     """
@@ -121,12 +116,14 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
         sys.exit(1)
 
     for cvid in ver_list.keys():
-        # Check if there is a publish/promote already running on this content view
-        locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
-
         msg = "Cleaning content view '" + str(ver_descr[cvid]) + "'"
         helpers.log_msg(msg, 'INFO')
         print helpers.HEADER + msg + helpers.ENDC
+
+        # Check if there is a publish/promote already running on this content view
+        locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
+        if locked:
+            continue
 
         # For the given content view we need to find the orphaned versions
         cvinfo = get_content_view_info(cvid)
@@ -134,6 +131,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
         # Find the oldest published version
         version_list = []
         orphan_versions = []
+        orphan_dict = {}
         all_versions = []
         ccv_versions = []
         for version in cvinfo['versions']:
@@ -150,8 +148,10 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
             if not version['environment_ids']:
                 # These are the versions that don't belong to an environment (i.e. orphans)
                 # We also cross-check for versions that may be in a CCV here.
+                # We add the version name and id into a dictionary so we can delete by id.
                 if not version_in_use:
                     orphan_versions.append(float(version['version']))
+                    orphan_dict[version['version']] = version['id']
                     continue
             else:
                 msg = "Found version " + str(version['version'])
@@ -210,6 +210,9 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
                         str(ver_descr[cvid]) + "'"
                     helpers.log_msg(msg, 'DEBUG')
 
+                    # Lookup the version_id from our orphan_dict
+                    delete_id = orphan_dict.get(str(version))
+
                     msg = "Removing version " + str(version)
                     helpers.log_msg(msg, 'INFO')
                     print helpers.HEADER + msg + helpers.ENDC
@@ -219,7 +222,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
                     elif version in orphan_versions:
                         msg = "Skipping delete of version " + str(version) + " (due to keep value)"
                     else:
-                        msg = "Skipping delete of version " + str(version)
+                        msg = "Skipping delete of version " + str(version) + " (in use)"
                     helpers.log_msg(msg, 'INFO')
                     print msg
                     continue
@@ -236,7 +239,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
                         json.dumps(
                             {
                                 "id": cvid,
-                                "content_view_version_ids": version['id']
+                                "content_view_version_ids": delete_id
                             }
                             ))['id']
 
