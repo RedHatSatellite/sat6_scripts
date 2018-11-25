@@ -62,11 +62,6 @@ def get_cv(org_id, cleanup_list, keep):
 
     return ver_list, ver_descr, ver_keep
 
-def get_content_view_version(cvid):
-    cvv = helpers.get_json(
-        helpers.KATELLO_API + "content_view_versions/" + str(cvid))
-
-    return cvv
 
 def get_content_view_info(cvid):
     """
@@ -76,6 +71,32 @@ def get_content_view_info(cvid):
         helpers.KATELLO_API + "content_views/" + str(cvid))
 
     return cvinfo
+
+
+def check_version_views(version_id):
+    """
+    Check if our version ID belongs to any views, including CCV
+    """
+    version_in_use = False
+    version_in_ccv = False
+
+    # Extract a list of content views that the CV version belongs to
+    viewlist = helpers.get_json(
+        helpers.KATELLO_API + "content_view_versions/" + str(version_id))
+
+    # If the list is not empty we need to return this fact. A CV that belongs
+    # to NO versions will be a candidate for cleanup.
+    viewlist['composite_content_view_ids']
+    if viewlist['katello_content_views']:
+        version_in_use = True
+        msg = "Version " + str(viewlist['version']) + " is associated with published CV"
+        helpers.log_msg(msg, 'DEBUG')
+
+        # We can go further and see if this is associated with a CCV
+        if viewlist['composite_content_view_ids']:
+            version_in_ccv = True
+
+    return version_in_use, version_in_ccv
 
 
 def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefirstpromoted):
@@ -95,23 +116,43 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
         sys.exit(1)
 
     for cvid in ver_list.keys():
-        # Check if there is a publish/promote already running on this content view
-        locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
-
-        msg = "Cleaning content view '" + str(ver_descr[cvid]) + "'" 
+        msg = "Cleaning content view '" + str(ver_descr[cvid]) + "'"
         helpers.log_msg(msg, 'INFO')
         print helpers.HEADER + msg + helpers.ENDC
+
+        # Check if there is a publish/promote already running on this content view
+        locked = helpers.check_running_publish(ver_list[cvid], ver_descr[cvid])
+        if locked:
+            continue
 
         # For the given content view we need to find the orphaned versions
         cvinfo = get_content_view_info(cvid)
 
         # Find the oldest published version
         version_list = []
-        version_list_all = []
+        orphan_versions = []
+        orphan_dict = {}
+        all_versions = []
+        ccv_versions = []
         for version in cvinfo['versions']:
+
+            # Check if the version is part of a published view.
+            # This is not returned in cvinfo, and we need to see if we are part of a CCV
+            version_in_use, version_in_ccv = check_version_views(version['id'])
+
+            # Build a list of ALL version numbers
+            all_versions.append(float(version['version']))
+            # Add any version numbers that are part of a CCV to a list
+            if version_in_ccv:
+                ccv_versions.append(float(version['version']))
             if not version['environment_ids']:
-                version_list_all.append(float(version['version']))
-                continue
+                # These are the versions that don't belong to an environment (i.e. orphans)
+                # We also cross-check for versions that may be in a CCV here.
+                # We add the version name and id into a dictionary so we can delete by id.
+                if not version_in_use:
+                    orphan_versions.append(float(version['version']))
+                    orphan_dict[version['version']] = version['id']
+                    continue
             else:
                 msg = "Found version " + str(version['version'])
                 helpers.log_msg(msg, 'DEBUG')
@@ -127,95 +168,101 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
         helpers.log_msg(msg, 'DEBUG')
 
         # Find the oldest 'NOT in use' version id
-        if not version_list_all:
+        if not orphan_versions:
             msg = "No oldest NOT-in-use version found"
         else:
-            msg = "Oldest NOT-in-use version is " + str(min(version_list_all))
+            msg = "Oldest NOT-in-use version is " + str(min(orphan_versions))
         helpers.log_msg(msg, 'DEBUG')
 
-        # Find version to delete (based on keep parameter) if --ignorefirstpromoted
-        version_list_all.sort()
-        todelete = version_list_all[:(len(version_list_all) - int(ver_keep[cvid]))]
-        msg = "Versions to remove if --ignorefirstpromoted: " + str(todelete)
+        # Find the element position in the all_versions list of the oldest in-use version
+        # e.g. vers 102.0 is oldest in-use and is element [5] in the all_versions list
+        list_position = [i for i,x in enumerate(all_versions) if x == lastver]
+        # Remove the number of views to keep from the element position of the oldest in-use
+        # e.g. keep=2 results in an adjusted list element position [3]
+        num_to_delete = list_position[0] - int(ver_keep[cvid])
+        # Delete from position [0] to the first 'keep' position
+        # e.g. first keep element is [3] so list of elements [0, 1, 2] is created
+        list_pos_to_delete = [i for i in range(num_to_delete)]
+
+        # Find versions to delete (based on keep parameter)
+        # Make sure the version list is in order
+        orphan_versions.sort()
+
+        if cleanall:
+            # Remove all orphaned versions
+            todelete = orphan_versions
+        elif ignorefirstpromoted:
+            # Remove the last 'keep' elements from the orphans list (from PR #26)
+            todelete = orphan_versions[:(len(orphan_versions) - int(ver_keep[cvid]))]
+        else:
+            todelete = []
+            # Remove the element numbers for deletion from the list all versions
+            for i in sorted(list_pos_to_delete, reverse=True):
+                todelete.append(orphan_versions[i])
+
+        msg = "Versions to remove: " + str(todelete)
         helpers.log_msg(msg, 'DEBUG')
 
-        for version in cvinfo['versions']:
-            # Get composite content views for version
-            cvv = get_content_view_version(version['id'])
-            # Find versions that are not in any environment and not in any composite content view
-            if not version['environment_ids'] and not cvv['composite_content_view_ids']:
-                if not locked:
-                    msg = "Orphan view version " + str(version['version']) + " found in '" +\
+        for version in all_versions:
+            if not locked:
+                if version in todelete:
+                    msg = "Orphan view version " + str(version) + " found in '" +\
                         str(ver_descr[cvid]) + "'"
                     helpers.log_msg(msg, 'DEBUG')
 
-                    if ignorefirstpromoted:
-                        if cleanall:
-                            msg = "Removing version " + str(version['version'])
-                            helpers.log_msg(msg, 'INFO')
-                            print helpers.HEADER + msg + helpers.ENDC
-                        else:
-                            if float(version['version']) in todelete:
-                                # If ignorefirstpromoted delete CV
-                                msg = "Removing version " + str(version['version'])
-                                helpers.log_msg(msg, 'INFO')
-                                print helpers.HEADER + msg + helpers.ENDC
-                            else:
-                                msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
-                                helpers.log_msg(msg, 'INFO')
-                                print msg
-                                continue
+                    # Lookup the version_id from our orphan_dict
+                    delete_id = orphan_dict.get(str(version))
+
+                    msg = "Removing version " + str(version)
+                    helpers.log_msg(msg, 'INFO')
+                    print helpers.HEADER + msg + helpers.ENDC
+                else:
+                    if version in ccv_versions:
+                        msg = "Skipping delete of version " + str(version) + " (member of a CCV)"
+                    elif version in orphan_versions:
+                        msg = "Skipping delete of version " + str(version) + " (due to keep value)"
                     else:
-                        if float(version['version']) > float(lastver):
-                            # If we have chosen to remove all orphans
-                            if cleanall:
-                                msg = "Removing version " + str(version['version'])
-                                helpers.log_msg(msg, 'INFO')
-                                print helpers.HEADER + msg + helpers.ENDC
-                            else:
-                                msg = "Skipping delete of version " + str(version['version'])
-                                helpers.log_msg(msg, 'INFO')
-                                print msg
-                                continue
-                        else:
-                            if float(version['version']) < (lastver - float(ver_keep[cvid])):
-                                msg = "Removing version " + str(version['version'])
-                                helpers.log_msg(msg, 'INFO')
-                                print helpers.HEADER + msg + helpers.ENDC
-                            else:
-                                msg = "Skipping delete of version " + str(version['version']) + " due to --keep value"
-                                helpers.log_msg(msg, 'INFO')
-                                print msg
-                                continue
+                        msg = "Skipping delete of version " + str(version) + " (in use)"
+                    helpers.log_msg(msg, 'INFO')
+                    print msg
+                    continue
+            else:
+                msg = "Version " + str(version) + " is locked"
+                helpers.log_msg(msg, 'WARNING')
+                continue
 
-                # Delete the view version from the content view
-                if not dry_run and not locked:
-                    try:
-                        task_id = helpers.put_json(
-                            helpers.KATELLO_API + "content_views/" + str(cvid) + "/remove/",
-                            json.dumps(
-                                {
-                                    "id": cvid,
-                                    "content_view_version_ids": version['id']
-                                }
-                                ))['id']
+            # Delete the view version from the content view
+            if not dry_run and not locked:
+                try:
+                    task_id = helpers.put_json(
+                        helpers.KATELLO_API + "content_views/" + str(cvid) + "/remove/",
+                        json.dumps(
+                            {
+                                "id": cvid,
+                                "content_view_version_ids": delete_id
+                            }
+                            ))['id']
 
-                        # Wait for the task to complete
-                        helpers.wait_for_task(task_id,'clean')
+                    # Wait for the task to complete
+                    helpers.wait_for_task(task_id,'clean')
 
-                        # Check if the deletion completed successfully
-                        tinfo = helpers.get_task_status(task_id)
-                        if tinfo['state'] != 'running' and tinfo['result'] == 'success':
-                            msg = "Removal of content view version OK"
-                            helpers.log_msg(msg, 'INFO')
-                            print helpers.GREEN + "OK" + helpers.ENDC
-                        else:
-                            msg = "Failed"
-                            helpers.log_msg(msg, 'ERROR')
+                    # Check if the deletion completed successfully
+                    tinfo = helpers.get_task_status(task_id)
+                    if tinfo['state'] != 'running' and tinfo['result'] == 'success':
+                        msg = "Removal of content view version OK"
+                        helpers.log_msg(msg, 'INFO')
+                        print helpers.GREEN + "OK" + helpers.ENDC
+                    else:
+                        msg = "Failed"
+                        helpers.log_msg(msg, 'ERROR')
 
-                    except Warning:
-                        msg = "Failed to initiate removal"
-                        helpers.log_msg(msg, 'WARNING')
+                except Warning:
+                    msg = "Failed to initiate removal"
+                    helpers.log_msg(msg, 'WARNING')
+
+                except KeyError:
+                    msg = "Failed to initiate removal (KeyError)"
+                    helpers.log_msg(msg, 'WARNING')
 
     # Exit in the case of a dry-run
     if dry_run:
@@ -299,5 +346,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt, e:
         print >> sys.stderr, ("\n\nExiting on user cancel.")
         sys.exit(1)
-
-

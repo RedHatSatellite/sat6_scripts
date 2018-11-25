@@ -1,15 +1,19 @@
 # Overview
 
 Importing content in a disconnected environment can be a challenge.
-These scripts make use of the Inter-Satellite Sync capability in Satellite 6.2 to
+These scripts make use of the Inter-Satellite Sync capability in Satellite 6 to
 allow for full and incremental export/import of content between environments.
 
 These scripts have been written and tested using Satellite 6.x on RHEL7. (RHEL6 not supported)
 Export/Import testing has been performed on the following version combinations:
 * 6.2 -> 6.2
 * 6.2 -> 6.3
-* 6.3 -> 6.2
 * 6.3 -> 6.3
+* 6.3 -> 6.2
+* 6.3 -> 6.4
+* 6.4 -> 6.4
+* 6.4 -> 6.3
+
 
 ## Definitions
 Throughout these scripts the following references are used:
@@ -360,11 +364,32 @@ Any orphaned versions older than the last in-use version are purged (orphans
 between in-use versions will NOT be purged, unless the cleanall (-c) option is used).
 There is a keep (-k) option that allows a specific number of versions older than the
 last in-use to be kept as well, allowing for possible rollback of versions.
+Note that the (-c) option will delete ALL orphaned versions, regardless of the (-k)
+value. An alternative option (-i) slightly alters the calculation of the versions
+that will be deleted, in that the (-k) option defines how many versions after the
+newest (last promoted) version will be kept, rather than use the oldest (first
+promoted) version.
 
 Content views to clean can be defined by either:
   - Specific content views defined in the main config file
   - All content views (-a)
-  - All content views, ignoring the first promoted one (-i)
+
+The option to use will depend on the historic (old) content views you wish to keep.
+An example of the different options with a keep value of '1' is shown below:
+
+```
++-----------------+----------+-----------------------+------------+
+| version         | no flags | --ignorefirstpromoted | --cleanall |
++-----------------+----------+-----------------------+------------+
+| 110.0 (Library) |          |                       |            |
+| 109.0           |   KEEP   |         KEEP          |    DEL     |
+| 108.3           |   KEEP   |         DEL           |    DEL     |
+| 108.2 (Quality) |          |                       |            |    
+| 108.1           |   KEEP   |         DEL           |    DEL     |
+| 108.0           |   DEL    |         DEL           |    DEL     |
+| 107.0           |   DEL    |         DEL           |    DEL     |
++-----------------+----------+-----------------------+------------+
+```
 
 The dry run (-d) option can be used to see what would be published for a
 given command input. Use this option to see the difference in behaviour between

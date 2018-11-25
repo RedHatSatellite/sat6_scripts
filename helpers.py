@@ -414,34 +414,67 @@ def check_running_publish(cvid, desc):
     # From the list of tasks, look for any running sync jobs.
     # If e have any we exit, as we can't trigger a new sync in this state.
     for task_result in tasks['results']:
+        if task_result['state'] == 'planning' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Publish':
+                msg = "Unable to start '" + desc + "': A publish task is in planning state, cannot determine if it is for this CV"
+                log_msg(msg, 'WARNING')
+                locked = True
+                return locked
         if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Publish':
                 if task_result['input']['content_view']['id'] == cvid:
-                    msg = "Unable to start '" + desc + "': content view is locked by another task"
+                    msg = "Unable to start '" + desc + "': content view is locked by a running Publish task"
                     log_msg(msg, 'WARNING')
                     locked = True
                     return locked
         if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
             if task_result['humanized']['action'] == 'Publish':
                 if task_result['input']['content_view']['id'] == cvid:
-                    msg = "Unable to start '" + desc + "': content view is locked by a paused task"
+                    msg = "Unable to start '" + desc + "': content view is locked by a paused Publish task"
                     log_msg(msg, 'WARNING')
                     locked = True
                     return locked
+        if task_result['state'] == 'planning' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Promotion' or task_result['humanized']['action'] == 'Promote':
+                msg = "Unable to start '" + desc + "': A promotion task is in planning state, cannot determine if it is for this CV"
+                log_msg(msg, 'WARNING')
+                locked = True
+                return locked
         if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
-            if task_result['humanized']['action'] == 'Promotion':
+            if task_result['humanized']['action'] == 'Promotion' or task_result['humanized']['action'] == 'Promote':
                 if task_result['input']['content_view']['id'] == cvid:
-                    msg = "Unable to start '" + desc + "': content view is locked by another task"
+                    msg = "Unable to start '" + desc + "': content view is locked by a running Promotion task"
                     log_msg(msg, 'WARNING')
                     locked = True
                     return locked
         if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
-            if task_result['humanized']['action'] == 'Promotion':
+            if task_result['humanized']['action'] == 'Promotion' or task_result['humanized']['action'] == 'Promote':
                 if task_result['input']['content_view']['id'] == cvid:
-                    msg = "Unable to start '" + desc + "': content view is locked by a paused task"
+                    msg = "Unable to start '" + desc + "': content view is locked by a paused Promotion task"
                     log_msg(msg, 'WARNING')
                     locked = True
                     return locked
+        if task_result['state'] == 'planning' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Remove Versions and Associations':
+                msg = "Unable to start '" + desc + "': A remove task is in planning state, cannot determine if it is for this CV"
+                log_msg(msg, 'WARNING')
+                locked = True
+                return locked
+        if task_result['state'] == 'running' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Remove Versions and Associations':
+                if task_result['input']['content_view']['id'] == cvid:
+                    msg = "Unable to start '" + desc + "': content view is locked by a running CV deletion task"
+                    log_msg(msg, 'WARNING')
+                    locked = True
+                    return locked
+        if task_result['state'] == 'paused' and task_result['label'] != 'Actions::BulkAction':
+            if task_result['humanized']['action'] == 'Remove Versions and Associations':
+                if task_result['input']['content_view']['id'] == cvid:
+                    msg = "Unable to start '" + desc + "': content view is locked by a paused CV deletion task"
+                    log_msg(msg, 'WARNING')
+                    locked = True
+                    return locked
+
 
 
 def query_yes_no(question, default="yes"):
