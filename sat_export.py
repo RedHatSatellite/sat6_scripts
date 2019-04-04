@@ -50,7 +50,7 @@ def get_cv(org_id):
                 helpers.log_msg(msg, 'DEBUG')
 
             # Return the ID (should be '1') and the label (forms part of the export path name)
-            return cv_result['id'], cv_ver, cv_result['label']
+            return ver['id'], cv_ver, cv_result['label']
 
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
