@@ -5,6 +5,8 @@ and this project adheres to [Semantic Versioning](http://semver.org/spec/v2.0.0.
 
 ## [Unreleased]
 ### Fixed
+- sat_export could use incorrect content_view version id during DOV export
+- clean_content_views did not clean CCV versions before CV so would fail (Issue #51)
 
 ## [1.2.4] - 2018-11-25
 ### Fixed
