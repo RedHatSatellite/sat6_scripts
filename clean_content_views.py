@@ -13,6 +13,7 @@ Removes content view versions that don't belong to any environment
 #pylint: disable-msg=R0912,R0913,R0914,R0915
 
 import sys, argparse
+import collections
 import simplejson as json
 import helpers
 
@@ -22,11 +23,14 @@ def get_cv(org_id, cleanup_list, keep):
     # Query API to get all content views for our org
     cvs = helpers.get_json(
         helpers.KATELLO_API + "organizations/" + str(org_id) + "/content_views/")
-    ver_list = {}
-    ver_descr = {}
-    ver_keep = {}
+    ver_list = collections.OrderedDict()
+    ver_descr = collections.OrderedDict()
+    ver_keep = collections.OrderedDict()
 
-    for cv_result in cvs['results']:
+    # Sort the CVS so that composites are considered first
+    cv_results = sorted(cvs['results'], key=lambda k: k[u'composite'], reverse=True)
+
+    for cv_result in cv_results:
         # We will never clean the DOV
         if cv_result['name'] != "Default Organization View":
             # Handle specific includes
