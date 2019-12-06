@@ -27,9 +27,9 @@ Throughout these scripts the following references are used:
 
 * Satellite >= 6.2.9
 * Python = 2.7
-* PyYAML
-* Simplejson
-* requests
+* PyYAML (python2-pyyaml)
+* Simplejson (python2-simplejson)
+* requests (python2-requests)
 
 The Export and Import scripts are intended to be run on the Satellite servers directly.
 
