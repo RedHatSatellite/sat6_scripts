@@ -31,7 +31,11 @@ except ImportError:
 # Import the site-specific configs
 dir = os.path.dirname(__file__)
 filename = os.path.join(dir, 'config/config.yml')
-CONFIG = yaml.safe_load(open(filename, 'r'))
+try:
+    CONFIG = yaml.safe_load(open(filename, 'r'))
+except IOError:
+    print "Please create a config file at %s." % filename
+    sys.exit(1)
 
 # Read in the config parameters
 URL = CONFIG['satellite']['url']
@@ -520,12 +524,12 @@ def mailout(subject, message):
     smtpObj.sendmail(sender, receivers, body)
 
 
-#-----------------------
+# -----------------------
 # Configure logging
 if not os.path.exists(LOGDIR):
     print "Creating log directory"
     os.makedirs(LOGDIR)
-# -----------------------
+
 logging.getLogger(__name__)
 
 logging.basicConfig(level=logging.DEBUG,
@@ -541,12 +545,12 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 # Open a temp file to hold the email output
 tf = tempfile.NamedTemporaryFile()
 
+
 def log_msg(msg, level):
     """Write message to logfile"""
 
     # If we are NOT in debug mode, only write non-debug messages to the log
     if level == 'DEBUG':
-
         if DEBUG:
             logging.debug(msg)
             print BOLD + "DEBUG: " + msg + ENDC
