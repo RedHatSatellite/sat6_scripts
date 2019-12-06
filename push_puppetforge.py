@@ -6,9 +6,7 @@
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
-"""
-Exports Satellite 6 yum content.
-"""
+"""Export puppet modules in puppet-forge-server format."""
 
 import sys, argparse, datetime, os, shutil, pickle, re
 import fnmatch, subprocess, tarfile
@@ -24,8 +22,8 @@ except ImportError:
 
 
 def export_puppet(repo_id, repo_label, repo_relative, export_type):
-    """
-    Export Puppet modules
+    """Export Puppet modules.
+
     Takes the type (full/incr)
     """
     numfiles = 0
@@ -89,9 +87,7 @@ def export_puppet(repo_id, repo_label, repo_relative, export_type):
 
 
 def copy_to_pfserver(export_dir, pfserver, pfmodpath, pfuser):
-    """
-    Use rsync to copy the exported module tree to the puppet-forge-server instance
-    """
+    """Use rsync to copy the exported module tree to the puppet-forge-server instance."""
     target = pfuser + '@' + pfserver + ':' + pfmodpath
     msg = 'Copying puppet modules to ' + target + '\n'
     helpers.log_msg(msg, 'INFO')
@@ -100,9 +96,7 @@ def copy_to_pfserver(export_dir, pfserver, pfmodpath, pfuser):
 
 
 def splitext(path):
-    """
-    Method to split the exported filename into author-module-version parts
-    """
+    """Split the exported filename into author-module-version parts."""
     for ext in ['.tar.gz']:
         if path.endswith(ext):
             return path[:-len(ext)], path[-len(ext):]
@@ -110,9 +104,7 @@ def splitext(path):
 
 
 def postModule(moduleTar, moduleInputDir, pfserver, pfmodpath, pfuser, pftoken):
-    """
-    Function to push puppet modules using curl to Artifiactory repository
-    """
+    """Push puppet modules using curl to Artifactory repository."""
     # Remove module's extension (.tar.gz)
     puppetModuleNameNoExt = splitext(moduleTar)[0]
 
@@ -134,9 +126,7 @@ def postModule(moduleTar, moduleInputDir, pfserver, pfmodpath, pfuser, pftoken):
 
 
 def main(args):
-    """
-    Main Routine
-    """
+    """Export puppet modules in puppet-forge-server format."""
     #pylint: disable-msg=R0912,R0914,R0915
 
     # Who is running this script?
@@ -155,7 +145,7 @@ def main(args):
     parser.add_argument('-o', '--org', help='Organization (Uses default if not specified)',
         required=False)
     parser.add_argument('-r', '--repo', help='Puppetforge repo label', required=False)
-    parser.add_argument('-t', '--type', help='Puppetforge server type (puppet-forge-server|artifiactory)', required=False)
+    parser.add_argument('-t', '--type', help='Puppetforge server type (puppet-forge-server|artifactory)', required=False)
     parser.add_argument('-s', '--server', help='puppet-forge-server hostname', required=False)
     parser.add_argument('-m', '--modulepath', help='path to puppet-forge-server modules',
         required=False)
@@ -169,7 +159,7 @@ def main(args):
     if args.org:
         org_name = args.org
     else:
-       org_name = helpers.ORG_NAME
+        org_name = helpers.ORG_NAME
 
     # Define the type of puppet-forge server
     if args.type:
@@ -207,7 +197,7 @@ def main(args):
     else:
         pfuser = helpers.PFUSER
 
-    # Read in the token for Artifiactory
+    # Read in the token for Artifactory
     if args.password:
         pftoken = args.password
     else:
@@ -236,14 +226,14 @@ def main(args):
     # 1. Matching specific repo exports, and
     # 2. Running import sync per repo on the disconnected side
     repolist = helpers.get_p_json(
-        helpers.KATELLO_API + "/repositories/", \
-                json.dumps(
-                        {
-                           "organization_id": org_id,
-                           "per_page": '1000',
-                        }
-                ))
-
+        helpers.KATELLO_API + "/repositories/",
+        json.dumps(
+                {
+                    "organization_id": org_id,
+                    "per_page": '1000',
+                }
+            )
+        )
 
     # Process each repo
     for repo_result in repolist['results']:
@@ -258,7 +248,6 @@ def main(args):
                 msg = "Skipping  " + repo_result['label']
                 helpers.log_msg(msg, 'DEBUG')
 
-
     # Now we need to process the on-disk export data.
     # Define the location of our exported data.
     export_dir = helpers.EXPORTDIR + "/puppetforge"
@@ -267,13 +256,11 @@ def main(args):
         # Method for posting to puppet-forge-server
         os.chdir(script_dir)
         copy_to_pfserver(export_dir, pfserver, modpath, pfuser)
-
     elif (pftype == 'artifactory'):
         # Method for posting to Artifactory repository
         for module in os.listdir(export_dir):
             print("Posing: " + module)
             postModule(module, export_dir, pfserver, modpath, pfuser, pftoken)
-
     else:
         print("Unknown puppet-forge server type defined")
         sys.exit(1)
@@ -281,6 +268,7 @@ def main(args):
     # And we're done!
     print helpers.GREEN + "Puppet Forge export complete.\n" + helpers.ENDC
     sys.exit(0)
+
 
 if __name__ == "__main__":
     try:

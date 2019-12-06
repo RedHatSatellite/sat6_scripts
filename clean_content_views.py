@@ -6,10 +6,8 @@
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
-"""
-Removes content view versions that don't belong to any environment
+"""Remove content view versions that don't belong to any environment."""
 
-"""
 #pylint: disable-msg=R0912,R0913,R0914,R0915
 
 import sys, argparse
@@ -17,8 +15,9 @@ import collections
 import simplejson as json
 import helpers
 
+
 def get_cv(org_id, cleanup_list, keep):
-    """Get the content views"""
+    """Get the content views."""
 
     # Query API to get all content views for our org
     cvs = helpers.get_json(
@@ -63,14 +62,11 @@ def get_cv(org_id, cleanup_list, keep):
                 ver_descr[cv_result['id']] = cv_result['name']
                 ver_keep[cv_result['id']] = keep
 
-
     return ver_list, ver_descr, ver_keep
 
 
 def get_content_view_info(cvid):
-    """
-    Return Content View Info for a given CV ID
-    """
+    """Return Content View Info for a given CV ID."""
     cvinfo = helpers.get_json(
         helpers.KATELLO_API + "content_views/" + str(cvid))
 
@@ -78,9 +74,7 @@ def get_content_view_info(cvid):
 
 
 def check_version_views(version_id):
-    """
-    Check if our version ID belongs to any views, including CCV
-    """
+    """Check if our version ID belongs to any views, including CCV."""
     version_in_use = False
     version_in_ccv = False
 
@@ -104,7 +98,7 @@ def check_version_views(version_id):
 
 
 def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefirstpromoted):
-    """Clean Content Views"""
+    """Clean Content Views."""
 
     # Set the task name to be displayed in the task monitoring stage
     task_name = "Cleanup content views"
@@ -276,9 +270,7 @@ def cleanup(ver_list, ver_descr, dry_run, runuser, ver_keep, cleanall, ignorefir
 
 
 def main(args):
-    """
-    Main routine
-    """
+    """Clean content views for specified organization."""
 
     # Who is running this script?
     runuser = helpers.who_is_running()
@@ -311,7 +303,7 @@ def main(args):
     if args.org:
         org_name = args.org
     else:
-       org_name = helpers.ORG_NAME
+        org_name = helpers.ORG_NAME
     dry_run = args.dryrun
     cleanall = args.cleanall
     ignorefirstpromoted = args.ignorefirstpromoted
@@ -343,6 +335,7 @@ def main(args):
 
     # Exit cleanly
     sys.exit(0)
+
 
 if __name__ == "__main__":
     try:

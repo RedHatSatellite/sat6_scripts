@@ -6,9 +6,7 @@
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
-"""
-Imports Satellite 6 yum content exported by sat_export.py
-"""
+"""Import Satellite 6 yum content exported by sat_export.py."""
 
 import sys, argparse, os, pickle
 import simplejson as json
@@ -16,8 +14,8 @@ import helpers
 
 
 def get_inputfiles(dataset):
-    """
-    Verify the input files exist and are valid.
+    """Verify the input files exist and are valid.
+
     'dataset' is a date (YYYYMMDD-HHMM_ENV) provided by the user - date is in the filename of the archive
     Returned 'basename' is the full export filename (sat6_export_YYYYMMDD-HHMM_ENV)
     """
@@ -58,9 +56,7 @@ def get_inputfiles(dataset):
 
 
 def extract_content(basename):
-    """
-    Extract the tar archive
-    """
+    """Extract the tar archive."""
     os.chdir(helpers.IMPORTDIR)
 
     # Extract the archives (Using OS call for this at the moment)
@@ -71,8 +67,8 @@ def extract_content(basename):
 
 
 def sync_content(org_id, imported_repos):
-    """
-    Synchronize the repositories
+    """Synchronize the repositories.
+
     Triggers a sync of all repositories belonging to the configured sync plan
     """
     repos_to_sync = []
@@ -81,13 +77,14 @@ def sync_content(org_id, imported_repos):
 
     # Get a listing of repositories in this Satellite
     enabled_repos = helpers.get_p_json(
-        helpers.KATELLO_API + "/repositories/", \
-            json.dumps(
+        helpers.KATELLO_API + "/repositories/",
+        json.dumps(
                 {
                     "organization_id": org_id,
                     "per_page": '1000',
                 }
-            ))
+            )
+        )
 
     # Loop through each repo to be imported/synced
     for repo in imported_repos:
@@ -104,12 +101,13 @@ def sync_content(org_id, imported_repos):
                     msg = "Setting mirror-on-sync=false for repo id " + str(repo_result['id'])
                     helpers.log_msg(msg, 'DEBUG')
                     helpers.put_json(
-                        helpers.KATELLO_API + "/repositories/" + str(repo_result['id']), \
-                            json.dumps(
+                        helpers.KATELLO_API + "/repositories/" + str(repo_result['id']),
+                        json.dumps(
                                 {
                                     "mirror_on_sync": False
                                 }
-                            ))
+                            )
+                        )
 
         if do_import:
             msg = "Repo " + repo + " found in Satellite"
@@ -147,12 +145,13 @@ def sync_content(org_id, imported_repos):
             msg = "Syncing repo batch " + str(chunk)
             helpers.log_msg(msg, 'DEBUG')
             task_id = helpers.post_json(
-                helpers.KATELLO_API + "repositories/bulk/sync", \
-                    json.dumps(
+                helpers.KATELLO_API + "repositories/bulk/sync",
+                json.dumps(
                         {
                             "ids": chunk,
                         }
-                    ))["id"]
+                    )
+                )["id"]
             msg = "Repo sync task id = " + task_id
             helpers.log_msg(msg, 'DEBUG')
 
@@ -172,12 +171,10 @@ def sync_content(org_id, imported_repos):
 
 
 def count_packages(repo_id):
-    """
-    Return the number of packages/erratum in a respository
-    """
+    """Return the number of packages/erratum in a respository"""
     result = helpers.get_json(
         helpers.KATELLO_API + "repositories/" + str(repo_id)
-            )
+        )
 
     numpkg = result['content_counts']['rpm']
     numerrata = result['content_counts']['erratum']
@@ -186,21 +183,22 @@ def count_packages(repo_id):
 
 
 def check_counts(org_id, package_count, count):
-    """
-    Verify the number of pkgs/errutum in each repo match the sync host.
+    """Verify the number of pkgs/errutum in each repo match the sync host.
+
     Input is a dictionary loaded from a pickle that was created on the sync
-    host in format  {Repo_Label, pkgs:erratum}
+    host in format {Repo_Label, pkgs:erratum}
     """
 
     # Get a listing of repositories in this Satellite
     enabled_repos = helpers.get_p_json(
-        helpers.KATELLO_API + "/repositories/", \
-            json.dumps(
+        helpers.KATELLO_API + "/repositories/",
+        json.dumps(
                 {
                     "organization_id": org_id,
                     "per_page": '1000',
                 }
-            ))
+            )
+        )
 
     # First loop through the repos in the import dict and find the local ID
     table_data = []
@@ -275,8 +273,11 @@ def check_counts(org_id, package_count, count):
 
 
 def check_missing(imports, exports, dataset, fixhistory, vardir):
-    """
-    Compare export history with import history to find any datasets that have not been imported
+    """Find any datasets that have not been imported.
+
+    Compare export history with import history to identify missed datasets.
+
+    If fixhistory is passed in, saves previous imports in imports.pkl and exits.
     """
     missing = False
 
@@ -290,11 +291,10 @@ def check_missing(imports, exports, dataset, fixhistory, vardir):
         helpers.log_msg(msg, 'INFO')
         print msg
         sys.exit(2)
-
     else:
         for ds in exports:
-            if not ds in imports:
-                if not dataset in ds:
+            if ds not in imports:
+                if dataset not in ds:
                     msg = "Import dataset " + ds + " has not been imported"
                     helpers.log_msg(msg, 'WARNING')
                     missing = True
@@ -303,9 +303,7 @@ def check_missing(imports, exports, dataset, fixhistory, vardir):
 
 
 def main(args):
-    """
-    Main Routine
-    """
+    """Perform import of Default Content View."""
     #pylint: disable-msg=R0912,R0914,R0915
 
     if not helpers.DISCONNECTED:
@@ -445,7 +443,6 @@ def main(args):
                 helpers.mailout(helpers.MAILSUBJ_FI, output)
             sys.exit(3)
 
-
     # Trigger a sync of the content into the Library
     if args.nosync:
         #print helpers.GREEN + "Import complete.\n" + helpers.ENDC
@@ -471,7 +468,6 @@ def main(args):
     if os.path.exists(helpers.IMPORTDIR + '/puppetforge'):
         print 'Offline puppet-forge-server bundle is available to import seperately in '\
             + helpers.IMPORTDIR + '/puppetforge\n'
-
 
     if args.remove and not delete_override:
         msg = "Removing input files from " + helpers.IMPORTDIR
@@ -509,20 +505,18 @@ def main(args):
             message = "Import of dataset " + dataset + " completed successfully.\n\n \
                 Missing datasets were detected during the import - please check the logs\n\n" + output
             subject = "Satellite 6 import completed: Missing datasets"
-
         elif newrepos:
             message = "Import of dataset " + dataset + " completed successfully.\n\n \
                 New repos found that need to be imported manually - please check the logs \n\n" + output
             subject = "Satellite 6 import completed: New repos require manual intervention"
-
         else:
             message = "Import of dataset " + dataset + " completed successfully\n\n" + output
             subject = "Satellite 6 import completed"
-
         helpers.mailout(subject, message)
 
     # And exit.
     sys.exit(excode)
+
 
 if __name__ == "__main__":
     try:

@@ -6,10 +6,8 @@
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
-"""
-Promotes Content Views from the previous lifecycle environment.
+"""Promote Content Views from the previous lifecycle environment."""
 
-"""
 #pylint: disable-msg=R0912,R0913,R0914,R0915
 
 import sys
@@ -29,7 +27,7 @@ except ImportError:
 
 # Get the details about the environments
 def get_envs(org_id):
-    """Get list of environments for the given org"""
+    """Get list of environments for the given org."""
     envs = helpers.get_json(
         helpers.SAT_API + "organizations/" + str(org_id) + "/environments/")
 
@@ -53,9 +51,9 @@ def get_envs(org_id):
 
 # Get details about Content Views and versions
 def get_cv(org_id, target_env, env_list, prior_list, promote_list):
-    """Get the content views"""
+    """Get the content views and versions."""
     # Find the ID of the environment we are promoting to and from
-    if not target_env in env_list:
+    if target_env not in env_list:
         msg = "Target environment '" + target_env + "' not found"
         helpers.log_msg(msg, 'ERROR')
         if helpers.MAILOUT:
@@ -114,7 +112,7 @@ def get_cv(org_id, target_env, env_list, prior_list, promote_list):
 
 # Promote a content view version
 def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, dry_run, quiet, forcemeta):
-    """Promote Content View"""
+    """Promote Content View version."""
     target_env_id = env_list[target_env]
     source_env_id = prior_list[target_env_id]
 
@@ -190,9 +188,7 @@ def promote(target_env, ver_list, ver_descr, ver_version, env_list, prior_list, 
 
 
 def main(args):
-    """
-    Main routine
-    """
+    """Promote Content Views from the previous lifecycle environment."""
 
     # Who is running this script?
     runuser = helpers.who_is_running()
@@ -233,7 +229,7 @@ def main(args):
     if args.org:
         org_name = args.org
     else:
-       org_name = helpers.ORG_NAME
+        org_name = helpers.ORG_NAME
     target_env = args.env
     dry_run = args.dryrun
 
@@ -307,6 +303,7 @@ def main(args):
 
     # Exit cleanly
     sys.exit(0)
+
 
 if __name__ == "__main__":
     try:
