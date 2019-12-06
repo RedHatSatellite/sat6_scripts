@@ -73,7 +73,7 @@ A YAML based configuration file is in config/config.yml.example
 The example file needs to be copied to config/config.yml and customised as
 required:
 
-```conf
+```yaml
 satellite:
   url: https://sat6.example.org
   username: svc-api-user
