@@ -23,12 +23,13 @@ except ImportError:
     print "Please install the PyYAML module."
     sys.exit(1)
 
+
 # Get details about Content Views and versions
 def get_cv(org_id):
-    """
-    Get the version of the Content Views
+    """Get the version of the Content Views.
+
     There should only ever be ONE version of the Default Org View.
-    It Should be v1.0 with id=1, but we're verifying here just in case.
+    It should be v1.0 with id=1, but we're verifying here just in case.
     """
 
     # Query API to get all content views for our org
@@ -52,10 +53,11 @@ def get_cv(org_id):
             # Return the ID (should be '1') and the label (forms part of the export path name)
             return ver['id'], cv_ver, cv_result['label']
 
+
 # Promote a content view version
 def export_cv(dov_ver, last_export, export_type):
-    """
-    Export Content View
+    """Export Content View.
+
     Takes the content view version and a start time (API 'since' value)
     """
     if export_type == 'full':
@@ -108,8 +110,8 @@ def export_cv(dov_ver, last_export, export_type):
 
 
 def export_repo(repo_id, last_export, export_type):
-    """
-    Export individual repository
+    """Export individual repository.
+
     Takes the repository id and a start time (API 'since' value)
     """
     if export_type == 'full':
@@ -162,8 +164,8 @@ def export_repo(repo_id, last_export, export_type):
 
 
 def export_iso(repo_id, repo_path, repo_label, repo_relative, last_export, export_type, satver):
-    """
-    Export iso repository
+    """Export iso repository.
+    
     Takes the repository id and a start time (find newer than value)
     """
     numfiles = 0
@@ -203,7 +205,6 @@ def export_iso(repo_id, repo_path, repo_label, repo_relative, last_export, expor
         os.system('find -L /var/lib/pulp/published/http/isos/*' + repo_path \
             + ' -name PULP_MANIFEST -exec cp --parents -Lrp {} ' + ISOEXPORTDIR + ' \;')
 
-
     # At this point the iso/ export dir will contain individual repos - we need to 'normalise' them
     if satver == '6.2':
         for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
@@ -228,7 +229,7 @@ def export_iso(repo_id, repo_path, repo_label, repo_relative, last_export, expor
                         print helpers.GREEN + msg + helpers.ENDC
 
     else:
-    #  Satellite 6.3 changed the published file structure
+        # Satellite 6.3 changed the published file structure
         for dirpath, subdirs, files in os.walk(ISOEXPORTDIR):
             if repo_relative in dirpath:
                 INDIR = dirpath
@@ -250,9 +251,9 @@ def export_iso(repo_id, repo_path, repo_label, repo_relative, last_export, expor
 
 
 def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, pforge):
-    """
-    Export Puppet modules
-    Takes the type (full/incr) and the date of the last run
+    """Export Puppet modules.
+
+    Takes the type (full/incr) and the date of the last run.
     """
     numfiles = 0
     PUPEXPORTDIR = helpers.EXPORTDIR + '/puppet'
@@ -327,9 +328,7 @@ def export_puppet(repo_id, repo_label, repo_relative, last_export, export_type, 
 
 
 def export_manifest():
-    """
-    Copies manifest downloaded by 'download_manifest.py' into the export bundle
-    """
+    """Copy manifest downloaded by 'download_manifest.py' into the export bundle."""
     if os.path.exists(helpers.EXPORTDIR + '/manifest'):
         msg = 'Found manifest to export'
         helpers.log_msg(msg, 'DEBUG')
@@ -340,9 +339,7 @@ def export_manifest():
 
 
 def count_packages(repo_id):
-    """
-    Return the number of packages/erratum in a respository
-    """
+    """Return the number of packages/erratum in a respository."""
     result = helpers.get_json(
         helpers.KATELLO_API + "repositories/" + str(repo_id)
             )
@@ -354,8 +351,8 @@ def count_packages(repo_id):
 
 
 def check_running_tasks(label, name):
-    """
-    Check for any currently running Sync or Export tasks
+    """Check for any currently running Sync or Export tasks.
+
     Exits script if any Synchronize or Export tasks are found in a running state.
     """
     #pylint: disable-msg=R0912,R0914,R0915
@@ -415,8 +412,8 @@ def check_running_tasks(label, name):
 
 
 def check_incomplete_sync():
-    """
-    Check for any sync tasks that are in an Incomplete state.
+    """Check for any sync tasks that are in an Incomplete state.
+
     These are not paused or locked, but are the orange 100% complete ones in the UI
     """
     repo_list = helpers.get_json(
@@ -461,8 +458,8 @@ def check_incomplete_sync():
 
 
 def check_disk_space(export_type,unattended):
-    """
-    Check the disk usage of the pulp partition
+    """Check the disk usage of the pulp partition.
+
     For a full export we need at least 50% free, as we spool to /var/lib/pulp.
     """
     pulp_used = str(helpers.disk_usage('/var/lib/pulp'))
@@ -485,7 +482,7 @@ def check_disk_space(export_type,unattended):
 
 
 def locate(pattern, root=os.curdir):
-    """Provides simple 'locate' functionality for file search"""
+    """Provide simple 'locate' functionality for file search."""
     # pylint: disable=unused-variable
     for path, dirs, files in os.walk(os.path.abspath(root)):
         for filename in fnmatch.filter(files, pattern):
@@ -493,9 +490,7 @@ def locate(pattern, root=os.curdir):
 
 
 def do_gpg_check(export_dir):
-    """
-    Find and GPG Check all RPM files
-    """
+    """Find and GPG Check all RPM files."""
     msg = "Checking GPG integrity of exported RPMs..."
     helpers.log_msg(msg, 'INFO')
     output = "{:<70}".format(msg)
@@ -538,8 +533,8 @@ def do_gpg_check(export_dir):
 
 
 def create_tar(export_dir, name, export_history, splitsize):
-    """
-    Create a TAR of the content we have exported
+    """Create a TAR of the content we have exported.
+
     Creates a single tar, then splits into DVD size chunks and calculates
     sha256sum for each chunk.
     """
@@ -594,8 +589,8 @@ def create_tar(export_dir, name, export_history, splitsize):
 
 
 def prep_export_tree(org_label, basepaths):
-    """
-    Function to combine individual export directories into single export tree
+    """Combine individual export directories into single export tree.
+
     Export top level contains /content and /custom directories with 'listing'
     files through the tree.
     """
@@ -622,7 +617,7 @@ def prep_export_tree(org_label, basepaths):
     print msg
     create_listing_file(helpers.EXPORTDIR + "/export")
 
-    # pylint: disable=unused-variable
+    # s: disable=unused-variable
     for root, directories, filenames in os.walk(helpers.EXPORTDIR + "/export"):
         for subdir in directories:
             currentdir = os.path.join(root, subdir)
@@ -630,14 +625,12 @@ def prep_export_tree(org_label, basepaths):
 
 
 def get_immediate_subdirectories(a_dir):
-    """ Return a list of subdirectories """
+    """Return a list of subdirectories."""
     return [name for name in os.listdir(a_dir) if os.path.isdir(os.path.join(a_dir, name))]
 
 
 def create_listing_file(directory):
-    """
-    Function to create the listing file containing the subdirectories
-    """
+    """Create the listing file containing the subdirectories."""
     listing_file = open(directory + "/listing", "w")
     sorted_subdirs = sorted(get_immediate_subdirectories(directory))
     for directory in sorted_subdirs:
@@ -646,9 +639,7 @@ def create_listing_file(directory):
 
 
 def read_pickle(name):
-    """
-    Function to read the last export dates from an existing pickle
-    """
+    """Read the last export dates from an existing pickle."""
     if not os.path.exists(vardir + '/exports_' + name + '.pkl'):
         if not os.path.exists(vardir):
             os.makedirs(vardir)
@@ -661,9 +652,7 @@ def read_pickle(name):
 
 
 def get_product(org_id, cp_id):
-    """
-    Find and return the label of the given product ID
-    """
+    """Find and return the label of the given product ID."""
     prod_list = helpers.get_p_json(
         helpers.KATELLO_API + "/products/", \
                 json.dumps(

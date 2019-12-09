@@ -7,7 +7,7 @@
 #license         :GPLv3
 #==============================================================================
 
-"""Functions common to various Satellite 6 scripts"""
+"""Functions common to various Satellite 6 scripts."""
 
 import sys, os, time, datetime, argparse
 import logging, tempfile
@@ -31,7 +31,11 @@ except ImportError:
 # Import the site-specific configs
 dir = os.path.dirname(__file__)
 filename = os.path.join(dir, 'config/config.yml')
-CONFIG = yaml.safe_load(open(filename, 'r'))
+try:
+    CONFIG = yaml.safe_load(open(filename, 'r'))
+except IOError:
+    print "Please create a config file at %s." % filename
+    sys.exit(1)
 
 # Read in the config parameters
 URL = CONFIG['satellite']['url']
@@ -110,8 +114,9 @@ UNDERLINE = '\033[4m'
 MAILSUBJ_FI = "Satellite 6 import failure"
 MAILSUBJ_FP = "Satellite 6 publish/promote failure"
 
+
 def who_is_running():
-    """ Return the OS user that is running the script """
+    """Return the OS user that is running the script."""
     # Who is running this script?
     if os.environ.get('SUDO_USER'):
         runuser = str(os.environ.get('SUDO_USER'))
@@ -122,19 +127,16 @@ def who_is_running():
 
 # Define the GET and POST methods
 def get_json(location):
-    """
-    Performs a GET using the passed URL location
-    """
+    """Performs a GET using the passed URL location."""
     result = requests.get(
         location,
         auth=(USERNAME, PASSWORD),
         verify=True)
     return result.json()
 
+
 def get_p_json(location, json_data):
-    """
-    Performs a GET with input data to the URL location
-    """
+    """Performs a GET with input data to the URL location."""
     result = requests.get(
         location,
         data=json_data,
@@ -143,10 +145,9 @@ def get_p_json(location, json_data):
         headers=POST_HEADERS)
     return result.json()
 
+
 def put_json(location, json_data):
-    """
-    Performs a PUT and passes the data to the URL location
-    """
+    """Performs a PUT and passes the data to the URL location."""
     result = requests.put(
         location,
         data=json_data,
@@ -155,10 +156,9 @@ def put_json(location, json_data):
         headers=POST_HEADERS)
     return result.json()
 
+
 def post_json(location, json_data):
-    """
-    Performs a POST and passes the data to the URL location
-    """
+    """Performs a POST and passes the data to the URL location."""
     result = requests.post(
         location,
         data=json_data,
@@ -169,9 +169,7 @@ def post_json(location, json_data):
 
 
 def valid_date(indate):
-    """
-    Check date format is valid
-    """
+    """Check date format is valid."""
     try:
         return datetime.datetime.strptime(indate, "%Y-%m-%d %H:%M:%S")
     except ValueError:
@@ -180,9 +178,7 @@ def valid_date(indate):
 
 
 def sha256sum(filename):
-    """
-    Perform sha256sum of given file
-    """
+    """Perform sha256sum of given file."""
     f_name = open(filename, 'rb')
     shasum = (sha256(f_name.read()).hexdigest(), filename)
     return shasum
@@ -201,9 +197,7 @@ def disk_usage(path):
 
 
 def get_org_id(org_name):
-    """
-    Return the Organisation ID for a given Org Name
-    """
+    """Return the Organisation ID for a given Org Name."""
     # Check if our organization exists, and extract its ID
     org = get_json(SAT_API + "organizations/" + org_name)
     # If the requested organization is not found, exit
@@ -219,10 +213,9 @@ def get_org_id(org_name):
 
     return org_id
 
+
 def get_org_label(org_name):
-    """
-    Return the Organisation label for a given Org Name
-    """
+    """Return the Organisation label for a given Org Name."""
     # Check if our organization exists, and extract its label
     org = get_json(SAT_API + "organizations/" + org_name)
     # If the requested organization is not found, exit
@@ -240,6 +233,12 @@ def get_org_label(org_name):
 
 
 class ProgressBar:
+    """A progress bar representing percent complete.
+    
+    Progress Bar overwrites the `__str__` function to return a text
+    bar representing percentage of time elapsed.
+    """
+
     def __init__(self, duration):
         self.duration = duration
         self.prog_bar = '[]'
@@ -248,6 +247,7 @@ class ProgressBar:
         self.__update_amount(0)
 
     def animate(self):
+        """Animate the progress bar for the duration set."""
         for i in range(self.duration):
             if sys.platform.lower().startswith('win'):
                 print self, '\r',
@@ -258,6 +258,7 @@ class ProgressBar:
         print self
 
     def update_time(self, elapsed_pct):
+        """Update the progress bar to the new amount of time completed."""
         self.__update_amount((elapsed_pct / float(self.duration)) * 100.0)
         self.prog_bar += '  %d%%' % (elapsed_pct)
 
@@ -272,8 +273,8 @@ class ProgressBar:
 
 
 def wait_for_task(task_id, label):
-    """
-    Wait for the given task ID to complete
+    """Wait for the given task ID to complete.
+
     This displays a message without CR/LF waiting for an OK/FAIL status to be shown
     """
     msg = "  Waiting for " + label + " to complete..."
@@ -294,7 +295,7 @@ def wait_for_task(task_id, label):
 
 
 def get_task_status(task_id):
-    """Check of the status of the given task ID"""
+    """Check of the status of the given task ID."""
     info = get_json(FOREMAN_API + "tasks/" + str(task_id))
     if info['state'] != 'running':
         error_info = info['humanized']['errors']
@@ -306,8 +307,8 @@ def get_task_status(task_id):
 
 # Get details about Content Views and versions
 def watch_tasks(task_list, ref_list, task_name, quiet):
-    """
-    Watch the status of tasks provided in taskList.
+    """Watch the status of tasks provided in taskList.
+
     Loops until all tasks in the list have completed.
     """
 
@@ -380,8 +381,8 @@ def watch_tasks(task_list, ref_list, task_name, quiet):
 
 
 def check_running_sync():
-    """
-    Check for any currently running Sync tasks
+    """Check for any currently running Sync tasks.
+
     Exits script if any Synchronize or Export tasks are found in a running state.
     """
     tasks = get_json(
@@ -403,8 +404,8 @@ def check_running_sync():
 
 
 def check_running_publish(cvid, desc):
-    """
-    Check for any currently running Promotion/Publication tasks
+    """Check for any currently running Promotion/Publication tasks.
+
     Exits script if any Publish/Promote tasks are found in a running state.
     """
     #pylint: disable-msg=R0912,R0914,R0915
@@ -476,10 +477,8 @@ def check_running_publish(cvid, desc):
                     return locked
 
 
-
 def query_yes_no(question, default="yes"):
-    """
-    Ask a yes/no question via raw_input() and return their answer.
+    """Ask a yes/no question via raw_input() and return their answer.
 
     'question' is a string that is presented to the user.
     'default' is the presumed answer if the user just hits <Enter>.
@@ -512,8 +511,8 @@ def query_yes_no(question, default="yes"):
 
 
 def mailout(subject, message):
-    """
-    Function to handle simple SMTP mailouts for alerting.
+    """Function to handle simple SMTP mailouts for alerting.
+
     Assumes localhost is configured for SMTP forwarding (postfix)
     """
     sender = MAILFROM
@@ -525,7 +524,7 @@ def mailout(subject, message):
     smtpObj.sendmail(sender, receivers, body)
 
 
-#-----------------------
+# -----------------------
 # Configure logging
 if not os.path.exists(LOGDIR):
     print "Creating log directory"
@@ -545,6 +544,7 @@ logging.getLogger("urllib3").setLevel(logging.WARNING)
 
 # Open a temp file to hold the email output
 tf = tempfile.NamedTemporaryFile()
+
 
 def log_msg(msg, level):
     """Write message to logfile"""

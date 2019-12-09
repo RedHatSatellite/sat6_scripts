@@ -1,5 +1,7 @@
 #!/usr/bin/env python
 
+"""Perform import/publish/promote/cleanup on scheduled days."""
+
 import sys, os, glob
 import subprocess
 import argparse
@@ -8,6 +10,16 @@ import helpers
 
 
 def dates():
+    """Return a tuple of day in week and in month, and 
+    Returns
+    -------
+    int
+        day of week (0=Mon, 6=Sun)
+    int
+        week of month
+    dict
+        dictionary mapping 'human readable' days to their numeric value
+    """
     # What day is it?  (0=Mon -> 6=Sun)
     dayofweek = datetime.datetime.today().weekday()
 
@@ -16,13 +28,14 @@ def dates():
 
     print "Day %s of week %s" % (dayofweek, weekofmonth)
 
-    # Define dictionary mapping 'human readable' days to thier numeric value
-    days = {'Mon' : 0, 'Tue' : 1, 'Wed' : 2, 'Thu' : 3, 'Fri' : 4, 'Sat' : 5, 'Sun' : 6}
+    # Define dictionary mapping 'human readable' days to their numeric value
+    days = {'Mon': 0, 'Tue': 1, 'Wed': 2, 'Thu': 3, 'Fri': 4, 'Sat': 5, 'Sun': 6}
 
-    return(dayofweek,weekofmonth,days)
+    return (dayofweek, weekofmonth, days)
 
 
-def run_imports(dryrun,dayofweek,days):
+def run_imports(dryrun, dayofweek, days):
+    """Run imports of satellite content."""
     # If we are on an internet connected satellite, there will never be anything to import
     # In this case, we'll run the publish on Tuesday
     if helpers.DISCONNECTED == False:
@@ -73,6 +86,7 @@ def run_imports(dryrun,dayofweek,days):
 
 
 def publish_cv(dryrun):
+    """Run the script to publish content views."""
     print "Running Content View Publish..."
 
     # Set the initial state
@@ -92,6 +106,7 @@ def publish_cv(dryrun):
 
 
 def promote_cv(dryrun, lifecycle):
+    """Run script to promote content view to specified lifecycle."""
     print "Running Content View Promotion to " + lifecycle + "..."
 
     # Set the initial state
@@ -111,9 +126,9 @@ def promote_cv(dryrun, lifecycle):
 
 
 def push_puppet(dryrun):
-    """
-    Performs a push of puppet modules using the DEFAULT puppet-forge-server defined in the
-    config.yml
+    """Perform a push of puppet modules.
+    
+    This uses the DEFAULT puppet-forge-server defined in config.yml
     """
     print "Pushing puppet modules to puppet-forge server..."
 
@@ -135,6 +150,7 @@ def push_puppet(dryrun):
 
 
 def clean_cv(dryrun):
+    """Run the script to clean content views."""
     print "Running Content View Cleanup..."
 
     if not dryrun:
@@ -146,9 +162,7 @@ def clean_cv(dryrun):
 
 
 def main(args):
-    """
-    Performs import/publish/promote/cleanup on scheduled days
-    """
+    """Perform import/publish/promote/cleanup on scheduled days."""
 
     # Check for sane input
     parser = argparse.ArgumentParser(
@@ -172,7 +186,6 @@ def main(args):
     # Determine the day of week and week of month for use in our scheduling
     (dayofweek, weekofmonth, days) = dates()
 
-
     # MONDAYS
     # Run promotion first - this ensures content consistency (QA->Prod, Library->QA)
     if dayofweek == days['Mon']:
@@ -184,12 +197,11 @@ def main(args):
             if run_promote:
                 run_promote = promote_cv(dryrun, 'Quality')
 
-
     # EVERY DAY
     # Check if there are any imports in our input dir and import them.
     # run_publish will be returned as 'True' if any successful imports were performed.
     # If no imports are performed, or they fail, publish can't be triggered.
-    run_publish = run_imports(dryrun,dayofweek,days)
+    run_publish = run_imports(dryrun, dayofweek, days)
 
     # If the imports succeeded, we can go ahead and publish the new content to Library
     if run_publish:
@@ -197,7 +209,6 @@ def main(args):
         # Push any new puppet-forge modules if we have requested that
         if args.puppet:
             push_puppet(dryrun)
-
 
     # THURSDAYS
     # Run content view cleanup once a month, after we have done all promotions for the month.

@@ -6,10 +6,7 @@
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
-"""
-Publishes new content view versions to the Library
-
-"""
+"""Publishes new content view versions to the Library."""
 #pylint: disable-msg=R0912,R0913,R0914,R0915
 
 import sys
@@ -22,7 +19,7 @@ import helpers
 
 
 def get_cv(org_id, publish_list):
-    """Get the content views"""
+    """Get the content views."""
 
     # Query API to get all content views for our org
     cvs = helpers.get_json(
@@ -54,7 +51,7 @@ def get_cv(org_id, publish_list):
 
 
 def publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, quiet, forcemeta):
-    """Publish Content View"""
+    """Publish Content View."""
 
     # Set the task name to be displayed in the task monitoring stage
     task_name = "Publish content view to Library"
@@ -124,9 +121,7 @@ def publish(ver_list, ver_descr, ver_version, dry_run, runuser, description, qui
 
 
 def main(args):
-    """
-    Main routine
-    """
+    """Promote Content Views from the previous lifecycle environment."""
 
     # Who is running this script?
     runuser = helpers.who_is_running()
@@ -195,7 +190,6 @@ def main(args):
             print 'No promotions recorded'
         sys.exit(0)
 
-
     publish_list = []
     if not args.all:
         publish_list = helpers.CONFIG['publish']['content_views']
@@ -236,6 +230,7 @@ def main(args):
 
     # Exit cleanly
     sys.exit(0)
+
 
 if __name__ == "__main__":
     try:

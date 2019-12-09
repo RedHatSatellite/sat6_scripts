@@ -27,7 +27,9 @@ Throughout these scripts the following references are used:
 
 * Satellite >= 6.2.9
 * Python = 2.7
-* PyYAML
+* PyYAML (python2-pyyaml)
+* Simplejson (python2-simplejson)
+* requests (python2-requests)
 
 The Export and Import scripts are intended to be run on the Satellite servers directly.
 
@@ -71,7 +73,7 @@ A YAML based configuration file is in config/config.yml.example
 The example file needs to be copied to config/config.yml and customised as
 required:
 
-```conf
+```yaml
 satellite:
   url: https://sat6.example.org
   username: svc-api-user
@@ -324,7 +326,7 @@ perform a special export of puppetforge modules from the Satellite puppet-forge
 repository (-r) in the directory structure required by the puppet-forge-server
 application. After exporting, the modules are copied to the puppet-forge-server. The format
 of the export is controlled with the type (-t) flag, as either 'puppet-forge-server' for the
-rubygem based server, or 'artifiactory' for JFrog Artifiactory puppet server format.
+rubygem based server, or 'artifactory' for JFrog Artifactory puppet server format.
 The puppet-forge-server hostname can be defined in the config.yml, or overridden with
 (-s), as can the module path (-m) on the remote server (default is /opt/puppet-forge/modules).
 The user performing the rsync will be the user that is running the script, unless
@@ -352,7 +354,7 @@ optional arguments:
   -h, --help            show this help message and exit
   -o ORG, --org ORG     Organization (Uses default if not specified)
   -r REPO, --repo REPO  Puppetforge repository label
-  -t TYPE, --type TYPE  Puppetforge server type (puppet-forge-server|artifiactory)
+  -t TYPE, --type TYPE  Puppetforge server type (puppet-forge-server|artifactory)
   -s SERVER, --server SERVER   
                         puppet-forge-server hostname
   -m MODULEPATH, --modulepath MODULEPATH
@@ -368,7 +370,7 @@ optional arguments:
 ```bash
 ./push_puppetforge.py -r Puppet_Forge  
 ./push_puppetforge.py -r Puppet_Forge -u fred  
-./push_puppetforge.py -r Puppet_Forge -s test.example.org -m /opt/tmp -t artifiactory
+./push_puppetforge.py -r Puppet_Forge -s test.example.org -m /opt/tmp -t artifactory
 ```
 
 ### clean_content_views

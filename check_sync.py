@@ -6,8 +6,8 @@
 #notes           :This script is NOT SUPPORTED by Red Hat Global Support Services.
 #license         :GPLv3
 #==============================================================================
-"""
-Checks the status of Sync tasks.
+"""Check the status of Sync tasks.
+
 Draws the users attention to problems in the sync tasks that could lead to
 inconsistent repository states.
 
@@ -21,8 +21,8 @@ import helpers
 
 
 def check_running_tasks(clear):
-    """
-    Check for any currently running Sync tasks
+    """Check for any currently running Sync tasks.
+
     Checks for any Synchronize tasks in running/paused or Incomplete state.
     """
     #pylint: disable-msg=R0912,R0914,R0915
@@ -32,12 +32,13 @@ def check_running_tasks(clear):
 
     print helpers.HEADER + "Checking for running/paused yum sync tasks..." + helpers.ENDC
     tasks = helpers.get_p_json(
-        helpers.FOREMAN_API + "tasks/", \
-            json.dumps(
-                {
-                    "per_page": "100",
-                }
-            ))
+        helpers.FOREMAN_API + "tasks/",
+        json.dumps(
+            {
+                "per_page": "100",
+            }
+            )
+        )
 
     # From the list of tasks, look for any running export or sync jobs.
     # If e have any we exit, as we can't export in this state.
@@ -56,7 +57,6 @@ def check_running_tasks(clear):
 
     if not running_sync:
         print helpers.GREEN + "None detected" + helpers.ENDC
-
 
     # Check any repos marked as Sync Incomplete
     print helpers.HEADER + "\nChecking for incomplete (stopped) yum sync tasks..." + helpers.ENDC
@@ -85,7 +85,7 @@ def check_running_tasks(clear):
                         helpers.log_msg(msg, 'DEBUG')
 
     # If we have detected incomplete sync tasks, ask the user if they want to export anyway.
-    # This isn't fatal, but *MAY* lead to inconsistent repositories on the dieconnected sat.
+    # This isn't fatal, but *MAY* lead to inconsistent repositories on the disconnected sat.
     if not incomplete_sync:
         print helpers.GREEN + "No incomplete syncs detected\n" + helpers.ENDC
     else:
@@ -97,9 +97,7 @@ def check_running_tasks(clear):
 
 
 def main(args):
-    """
-    Main Routine
-    """
+    """Check the status of Sync tasks."""
     #pylint: disable-msg=R0914,R0915
 
     parser = argparse.ArgumentParser(description='Checks status of yum repository sync tasks.')
@@ -119,12 +117,12 @@ def main(args):
                 time.sleep(5)
         except KeyboardInterrupt:
             print "End"
-
     else:
         clear = False
         check_running_tasks(clear)
 
     sys.exit(0)
+
 
 if __name__ == "__main__":
     try:
@@ -132,4 +130,3 @@ if __name__ == "__main__":
     except KeyboardInterrupt, e:
         print >> sys.stderr, ("\n\nExiting on user cancel.")
         sys.exit(1)
-
