@@ -317,10 +317,10 @@ def watch_tasks(task_list, ref_list, task_name, quiet):
         pending_list[task_id] = "true"
 
     # Loop through each task and check current status
-    do_loop = 1
+    do_loop = True
     sleep_time = 10
     failure = False
-    while do_loop == 1:
+    while do_loop:
         if len(task_list) >= 1:
             # Don't render progress bars if in quiet mode
             if not quiet:
@@ -360,14 +360,14 @@ def watch_tasks(task_list, ref_list, task_name, quiet):
                         pending_list[task_id] = "false"
                 else:
                     # All tasks are complete - end the loop
-                    do_loop = 0
+                    do_loop = False
                     sleep_time = 0
                     continue
 
             # Sleep for 10 seconds between checks
             time.sleep(sleep_time)
         else:
-            do_loop = 0
+            do_loop = False
             print "ERROR (watchTasks): no tasks passed to us"
 
     # All tasks are complete if we get here.
