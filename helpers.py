@@ -238,6 +238,28 @@ def get_org_label(org_name):
 
     return org_label
 
+def version_tuple(version):
+    """
+    Parse a version string into a tuple for comparison
+
+    A version string is dot (.) separated.
+
+    version_tuple by Phaxmohdem is licensed under CC BY-SA 3.0
+    https://stackoverflow.com/a/28568003/813821
+    https://creativecommons.org/licenses/by-sa/3.0/
+    """
+    filled = []
+    for point in version.split("."):
+        filled.append(point.zfill(8))
+        return tuple(filled)
+
+def get_katello_version():
+    """
+    Return the Katello version
+    """
+    status = get_json(SAT_API + 'status/')
+    return status['version']
+
 
 class ProgressBar:
     def __init__(self, duration):
