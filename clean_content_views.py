@@ -88,10 +88,18 @@ def check_version_views(version_id):
     viewlist = helpers.get_json(
         helpers.KATELLO_API + "content_view_versions/" + str(version_id))
 
+    # Set the key based on the Katello version
+    katello_ver = helpers.get_katello_version()
+    if helpers.version_tuple(katello_ver) >= helpers.version_tuple('3.10'):
+        # Satellite 6.5 has Katello 3.10
+        cv_key = 'environments'
+    else:
+        cv_key = 'katello_content_views'
+
     # If the list is not empty we need to return this fact. A CV that belongs
     # to NO versions will be a candidate for cleanup.
     viewlist['composite_content_view_ids']
-    if viewlist['katello_content_views']:
+    if viewlist[cv_key]:
         version_in_use = True
         msg = "Version " + str(viewlist['version']) + " is associated with published CV"
         helpers.log_msg(msg, 'DEBUG')
